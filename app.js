@@ -113,6 +113,7 @@ let recordingChunks = [];
 let mediaRecorder = null;
 let recordingStream = null;
 let activeAudioElement = null;
+let isCommunicationAudioPlaying = false;
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -1279,6 +1280,7 @@ const stopCommunicationAudio = () => {
         activeAudioElement.currentTime = 0;
         activeAudioElement = null;
     }
+    isCommunicationAudioPlaying = false;
 };
 
 const playAudioData = (audioData) => {
@@ -1286,12 +1288,21 @@ const playAudioData = (audioData) => {
         alert('Please record yourself saying this phrase first.');
         return;
     }
+    if (isCommunicationAudioPlaying) {
+        return;
+    }
     stopCommunicationAudio();
+    isCommunicationAudioPlaying = true;
     activeAudioElement = new Audio(audioData);
     activeAudioElement.onended = () => {
         activeAudioElement = null;
+        isCommunicationAudioPlaying = false;
+    };
+    activeAudioElement.onerror = () => {
+        isCommunicationAudioPlaying = false;
     };
     activeAudioElement.play().catch(() => {
+        isCommunicationAudioPlaying = false;
         alert('Unable to play your recording. Please try re-recording.');
     });
 };
