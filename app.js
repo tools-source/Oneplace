@@ -2,7 +2,9 @@
 const descriptionInput = document.getElementById('description');
 const amountInput = document.getElementById('amount');
 const categorySelect = document.getElementById('category');
+const urgencySelect = document.getElementById('urgency');
 const categoryFilter = document.getElementById('category-filter');
+const urgencyFilter = document.getElementById('urgency-filter');
 const addTransactionButton = document.getElementById('add-transaction');
 const saveTransactionButton = document.getElementById('save-transaction');
 const balanceElement = document.getElementById('balance');
@@ -138,6 +140,17 @@ const CATEGORY_LOOKUP = CATEGORY_CONFIG.reduce((acc, category) => {
     return acc;
 }, {});
 
+const URGENCY_OPTIONS = [
+    { value: 'urgent', label: 'Urgent', badgeClass: 'bg-danger' },
+    { value: 'not-urgent', label: 'Not urgent', badgeClass: 'bg-secondary' },
+    { value: 'later', label: 'Later', badgeClass: 'bg-info' }
+];
+
+const URGENCY_LOOKUP = URGENCY_OPTIONS.reduce((acc, option) => {
+    acc[option.value] = option;
+    return acc;
+}, {});
+
 // Category Management
 const getCategoryColor = (categoryValue) => {
     return CATEGORY_LOOKUP[categoryValue]?.color || '#6c757d';
@@ -148,6 +161,10 @@ const getCategoryName = (categoryValue) => {
 };
 
 const getCategoryConfig = (categoryValue) => CATEGORY_LOOKUP[categoryValue];
+
+const DEFAULT_URGENCY = 'not-urgent';
+const getUrgencyLabel = (urgencyValue) => URGENCY_LOOKUP[urgencyValue]?.label || 'Not urgent';
+const getUrgencyBadgeClass = (urgencyValue) => URGENCY_LOOKUP[urgencyValue]?.badgeClass || 'bg-secondary';
 
 const hexToRgba = (hex, alpha = 1) => {
     if (!hex) return `rgba(0,0,0,${alpha})`;
@@ -162,6 +179,7 @@ const hexToRgba = (hex, alpha = 1) => {
 const DEFAULT_CATEGORY_HINT = 'Choose a category to see smart tips.';
 const DEFAULT_GUIDANCE = 'Picking a category will auto-select the right type.';
 let activeCategoryFilter = categoryFilter?.value || '';
+let activeUrgencyFilter = urgencyFilter?.value || '';
 const TODO_PRIORITY_META = {
     high: { label: 'High', className: 'bg-danger' },
     normal: { label: 'Normal', className: 'bg-secondary' },
@@ -288,11 +306,18 @@ const escapeHtml = (value = '') => value
     .replace(/'/g, '&#039;');
 
 const getFilteredTransactions = () => {
-    if (!activeCategoryFilter) return transactions;
-    return transactions.filter(t => t.category === activeCategoryFilter);
+    return transactions.filter(transaction => {
+        const matchesCategory = !activeCategoryFilter || transaction.category === activeCategoryFilter;
+        const matchesUrgency = !activeUrgencyFilter || transaction.urgency === activeUrgencyFilter;
+        return matchesCategory && matchesUrgency;
+    });
 };
 
 const generateId = () => Date.now() + Math.floor(Math.random() * 1000);
+
+const normalizeUrgencyValue = (value) => (
+    URGENCY_LOOKUP[value] ? value : DEFAULT_URGENCY
+);
 
 const normalizeTransaction = (transaction, index = 0) => {
     const rawAmount = Number(transaction.amount);
@@ -309,6 +334,7 @@ const normalizeTransaction = (transaction, index = 0) => {
         amount: normalizedAmount,
         type,
         category: typeof transaction.category === 'string' ? transaction.category : '',
+        urgency: normalizeUrgencyValue(transaction.urgency),
         date: transaction.date || transaction.dateModified || new Date().toISOString()
     };
 };
@@ -325,8 +351,20 @@ const createDefaultSharedParticipants = () => {
 
 const filterTransactions = () => {
     activeCategoryFilter = categoryFilter.value;
+    activeUrgencyFilter = urgencyFilter?.value || '';
     displayTransactions();
     updateBalance();
+};
+
+const getFilterLabel = () => {
+    const parts = [];
+    if (activeCategoryFilter) {
+        parts.push(getCategoryName(activeCategoryFilter));
+    } else if (activeUrgencyFilter) {
+        parts.push('All categories');
+    }
+    if (activeUrgencyFilter) parts.push(getUrgencyLabel(activeUrgencyFilter));
+    return parts.length ? parts.join(' · ') : 'All categories';
 };
 
 const normalizeTodo = (todo, index = 0) => ({
@@ -853,6 +891,7 @@ function addTransaction(e) {
     const amount = parseFloat(amountInput.value);
     const type = document.querySelector('input[name="transactionType"]:checked').value;
     const category = categorySelect.value;
+    const urgency = normalizeUrgencyValue(urgencySelect?.value);
     
     if (!description) {
         showAlert('Please enter a description', 'warning');
@@ -875,6 +914,7 @@ function addTransaction(e) {
         amount: Math.abs(amount),
         type,
         category,
+        urgency,
         date: new Date().toISOString()
     };
 
@@ -883,6 +923,9 @@ function addTransaction(e) {
 
     descriptionInput.value = '';
     amountInput.value = '';
+    if (urgencySelect) {
+        urgencySelect.value = DEFAULT_URGENCY;
+    }
     document.getElementById('incomeRadio').checked = true;
     setActiveCategory(null);
     editTransactionId = null;
@@ -910,6 +953,8 @@ function createTransactionElement(transaction) {
     const transactionDate = new Date(transaction.date || transaction.dateModified || transaction.id);
     const safeDescription = escapeHtml(transaction.description || '');
     const safeCategoryName = escapeHtml(categoryName);
+    const urgencyLabel = escapeHtml(getUrgencyLabel(transaction.urgency));
+    const urgencyBadgeClass = getUrgencyBadgeClass(transaction.urgency);
 
     li.innerHTML = `
         <div class="transaction-details">
@@ -917,6 +962,7 @@ function createTransactionElement(transaction) {
                 <div class="fw-bold">${safeDescription}</div>
                 <div class="transaction-meta">
                     <span class="category-badge" style="background-color: ${categoryColor}">${safeCategoryName}</span>
+                    <span class="badge rounded-pill ${urgencyBadgeClass}">${urgencyLabel}</span>
                     <span>${transactionDate.toLocaleDateString()}</span>
                 </div>
             </div>
@@ -1033,6 +1079,9 @@ function startEdit(transaction) {
     categorySelect.value = transaction.category;
     setActiveCategory(transaction.category);
     document.querySelector(`input[value="${transaction.type}"]`).checked = true;
+    if (urgencySelect) {
+        urgencySelect.value = normalizeUrgencyValue(transaction.urgency);
+    }
     
     addTransactionButton.style.display = 'none';
     saveTransactionButton.style.display = 'block';
@@ -1051,6 +1100,7 @@ function saveEdit(e) {
     const amount = parseFloat(amountInput.value);
     const type = document.querySelector('input[name="transactionType"]:checked').value;
     const category = categorySelect.value;
+    const urgency = normalizeUrgencyValue(urgencySelect?.value);
 
     if (!description) {
         showAlert('Please enter a description', 'warning');
@@ -1073,6 +1123,7 @@ function saveEdit(e) {
         amount: Math.abs(amount),
         type,
         category,
+        urgency,
         date: new Date().toISOString()
     };
     
@@ -1080,6 +1131,9 @@ function saveEdit(e) {
     
     descriptionInput.value = '';
     amountInput.value = '';
+    if (urgencySelect) {
+        urgencySelect.value = DEFAULT_URGENCY;
+    }
     document.getElementById('incomeRadio').checked = true;
     setActiveCategory(null);
     
@@ -1095,14 +1149,15 @@ function updateBalance() {
     const filteredList = getFilteredTransactions();
     const totalNet = calculateNet(transactions);
     const filteredNet = calculateNet(filteredList);
-    const valueToShow = activeCategoryFilter ? filteredNet : totalNet;
+    const isFiltered = Boolean(activeCategoryFilter || activeUrgencyFilter);
+    const valueToShow = isFiltered ? filteredNet : totalNet;
     
     balanceElement.textContent = formatCurrency(valueToShow);
     balanceElement.className = `balance-display fs-2 fw-bold ${valueToShow >= 0 ? 'positive' : 'negative'}`;
     
     if (balanceScope) {
-        balanceScope.textContent = activeCategoryFilter
-            ? `${getCategoryName(activeCategoryFilter)} · ${formatCurrency(filteredNet)}`
+        balanceScope.textContent = isFiltered
+            ? `${getFilterLabel()} · ${formatCurrency(filteredNet)}`
             : `All categories · ${formatCurrency(totalNet)}`;
     }
     
@@ -1112,7 +1167,7 @@ function updateBalance() {
 
 function updateCategoryBalanceIndicator(list = []) {
     if (!categoryBalanceIndicator) return;
-    const label = activeCategoryFilter ? getCategoryName(activeCategoryFilter) : 'All categories';
+    const label = getFilterLabel();
     const net = calculateNet(list);
     const formatted = formatCurrency(net, { includePlus: true });
     categoryBalanceIndicator.textContent = `${label} · Balance ${formatted}`;
@@ -1170,11 +1225,12 @@ function exportToCSV() {
     }
     
     const csvContent = [
-        ['Date', 'Description', 'Category', 'Type', 'Amount'],
+        ['Date', 'Description', 'Category', 'Urgency', 'Type', 'Amount'],
         ...transactions.map(t => [
             parseTransactionDate(t).toLocaleDateString(),
             t.description,
             getCategoryName(t.category),
+            getUrgencyLabel(t.urgency),
             t.type,
             t.type === 'income' ? Math.abs(t.amount) : -Math.abs(t.amount)
         ])
@@ -1589,8 +1645,15 @@ const resetWorkspaceData = () => {
     if (categoryFilter) {
         categoryFilter.value = '';
     }
+    activeUrgencyFilter = '';
+    if (urgencyFilter) {
+        urgencyFilter.value = '';
+    }
     descriptionInput.value = '';
     amountInput.value = '';
+    if (urgencySelect) {
+        urgencySelect.value = DEFAULT_URGENCY;
+    }
     document.getElementById('incomeRadio').checked = true;
     setActiveCategory(null);
 
@@ -1658,6 +1721,7 @@ historyList.addEventListener('click', (e) => {
 });
 
 categoryFilter.addEventListener('change', filterTransactions);
+urgencyFilter?.addEventListener('change', filterTransactions);
 
 categoryPillGroup?.addEventListener('click', (e) => {
     const pill = e.target.closest('.category-pill');

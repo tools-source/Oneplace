@@ -540,7 +540,8 @@
             color: #6c757d;
         }
 
-        #category-filter {
+        #category-filter,
+        #urgency-filter {
             min-width: 150px;
         }
 
@@ -820,10 +821,17 @@
                 </div>
                 <div class="input-section" id="input-section">
                     <div class="row g-2">
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <input type="text" id="description" class="form-control" placeholder="Description" required>
                         </div>
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-2">
+                            <select id="urgency" class="form-select" aria-label="Urgency">
+                                <option value="urgent">Urgent</option>
+                                <option value="not-urgent" selected>Not urgent</option>
+                                <option value="later">Later</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-2">
                             <input type="number" 
                                    id="amount" 
                                    class="form-control" 
@@ -884,7 +892,15 @@
                 <div class="section-header mb-3">
                     <div>
                         <p class="section-heading">History</p>
-                        <h3 class="section-title">Recent activity</h3>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <h3 class="section-title mb-0">Recent activity</h3>
+                            <select id="urgency-filter" class="form-select form-select-sm">
+                                <option value="">All urgency</option>
+                                <option value="urgent">Urgent</option>
+                                <option value="not-urgent">Not urgent</option>
+                                <option value="later">Later</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
                         <select id="category-filter" class="form-select form-select-sm">
