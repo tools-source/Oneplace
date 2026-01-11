@@ -540,6 +540,11 @@
             color: #6c757d;
         }
 
+        .transaction-meta .urgency-select {
+            width: auto;
+            min-width: 120px;
+        }
+
         #category-filter,
         #urgency-filter {
             min-width: 150px;
@@ -821,15 +826,8 @@
                 </div>
                 <div class="input-section" id="input-section">
                     <div class="row g-2">
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-4">
                             <input type="text" id="description" class="form-control" placeholder="Description" required>
-                        </div>
-                        <div class="col-12 col-md-2">
-                            <select id="urgency" class="form-select" aria-label="Urgency">
-                                <option value="urgent">Urgent</option>
-                                <option value="not-urgent" selected>Not urgent</option>
-                                <option value="later">Later</option>
-                            </select>
                         </div>
                         <div class="col-12 col-md-2">
                             <input type="number" 
@@ -850,7 +848,7 @@
                                 Choose a category to see smart tips.
                             </small>
                         </div>
-                        <div class="col-12 col-md-2">
+                        <div class="col-12 col-md-3">
                             <div class="d-flex gap-3">
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" name="transactionType" id="incomeRadio" value="income" checked>

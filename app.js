@@ -150,6 +150,11 @@ const URGENCY_LOOKUP = URGENCY_OPTIONS.reduce((acc, option) => {
     acc[option.value] = option;
     return acc;
 }, {});
+const URGENCY_SORT_ORDER = {
+    urgent: 0,
+    'not-urgent': 1,
+    later: 2
+};
 
 // Category Management
 const getCategoryColor = (categoryValue) => {
@@ -317,6 +322,10 @@ const generateId = () => Date.now() + Math.floor(Math.random() * 1000);
 
 const normalizeUrgencyValue = (value) => (
     URGENCY_LOOKUP[value] ? value : DEFAULT_URGENCY
+);
+
+const getUrgencySortValue = (urgency) => (
+    URGENCY_SORT_ORDER[normalizeUrgencyValue(urgency)] ?? URGENCY_SORT_ORDER[DEFAULT_URGENCY]
 );
 
 const normalizeTransaction = (transaction, index = 0) => {
@@ -891,7 +900,7 @@ function addTransaction(e) {
     const amount = parseFloat(amountInput.value);
     const type = document.querySelector('input[name="transactionType"]:checked').value;
     const category = categorySelect.value;
-    const urgency = normalizeUrgencyValue(urgencySelect?.value);
+    const urgency = DEFAULT_URGENCY;
     
     if (!description) {
         showAlert('Please enter a description', 'warning');
@@ -923,9 +932,6 @@ function addTransaction(e) {
 
     descriptionInput.value = '';
     amountInput.value = '';
-    if (urgencySelect) {
-        urgencySelect.value = DEFAULT_URGENCY;
-    }
     document.getElementById('incomeRadio').checked = true;
     setActiveCategory(null);
     editTransactionId = null;
@@ -953,8 +959,11 @@ function createTransactionElement(transaction) {
     const transactionDate = new Date(transaction.date || transaction.dateModified || transaction.id);
     const safeDescription = escapeHtml(transaction.description || '');
     const safeCategoryName = escapeHtml(categoryName);
-    const urgencyLabel = escapeHtml(getUrgencyLabel(transaction.urgency));
-    const urgencyBadgeClass = getUrgencyBadgeClass(transaction.urgency);
+    const urgencyOptions = URGENCY_OPTIONS.map(option => `
+                        <option value="${option.value}" ${option.value === transaction.urgency ? 'selected' : ''}>
+                            ${escapeHtml(option.label)}
+                        </option>
+                    `).join('');
 
     li.innerHTML = `
         <div class="transaction-details">
@@ -962,7 +971,9 @@ function createTransactionElement(transaction) {
                 <div class="fw-bold">${safeDescription}</div>
                 <div class="transaction-meta">
                     <span class="category-badge" style="background-color: ${categoryColor}">${safeCategoryName}</span>
-                    <span class="badge rounded-pill ${urgencyBadgeClass}">${urgencyLabel}</span>
+                    <select class="form-select form-select-sm urgency-select" aria-label="Update urgency">
+                        ${urgencyOptions}
+                    </select>
                     <span>${transactionDate.toLocaleDateString()}</span>
                 </div>
             </div>
@@ -1013,7 +1024,11 @@ function displayTransactions(list) {
                 historyList.appendChild(header);
                 
                 group.items
-                    .sort((a, b) => parseTransactionDate(b) - parseTransactionDate(a))
+                    .sort((a, b) => {
+                        const urgencyDiff = getUrgencySortValue(a.urgency) - getUrgencySortValue(b.urgency);
+                        if (urgencyDiff !== 0) return urgencyDiff;
+                        return parseTransactionDate(b) - parseTransactionDate(a);
+                    })
                     .forEach(transaction => {
                         const element = createTransactionElement(transaction);
                         historyList.appendChild(element);
@@ -1073,6 +1088,15 @@ function saveTransactions() {
     safeStorage.set('transactions', JSON.stringify(transactions));
 }
 
+function updateTransactionUrgency(id, value) {
+    const transaction = transactions.find(item => item.id === id);
+    if (!transaction) return;
+    transaction.urgency = normalizeUrgencyValue(value);
+    saveTransactions();
+    displayTransactions();
+    updateBalance();
+}
+
 function startEdit(transaction) {
     descriptionInput.value = transaction.description;
     amountInput.value = Math.abs(transaction.amount);
@@ -1100,7 +1124,7 @@ function saveEdit(e) {
     const amount = parseFloat(amountInput.value);
     const type = document.querySelector('input[name="transactionType"]:checked').value;
     const category = categorySelect.value;
-    const urgency = normalizeUrgencyValue(urgencySelect?.value);
+    const urgency = normalizeUrgencyValue(transactions[transactionIndex].urgency);
 
     if (!description) {
         showAlert('Please enter a description', 'warning');
@@ -1131,9 +1155,6 @@ function saveEdit(e) {
     
     descriptionInput.value = '';
     amountInput.value = '';
-    if (urgencySelect) {
-        urgencySelect.value = DEFAULT_URGENCY;
-    }
     document.getElementById('incomeRadio').checked = true;
     setActiveCategory(null);
     
@@ -1718,6 +1739,14 @@ historyList.addEventListener('click', (e) => {
         const transaction = transactions.find(t => t.id === parseInt(listItem.dataset.id));
         if (transaction) startEdit(transaction);
     }
+});
+
+historyList.addEventListener('change', (e) => {
+    const select = e.target.closest('.urgency-select');
+    if (!select) return;
+    const listItem = select.closest('.list-group-item');
+    if (!listItem) return;
+    updateTransactionUrgency(parseInt(listItem.dataset.id), select.value);
 });
 
 categoryFilter.addEventListener('change', filterTransactions);
