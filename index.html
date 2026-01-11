@@ -374,14 +374,18 @@
                 flex-direction: column;
                 align-items: stretch;
             }
-            .history-filters {
+            .history-actions {
                 width: 100%;
                 justify-content: space-between;
-                align-items: flex-start;
-                gap: 0.75rem;
+            }
+            .history-filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .history-filter-group {
+                width: 100%;
             }
             #category-balance-indicator {
-                flex-basis: 100%;
                 text-align: left !important;
             }
             .transaction-actions {
@@ -578,9 +582,32 @@
             flex-wrap: wrap;
         }
 
-        .history-filters {
+        .history-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .history-filter-bar {
+            display: flex;
             flex-wrap: wrap;
-            justify-content: flex-end;
+            gap: 1rem;
+            align-items: flex-end;
+            margin-bottom: 1.25rem;
+        }
+
+        .history-filter-group {
+            min-width: 180px;
+            flex: 1;
+        }
+
+        .history-filter-label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
         }
 
         #category-filter,
@@ -928,17 +955,29 @@
                 <div class="section-header mb-3 history-header">
                     <div>
                         <p class="section-heading">History</p>
-                        <div class="d-flex flex-wrap align-items-center gap-2">
-                            <h3 class="section-title mb-0">Recent activity</h3>
-                            <select id="urgency-filter" class="form-select form-select-sm">
-                                <option value="">All urgency</option>
-                                <option value="urgent">Urgent</option>
-                                <option value="not-urgent">Not urgent</option>
-                                <option value="later">Later</option>
-                            </select>
-                        </div>
+                        <h3 class="section-title mb-0">Recent activity</h3>
                     </div>
-                    <div class="d-flex gap-2 align-items-center history-filters">
+                    <div class="history-actions">
+                        <div class="text-muted small text-end" id="category-balance-indicator">
+                            All categories · Balance $0.00
+                        </div>
+                        <button id="toggle-history" class="btn btn-info btn-sm">
+                            <i class="bi bi-chevron-down"></i> Show
+                        </button>
+                    </div>
+                </div>
+                <div class="history-filter-bar">
+                    <div class="history-filter-group">
+                        <label class="history-filter-label" for="urgency-filter">Urgency</label>
+                        <select id="urgency-filter" class="form-select form-select-sm">
+                            <option value="">All urgency</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="not-urgent">Not urgent</option>
+                            <option value="later">Later</option>
+                        </select>
+                    </div>
+                    <div class="history-filter-group">
+                        <label class="history-filter-label" for="category-filter">Category</label>
                         <select id="category-filter" class="form-select form-select-sm">
                             <option value="">All Categories</option>
                             <optgroup label="Income">
@@ -958,12 +997,6 @@
                                 <option value="other-expense">Other Expense</option>
                             </optgroup>
                         </select>
-                        <div class="text-muted small text-end" id="category-balance-indicator">
-                            All categories · Balance $0.00
-                        </div>
-                        <button id="toggle-history" class="btn btn-info btn-sm">
-                            <i class="bi bi-chevron-down"></i> Show
-                        </button>
                     </div>
                 </div>
                 <div class="history-section" id="history-section" style="display: none;">
