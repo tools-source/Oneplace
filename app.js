@@ -1027,7 +1027,7 @@ function displayTransactions(list) {
                     .sort((a, b) => {
                         const urgencyDiff = getUrgencySortValue(a.urgency) - getUrgencySortValue(b.urgency);
                         if (urgencyDiff !== 0) return urgencyDiff;
-                        return parseTransactionDate(b) - parseTransactionDate(a);
+                        return getTransactionSortTimestamp(b) - getTransactionSortTimestamp(a);
                     })
                     .forEach(transaction => {
                         const element = createTransactionElement(transaction);
@@ -1057,6 +1057,11 @@ function displayTransactions(list) {
 const parseTransactionDate = (transaction) => {
     const source = transaction.date || transaction.dateModified || transaction.id;
     return new Date(source);
+};
+
+const getTransactionSortTimestamp = (transaction) => {
+    const source = transaction.dateModified || transaction.date || transaction.id;
+    return new Date(source).getTime();
 };
 
 const formatGroupLabel = (isoDate) => {
@@ -1092,6 +1097,7 @@ function updateTransactionUrgency(id, value) {
     const transaction = transactions.find(item => item.id === id);
     if (!transaction) return;
     transaction.urgency = normalizeUrgencyValue(value);
+    transaction.dateModified = new Date().toISOString();
     saveTransactions();
     displayTransactions();
     updateBalance();
