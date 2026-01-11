@@ -1004,14 +1004,15 @@ function displayTransactions(list) {
     } else {
         const grouped = data.reduce((acc, transaction) => {
             const sourceDate = transaction.date || transaction.dateModified || new Date().toISOString();
-            const isoKey = sourceDate.split('T')[0];
-            const timestamp = new Date(sourceDate).getTime();
-            
-            if (!acc[isoKey]) {
-                acc[isoKey] = { label: formatGroupLabel(isoKey), timestamp, items: [] };
+            const dateKey = getLocalDateKey(sourceDate) || sourceDate.split('T')[0];
+            const localDate = getLocalDateFromKey(dateKey);
+            const timestamp = localDate.getTime();
+
+            if (!acc[dateKey]) {
+                acc[dateKey] = { label: formatGroupLabel(dateKey), timestamp, items: [] };
             }
-            
-            acc[isoKey].items.push(transaction);
+
+            acc[dateKey].items.push(transaction);
             return acc;
         }, {});
         
@@ -1059,20 +1060,36 @@ const parseTransactionDate = (transaction) => {
     return new Date(source);
 };
 
+const getLocalDateKey = (source) => {
+    const date = new Date(source);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getLocalDateFromKey = (key) => {
+    if (!key) return new Date();
+    const [year, month, day] = key.split('-').map(Number);
+    if (!year || !month || !day) return new Date();
+    return new Date(year, month - 1, day);
+};
+
 const getTransactionSortTimestamp = (transaction) => {
     const source = transaction.dateModified || transaction.date || transaction.id;
     return new Date(source).getTime();
 };
 
-const formatGroupLabel = (isoDate) => {
-    const target = new Date(isoDate);
+const formatGroupLabel = (dateKey) => {
+    const target = getLocalDateFromKey(dateKey);
     const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(today.getDate() - 1);
-    
+
     if (isSameDay(target, today)) return 'Today';
     if (isSameDay(target, yesterday)) return 'Yesterday';
-    
+
     return target.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
