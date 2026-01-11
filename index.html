@@ -370,6 +370,25 @@
             .btn-sm {
                 padding: 0.25rem 0.5rem;
             }
+            .history-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .history-filters {
+                width: 100%;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            #category-balance-indicator {
+                flex-basis: 100%;
+                text-align: left !important;
+            }
+            .transaction-actions {
+                width: 100%;
+                justify-content: space-between;
+                margin-left: 0;
+            }
         }
 
         .accent-controls, .theme-controls {
@@ -522,14 +541,17 @@
         .list-group-item .transaction-details {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             gap: 1rem;
+            flex-wrap: wrap;
         }
 
         .transaction-info {
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
+            flex: 1 1 60%;
+            min-width: 220px;
         }
 
         .transaction-meta {
@@ -538,11 +560,27 @@
             gap: 0.5rem;
             font-size: 0.875em;
             color: #6c757d;
+            flex-wrap: wrap;
         }
 
         .transaction-meta .urgency-select {
             width: auto;
             min-width: 120px;
+        }
+
+        .transaction-actions {
+            margin-left: auto;
+            display: inline-flex;
+        }
+
+        .history-header {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .history-filters {
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         #category-filter,
@@ -814,7 +852,7 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <div class="section-header mb-3">
+                <div class="section-header mb-3 history-header">
                     <div>
                         <p class="section-heading">Transactions</p>
                         <h2 class="section-title">Add a new entry</h2>
@@ -887,7 +925,7 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <div class="section-header mb-3">
+                <div class="section-header mb-3 history-header">
                     <div>
                         <p class="section-heading">History</p>
                         <div class="d-flex flex-wrap align-items-center gap-2">
@@ -900,7 +938,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 align-items-center">
+                    <div class="d-flex gap-2 align-items-center history-filters">
                         <select id="category-filter" class="form-select form-select-sm">
                             <option value="">All Categories</option>
                             <optgroup label="Income">

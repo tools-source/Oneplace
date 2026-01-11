@@ -977,7 +977,7 @@ function createTransactionElement(transaction) {
                     <span>${transactionDate.toLocaleDateString()}</span>
                 </div>
             </div>
-            <div class="d-flex gap-2 align-items-center">
+            <div class="transaction-actions d-flex gap-2 align-items-center">
                 <span class="${transaction.type === 'income' ? 'positive' : 'negative'} fw-bold">${transactionAmount}</span>
                 <button class="btn btn-sm btn-outline-primary edit-btn">
                     <i class="bi bi-pencil"></i>
