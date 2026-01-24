@@ -18,6 +18,7 @@ const exportDataButton = document.getElementById('export-data');
 const clearDataButton = document.getElementById('clear-data');
 const tabButtons = document.querySelectorAll('[data-tab-target]');
 const tabPanels = document.querySelectorAll('[data-tab-panel]');
+const tabNav = document.querySelector('.tab-nav');
 const categoryPillGroup = document.getElementById('category-pill-group');
 const categoryHint = document.getElementById('category-hint');
 const categoryGuidance = document.getElementById('category-guidance');
@@ -477,6 +478,14 @@ const setActiveTab = (target) => {
 };
 
 const setupTabs = () => {
+    if (tabNav) {
+        tabNav.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-tab-target]');
+            if (!button) return;
+            setActiveTab(button.dataset.tabTarget);
+        });
+        return;
+    }
     tabButtons.forEach(button => {
         button.addEventListener('click', () => setActiveTab(button.dataset.tabTarget));
     });
