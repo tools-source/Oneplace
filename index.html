@@ -1138,9 +1138,18 @@
                                 <div>
                                     <p class="small text-muted mb-1">Notification status</p>
                                     <p class="mb-0 fw-semibold" id="notification-status">Checking…</p>
+                                    <p class="mb-0 small text-muted" id="push-status">Checking push subscription…</p>
                                 </div>
                                 <button class="btn btn-outline-primary btn-sm" id="request-notification-permission">
                                     <i class="bi bi-bell-fill me-1"></i> Enable notifications
+                                </button>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <button class="btn btn-outline-secondary btn-sm" id="copy-push-subscription" type="button">
+                                    <i class="bi bi-clipboard-check me-1"></i> Copy push subscription
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" id="clear-push-subscription" type="button">
+                                    <i class="bi bi-trash3 me-1"></i> Clear push subscription
                                 </button>
                             </div>
                             <form id="reminder-form" class="vstack gap-3">

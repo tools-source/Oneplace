@@ -73,7 +73,10 @@ const reminderMonthlyDaySelect = document.getElementById('reminder-monthly-day')
 const reminderList = document.getElementById('reminder-list');
 const reminderCount = document.getElementById('reminder-count');
 const notificationStatus = document.getElementById('notification-status');
+const pushStatus = document.getElementById('push-status');
 const requestNotificationPermissionButton = document.getElementById('request-notification-permission');
+const copyPushSubscriptionButton = document.getElementById('copy-push-subscription');
+const clearPushSubscriptionButton = document.getElementById('clear-push-subscription');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
@@ -83,6 +86,8 @@ const COMMUNICATION_ITEMS_KEY = 'communicationItems';
 const REMINDER_STORAGE_KEY = 'phoneReminders';
 const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
 const COMMUNICATION_FORM_COLLAPSE_KEY = 'communicationFormCollapsed';
+const PUSH_SUBSCRIPTION_KEY = 'pushSubscription';
+const VAPID_PUBLIC_KEY = '';
 
 const safeStorage = {
     get(key) {
@@ -572,6 +577,18 @@ const updateReminderCount = () => {
 };
 
 const supportsNotificationTriggers = () => 'serviceWorker' in navigator && 'TimestampTrigger' in window;
+const supportsPushNotifications = () => 'serviceWorker' in navigator && 'PushManager' in window;
+
+const urlBase64ToUint8Array = (base64String) => {
+    const padded = `${base64String}${'='.repeat((4 - (base64String.length % 4)) % 4)}`;
+    const base64 = padded.replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i += 1) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+};
 
 const renderReminders = () => {
     if (!reminderList) return;
@@ -673,11 +690,49 @@ const updateNotificationStatus = () => {
     }
 };
 
+const getPushStatusDetails = async () => {
+    if (!pushStatus) return { text: '', canCopy: false, canClear: false };
+    if (!supportsPushNotifications()) {
+        return { text: 'Push messaging is not supported in this browser.', canCopy: false, canClear: false };
+    }
+    if (!VAPID_PUBLIC_KEY) {
+        return { text: 'Add a VAPID public key in app.js to enable push.', canCopy: false, canClear: false };
+    }
+    if (Notification.permission !== 'granted') {
+        return { text: 'Enable notifications to register for push.', canCopy: false, canClear: false };
+    }
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+            return { text: 'Push not subscribed yet.', canCopy: false, canClear: false };
+        }
+        return { text: 'Push subscription active. Use copy to share with your server.', canCopy: true, canClear: true };
+    } catch (error) {
+        console.warn('Unable to read push subscription.', error);
+        return { text: 'Push subscription unavailable.', canCopy: false, canClear: false };
+    }
+};
+
+const updatePushStatus = async () => {
+    if (!pushStatus) return;
+    const details = await getPushStatusDetails();
+    pushStatus.textContent = details.text;
+    if (copyPushSubscriptionButton) {
+        copyPushSubscriptionButton.disabled = !details.canCopy;
+    }
+    if (clearPushSubscriptionButton) {
+        clearPushSubscriptionButton.disabled = !details.canClear;
+    }
+};
+
 const requestNotificationPermission = () => {
     if (!('Notification' in window)) return;
     Notification.requestPermission().then(() => {
         updateNotificationStatus();
+        updatePushStatus();
         schedulePendingReminderTriggers();
+        subscribeToPushNotifications();
     });
 };
 
@@ -839,6 +894,58 @@ const registerServiceWorker = async () => {
     } catch (error) {
         console.warn('Service worker registration failed.', error);
         return null;
+    }
+};
+
+const subscribeToPushNotifications = async () => {
+    if (!supportsPushNotifications()) return null;
+    if (!VAPID_PUBLIC_KEY) return null;
+    if (Notification.permission !== 'granted') return null;
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) return subscription;
+        const newSubscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+        safeStorage.set(PUSH_SUBSCRIPTION_KEY, JSON.stringify(newSubscription.toJSON()));
+        return newSubscription;
+    } catch (error) {
+        console.warn('Unable to subscribe to push notifications.', error);
+        return null;
+    } finally {
+        updatePushStatus();
+    }
+};
+
+const copyPushSubscription = async () => {
+    if (!supportsPushNotifications()) return;
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (!subscription) return;
+        const payload = JSON.stringify(subscription.toJSON(), null, 2);
+        await navigator.clipboard.writeText(payload);
+        pushStatus.textContent = 'Push subscription copied to clipboard.';
+    } catch (error) {
+        console.warn('Unable to copy push subscription.', error);
+    }
+};
+
+const clearPushSubscription = async () => {
+    if (!supportsPushNotifications()) return;
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (!subscription) return;
+        await subscription.unsubscribe();
+        safeStorage.remove(PUSH_SUBSCRIPTION_KEY);
+        pushStatus.textContent = 'Push subscription cleared.';
+    } catch (error) {
+        console.warn('Unable to clear push subscription.', error);
+    } finally {
+        updatePushStatus();
     }
 };
 
@@ -2528,6 +2635,8 @@ communicationCancelButton?.addEventListener('click', () => setCommunicationFormM
 communicationFormBody?.addEventListener('shown.bs.collapse', () => applyCommunicationFormState(true));
 communicationFormBody?.addEventListener('hidden.bs.collapse', () => applyCommunicationFormState(false));
 requestNotificationPermissionButton?.addEventListener('click', requestNotificationPermission);
+copyPushSubscriptionButton?.addEventListener('click', copyPushSubscription);
+clearPushSubscriptionButton?.addEventListener('click', clearPushSubscription);
 reminderRecurrenceSelect?.addEventListener('change', updateRecurrenceFields);
 reminderTimeInput?.addEventListener('change', () => {
     setMonthlyDayFromTime();
@@ -2578,6 +2687,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCommunicationItems();
     renderReminders();
     updateNotificationStatus();
+    updatePushStatus();
     updateReminderTimeMin();
     buildMonthlyDayOptions();
     updateRecurrenceFields();
