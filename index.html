@@ -696,6 +696,9 @@
             background: rgba(13, 110, 253, 0.05);
             border: 1px solid rgba(13, 110, 253, 0.08);
             width: 100%;
+            position: relative;
+            z-index: 2;
+            pointer-events: auto;
         }
 
         body.dark-mode .tab-nav {
@@ -879,19 +882,19 @@
         </div>
 
         <div class="mb-4 tab-nav">
-            <button class="btn btn-outline-primary active" data-tab-target="finance">
+            <button class="btn btn-outline-primary active" type="button" data-tab-target="finance">
                 <i class="bi bi-wallet2 me-1"></i> Finance
             </button>
-            <button class="btn btn-outline-primary" data-tab-target="organizer">
+            <button class="btn btn-outline-primary" type="button" data-tab-target="organizer">
                 <i class="bi bi-check2-square me-1"></i> Organizer
             </button>
-            <button class="btn btn-outline-primary" data-tab-target="reminders">
+            <button class="btn btn-outline-primary" type="button" data-tab-target="reminders">
                 <i class="bi bi-bell me-1"></i> Reminders
             </button>
-            <button class="btn btn-outline-primary" data-tab-target="shared">
+            <button class="btn btn-outline-primary" type="button" data-tab-target="shared">
                 <i class="bi bi-people me-1"></i> Split
             </button>
-            <button class="btn btn-outline-primary" data-tab-target="communication">
+            <button class="btn btn-outline-primary" type="button" data-tab-target="communication">
                 <i class="bi bi-chat-dots me-1"></i> Communication
             </button>
         </div>
