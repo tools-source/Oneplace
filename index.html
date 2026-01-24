@@ -1127,7 +1127,7 @@
                                 <span class="badge bg-info-subtle text-info-emphasis">New</span>
                             </div>
                             <div class="alert alert-info small reminder-info">
-                                <strong>Tip:</strong> Keep this page open or install it to your home screen for reliable phone alerts.
+                                <strong>Tip:</strong> Phone alerts are delivered by your browser. Keep this page open or install it to your home screen to receive lock-screen notifications.
                             </div>
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                                 <div>
@@ -1150,6 +1150,40 @@
                                 <div>
                                     <label class="form-label" for="reminder-time">When should it alert you?</label>
                                     <input class="form-control" id="reminder-time" type="datetime-local" required>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="reminder-recurrence">Repeat</label>
+                                    <select class="form-select" id="reminder-recurrence">
+                                        <option value="none" selected>Does not repeat</option>
+                                        <option value="weekly">Weekly</option>
+                                        <option value="biweekly">Every 2 weeks</option>
+                                        <option value="monthly">Monthly</option>
+                                    </select>
+                                </div>
+                                <div id="reminder-weekday-group" class="reminder-recurrence-group d-none">
+                                    <label class="form-label mb-2">Repeat on</label>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <input class="btn-check" type="checkbox" id="reminder-day-0" data-reminder-weekday="0" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="reminder-day-0">Sun</label>
+                                        <input class="btn-check" type="checkbox" id="reminder-day-1" data-reminder-weekday="1" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="reminder-day-1">Mon</label>
+                                        <input class="btn-check" type="checkbox" id="reminder-day-2" data-reminder-weekday="2" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="reminder-day-2">Tue</label>
+                                        <input class="btn-check" type="checkbox" id="reminder-day-3" data-reminder-weekday="3" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="reminder-day-3">Wed</label>
+                                        <input class="btn-check" type="checkbox" id="reminder-day-4" data-reminder-weekday="4" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="reminder-day-4">Thu</label>
+                                        <input class="btn-check" type="checkbox" id="reminder-day-5" data-reminder-weekday="5" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="reminder-day-5">Fri</label>
+                                        <input class="btn-check" type="checkbox" id="reminder-day-6" data-reminder-weekday="6" autocomplete="off">
+                                        <label class="btn btn-outline-secondary btn-sm" for="reminder-day-6">Sat</label>
+                                    </div>
+                                    <p class="form-text">Pick the weekdays for weekly or biweekly reminders.</p>
+                                </div>
+                                <div id="reminder-monthly-group" class="reminder-recurrence-group d-none">
+                                    <label class="form-label" for="reminder-monthly-day">Repeat on day of month</label>
+                                    <select class="form-select" id="reminder-monthly-day"></select>
+                                    <p class="form-text">Monthly reminders repeat on the selected day.</p>
                                 </div>
                                 <button class="btn btn-primary" type="submit">
                                     <i class="bi bi-plus-circle me-2"></i> Schedule reminder
