@@ -132,6 +132,7 @@ let recordingStream = null;
 let activeAudioElement = null;
 let isCommunicationAudioPlaying = false;
 let reminderCheckInterval = null;
+let reminderSchedulingInProgress = false;
 const REMINDER_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
@@ -446,7 +447,8 @@ reminders = Array.isArray(reminders)
         time: reminder.time || new Date().toISOString(),
         status: reminder.status || 'scheduled',
         createdAt: reminder.createdAt || new Date().toISOString(),
-        recurrence: normalizeReminderRecurrence(reminder)
+        recurrence: normalizeReminderRecurrence(reminder),
+        triggerScheduled: Boolean(reminder.triggerScheduled)
     }))
     : [];
 if (!communicationItems.length) {
@@ -554,6 +556,8 @@ const updateReminderCount = () => {
     reminderCount.textContent = `${scheduledCount} scheduled`;
 };
 
+const supportsNotificationTriggers = () => 'serviceWorker' in navigator && 'TimestampTrigger' in window;
+
 const renderReminders = () => {
     if (!reminderList) return;
     reminderList.innerHTML = '';
@@ -608,8 +612,12 @@ const getNotificationStatusDetails = () => {
             canRequest: false
         };
     }
+    const supportsBackground = supportsNotificationTriggers();
     if (Notification.permission === 'granted') {
-        return { text: 'Enabled and ready to send alerts.', canRequest: false };
+        const suffix = supportsBackground
+            ? 'Background scheduling is available when installed as an app.'
+            : 'Alerts fire while this page stays open.';
+        return { text: `Enabled. ${suffix}`, canRequest: false };
     }
     if (Notification.permission === 'denied') {
         return { text: 'Blocked. Enable notifications in browser settings.', canRequest: true };
@@ -628,7 +636,10 @@ const updateNotificationStatus = () => {
 
 const requestNotificationPermission = () => {
     if (!('Notification' in window)) return;
-    Notification.requestPermission().then(() => updateNotificationStatus());
+    Notification.requestPermission().then(() => {
+        updateNotificationStatus();
+        schedulePendingReminderTriggers();
+    });
 };
 
 const updateReminderTimeMin = () => {
@@ -702,6 +713,74 @@ const sendReminderNotification = (reminder) => {
     return true;
 };
 
+const registerServiceWorker = async () => {
+    if (!('serviceWorker' in navigator)) return null;
+    try {
+        return await navigator.serviceWorker.register('sw.js');
+    } catch (error) {
+        console.warn('Service worker registration failed.', error);
+        return null;
+    }
+};
+
+const clearScheduledNotification = async (reminderId) => {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const notifications = await registration.getNotifications({
+            tag: `reminder-${reminderId}`
+        });
+        notifications.forEach((notification) => notification.close());
+    } catch (error) {
+        console.warn('Unable to clear scheduled notification.', error);
+    }
+};
+
+const scheduleReminderTrigger = async (reminder) => {
+    if (!supportsNotificationTriggers()) return false;
+    if (!('Notification' in window)) return false;
+    if (Notification.permission !== 'granted') return false;
+    const dueTime = new Date(reminder.time).getTime();
+    if (Number.isNaN(dueTime) || dueTime <= Date.now()) return false;
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const body = reminder.message?.trim() || 'Reminder time';
+        await registration.showNotification(reminder.title || 'Reminder', {
+            body,
+            tag: `reminder-${reminder.id}`,
+            renotify: true,
+            data: {
+                reminderId: reminder.id
+            },
+            showTrigger: new TimestampTrigger(dueTime)
+        });
+        return true;
+    } catch (error) {
+        console.warn('Unable to schedule background reminder.', error);
+        return false;
+    }
+};
+
+const schedulePendingReminderTriggers = async () => {
+    if (reminderSchedulingInProgress) return;
+    reminderSchedulingInProgress = true;
+    try {
+        if (!supportsNotificationTriggers()) return;
+        const pending = reminders.filter(reminder => reminder.status === 'scheduled' && !reminder.triggerScheduled);
+        for (const reminder of pending) {
+            const scheduled = await scheduleReminderTrigger(reminder);
+            if (scheduled) {
+                reminder.triggerScheduled = true;
+            }
+        }
+        saveReminders();
+        renderReminders();
+        updateNotificationStatus();
+    } finally {
+        reminderSchedulingInProgress = false;
+    }
+};
+
 function normalizeReminderRecurrence(reminder) {
     const recurrence = reminder?.recurrence || {};
     const frequencyOptions = ['weekly', 'biweekly', 'monthly', 'none'];
@@ -757,7 +836,7 @@ const getNextRecurringTime = (reminder, fromTime) => {
     return null;
 };
 
-const checkDueReminders = () => {
+const checkDueReminders = async () => {
     const now = Date.now();
     let updated = false;
 
@@ -770,6 +849,23 @@ const checkDueReminders = () => {
             return;
         }
         if (dueTime <= now) {
+            if (reminder.triggerScheduled && supportsNotificationTriggers()) {
+                if (isRecurringReminder(reminder)) {
+                    const nextTime = getNextRecurringTime(reminder, reminder.time);
+                    if (nextTime) {
+                        reminder.time = nextTime.toISOString();
+                        reminder.status = 'scheduled';
+                        reminder.triggerScheduled = false;
+                    } else {
+                        reminder.status = 'sent';
+                    }
+                } else {
+                    reminder.status = 'sent';
+                }
+                updated = true;
+                return;
+            }
+
             const didSend = sendReminderNotification(reminder);
             if (isRecurringReminder(reminder)) {
                 const nextTime = getNextRecurringTime(reminder, reminder.time);
@@ -790,9 +886,12 @@ const checkDueReminders = () => {
         saveReminders();
         renderReminders();
     }
+    if (updated) {
+        await schedulePendingReminderTriggers();
+    }
 };
 
-const addReminder = () => {
+const addReminder = async () => {
     if (!reminderTitleInput || !reminderTimeInput) return;
     const title = reminderTitleInput.value.trim();
     const message = reminderMessageInput?.value.trim() || '';
@@ -838,21 +937,29 @@ const addReminder = () => {
         };
     }
 
-    reminders.push({
+    const newReminder = {
         id: generateId(),
         title,
         message,
         time: scheduledDate.toISOString(),
         status: 'scheduled',
         createdAt: new Date().toISOString(),
-        recurrence
-    });
+        recurrence,
+        triggerScheduled: false
+    };
+    reminders.push(newReminder);
     saveReminders();
     renderReminders();
     updateReminderTimeMin();
     reminderForm?.reset();
     updateRecurrenceFields();
     setMonthlyDayFromTime();
+    const scheduled = await scheduleReminderTrigger(newReminder);
+    if (scheduled) {
+        newReminder.triggerScheduled = true;
+        saveReminders();
+        renderReminders();
+    }
 };
 
 const updateTodoProgress = () => {
@@ -2324,6 +2431,7 @@ reminderList?.addEventListener('click', (event) => {
     reminders = reminders.filter(reminder => reminder.id !== reminderId);
     saveReminders();
     renderReminders();
+    clearScheduledNotification(reminderId);
 });
 
 themeToggle?.addEventListener('click', (event) => {
@@ -2361,6 +2469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setMonthlyDayFromTime();
     checkDueReminders();
     reminderCheckInterval = setInterval(checkDueReminders, 30000);
+    registerServiceWorker().then(() => schedulePendingReminderTriggers());
 
     transactions = loadTransactions();
     updateBalance();
