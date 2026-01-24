@@ -2236,17 +2236,18 @@ const resetWorkspaceData = () => {
 };
 
 // Event Listeners
-addTransactionButton.addEventListener('click', addTransaction);
-saveTransactionButton.addEventListener('click', saveEdit);
-clearDataButton.addEventListener('click', () => {
+addTransactionButton?.addEventListener('click', addTransaction);
+saveTransactionButton?.addEventListener('click', saveEdit);
+clearDataButton?.addEventListener('click', () => {
     if (confirm('Reset your workspace? This clears transactions, todos, shared balances, and communication cards.')) {
         resetWorkspaceData();
     }
 });
 
-exportDataButton.addEventListener('click', exportToCSV);
+exportDataButton?.addEventListener('click', exportToCSV);
 
-toggleHistoryButton.addEventListener('click', () => {
+toggleHistoryButton?.addEventListener('click', () => {
+    if (!historySection) return;
     const isHidden = historySection.style.display === 'none';
     historySection.style.display = isHidden ? 'block' : 'none';
     if (transactions.length) {
@@ -2266,7 +2267,7 @@ toggleInputButton?.addEventListener('click', () => {
     setInputSectionVisibility(isHidden);
 });
 
-historyList.addEventListener('click', (e) => {
+historyList?.addEventListener('click', (e) => {
     const listItem = e.target.closest('.list-group-item');
     if (!listItem) return;
     
@@ -2280,7 +2281,7 @@ historyList.addEventListener('click', (e) => {
     }
 });
 
-historyList.addEventListener('change', (e) => {
+historyList?.addEventListener('change', (e) => {
     const select = e.target.closest('.urgency-select');
     if (!select) return;
     const listItem = select.closest('.list-group-item');
@@ -2288,7 +2289,7 @@ historyList.addEventListener('change', (e) => {
     updateTransactionUrgency(parseInt(listItem.dataset.id), select.value);
 });
 
-categoryFilter.addEventListener('change', filterTransactions);
+categoryFilter?.addEventListener('change', filterTransactions);
 urgencyFilter?.addEventListener('change', filterTransactions);
 
 categoryPillGroup?.addEventListener('click', (e) => {
