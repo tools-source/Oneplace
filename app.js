@@ -137,6 +137,10 @@ let reminderSchedulingInProgress = false;
 const REMINDER_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const REMINDER_NOTIFICATION_ICON = 'assets/icons/icon-192.png';
 const REMINDER_NOTIFICATION_BADGE = 'assets/icons/icon-72.png';
+const IS_IOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
+const IS_STANDALONE = window.matchMedia
+    ? window.matchMedia('(display-mode: standalone)').matches
+    : Boolean(window.navigator.standalone);
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -594,6 +598,7 @@ const renderReminders = () => {
         const recurrenceMarkup = recurrenceSummary
             ? `<p class="mb-2 reminder-meta text-muted"><i class="bi bi-repeat me-1"></i>${recurrenceSummary}</p>`
             : '';
+        const calendarHref = buildReminderCalendarHref(reminder);
 
         listItem.innerHTML = `
             <div class="d-flex justify-content-between align-items-start gap-3">
@@ -606,9 +611,14 @@ const renderReminders = () => {
                     ${recurrenceMarkup}
                     <p class="mb-0 reminder-meta"><i class="bi bi-clock me-1"></i>${formatReminderTime(reminder.time)}</p>
                 </div>
-                <button class="btn btn-sm btn-outline-danger" data-action="delete-reminder" aria-label="Delete reminder">
-                    <i class="bi bi-x-lg"></i>
-                </button>
+                <div class="d-flex flex-column gap-2">
+                    <a class="btn btn-sm btn-outline-secondary" href="${calendarHref}" download="reminder-${reminder.id}.ics" data-action="add-to-calendar" aria-label="Add reminder to calendar">
+                        <i class="bi bi-calendar-event me-1"></i>Add to calendar
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" data-action="delete-reminder" aria-label="Delete reminder">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
             </div>
         `;
         reminderList.appendChild(listItem);
@@ -624,10 +634,16 @@ const getNotificationStatusDetails = () => {
         };
     }
     const supportsBackground = supportsNotificationTriggers();
+    if (IS_IOS && !IS_STANDALONE) {
+        return {
+            text: 'Install this site to your Home Screen to enable iPhone notifications.',
+            canRequest: false
+        };
+    }
     if (Notification.permission === 'granted') {
         const suffix = supportsBackground
             ? 'Background scheduling is available when installed as an app (including on locked screens).'
-            : 'Alerts fire while this page stays open.';
+            : 'Alerts fire while this page stays open. Use “Add to calendar” for locked-screen alerts.';
         return { text: `Enabled. ${suffix}`, canRequest: false };
     }
     if (Notification.permission === 'denied') {
@@ -684,6 +700,60 @@ const getSelectedWeekdays = () => {
         .filter((input) => input.checked)
         .map((input) => parseInt(input.dataset.reminderWeekday, 10))
         .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
+};
+
+const formatIcsDate = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+    const pad = (value) => String(value).padStart(2, '0');
+    return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
+};
+
+const buildReminderRrule = (reminder) => {
+    const recurrence = normalizeReminderRecurrence(reminder);
+    if (!recurrence || recurrence.frequency === 'none') return '';
+    if (recurrence.frequency === 'monthly') {
+        return `RRULE:FREQ=MONTHLY;BYMONTHDAY=${recurrence.dayOfMonth || 1}`;
+    }
+    const interval = recurrence.frequency === 'biweekly' ? 2 : 1;
+    const days = (recurrence.daysOfWeek?.length ? recurrence.daysOfWeek : [new Date(reminder.time).getDay()])
+        .map((day) => ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][day])
+        .filter(Boolean)
+        .join(',');
+    return `RRULE:FREQ=WEEKLY;INTERVAL=${interval};BYDAY=${days}`;
+};
+
+const buildReminderCalendarHref = (reminder) => {
+    const start = new Date(reminder.time);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const uid = `reminder-${reminder.id}@oneplace`;
+    const now = new Date();
+    const lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Oneplace//Reminders//EN',
+        'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${formatIcsDate(now)}`,
+        `DTSTART:${formatIcsDate(start)}`,
+        `DTEND:${formatIcsDate(end)}`,
+        `SUMMARY:${(reminder.title || 'Reminder').replace(/\\n/g, ' ')}`,
+        `DESCRIPTION:${(reminder.message || '').replace(/\\n/g, ' ')}`
+    ];
+    const rrule = buildReminderRrule(reminder);
+    if (rrule) {
+        lines.push(rrule);
+    }
+    lines.push(
+        'BEGIN:VALARM',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:Reminder',
+        'TRIGGER:-PT0M',
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR'
+    );
+    return `data:text/calendar;charset=utf-8,${encodeURIComponent(lines.join('\\r\\n'))}`;
 };
 
 const setWeekdaySelectionFromTime = () => {
