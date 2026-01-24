@@ -134,6 +134,8 @@ let isCommunicationAudioPlaying = false;
 let reminderCheckInterval = null;
 let reminderSchedulingInProgress = false;
 const REMINDER_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const REMINDER_NOTIFICATION_ICON = 'assets/icons/icon-192.png';
+const REMINDER_NOTIFICATION_BADGE = 'assets/icons/icon-72.png';
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -615,7 +617,7 @@ const getNotificationStatusDetails = () => {
     const supportsBackground = supportsNotificationTriggers();
     if (Notification.permission === 'granted') {
         const suffix = supportsBackground
-            ? 'Background scheduling is available when installed as an app.'
+            ? 'Background scheduling is available when installed as an app (including on locked screens).'
             : 'Alerts fire while this page stays open.';
         return { text: `Enabled. ${suffix}`, canRequest: false };
     }
@@ -701,16 +703,42 @@ const updateRecurrenceFields = () => {
     }
 };
 
-const sendReminderNotification = (reminder) => {
-    if (!('Notification' in window)) return false;
-    if (Notification.permission !== 'granted') return false;
+const buildReminderNotificationOptions = (reminder) => {
     const body = reminder.message?.trim() || 'Reminder time';
-    new Notification(reminder.title || 'Reminder', {
+    return {
         body,
         tag: `reminder-${reminder.id}`,
-        renotify: true
-    });
-    return true;
+        renotify: true,
+        icon: REMINDER_NOTIFICATION_ICON,
+        badge: REMINDER_NOTIFICATION_BADGE,
+        data: {
+            reminderId: reminder.id
+        },
+        requireInteraction: true
+    };
+};
+
+const sendReminderNotification = async (reminder) => {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission !== 'granted') return false;
+    const title = reminder.title || 'Reminder';
+    const options = buildReminderNotificationOptions(reminder);
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.showNotification(title, options);
+            return true;
+        } catch (error) {
+            console.warn('Unable to display service worker notification.', error);
+        }
+    }
+    try {
+        new Notification(title, options);
+        return true;
+    } catch (error) {
+        console.warn('Unable to display notification.', error);
+        return false;
+    }
 };
 
 const registerServiceWorker = async () => {
@@ -744,16 +772,11 @@ const scheduleReminderTrigger = async (reminder) => {
     if (Number.isNaN(dueTime) || dueTime <= Date.now()) return false;
     try {
         const registration = await navigator.serviceWorker.ready;
-        const body = reminder.message?.trim() || 'Reminder time';
-        await registration.showNotification(reminder.title || 'Reminder', {
-            body,
-            tag: `reminder-${reminder.id}`,
-            renotify: true,
-            data: {
-                reminderId: reminder.id
-            },
+        const options = {
+            ...buildReminderNotificationOptions(reminder),
             showTrigger: new TimestampTrigger(dueTime)
-        });
+        };
+        await registration.showNotification(reminder.title || 'Reminder', options);
         return true;
     } catch (error) {
         console.warn('Unable to schedule background reminder.', error);
@@ -866,7 +889,7 @@ const checkDueReminders = async () => {
                 return;
             }
 
-            const didSend = sendReminderNotification(reminder);
+            const didSend = await sendReminderNotification(reminder);
             if (isRecurringReminder(reminder)) {
                 const nextTime = getNextRecurringTime(reminder, reminder.time);
                 if (nextTime) {
