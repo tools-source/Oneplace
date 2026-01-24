@@ -1,8 +1,12 @@
 {
   "name": "One Place",
   "short_name": "One Place",
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "description": "One Place helps you track finances, reminders, and shared tasks from a single home screen app.",
   "background_color": "#f7f9fc",
   "theme_color": "#0d6efd",
   "icons": [
