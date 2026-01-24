@@ -64,6 +64,11 @@ const reminderForm = document.getElementById('reminder-form');
 const reminderTitleInput = document.getElementById('reminder-title');
 const reminderMessageInput = document.getElementById('reminder-message');
 const reminderTimeInput = document.getElementById('reminder-time');
+const reminderRecurrenceSelect = document.getElementById('reminder-recurrence');
+const reminderWeekdayInputs = document.querySelectorAll('[data-reminder-weekday]');
+const reminderWeekdayGroup = document.getElementById('reminder-weekday-group');
+const reminderMonthlyGroup = document.getElementById('reminder-monthly-group');
+const reminderMonthlyDaySelect = document.getElementById('reminder-monthly-day');
 const reminderList = document.getElementById('reminder-list');
 const reminderCount = document.getElementById('reminder-count');
 const notificationStatus = document.getElementById('notification-status');
@@ -127,6 +132,7 @@ let recordingStream = null;
 let activeAudioElement = null;
 let isCommunicationAudioPlaying = false;
 let reminderCheckInterval = null;
+const REMINDER_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -439,7 +445,8 @@ reminders = Array.isArray(reminders)
         message: reminder.message || '',
         time: reminder.time || new Date().toISOString(),
         status: reminder.status || 'scheduled',
-        createdAt: reminder.createdAt || new Date().toISOString()
+        createdAt: reminder.createdAt || new Date().toISOString(),
+        recurrence: normalizeReminderRecurrence(reminder)
     }))
     : [];
 if (!communicationItems.length) {
@@ -515,6 +522,21 @@ const formatReminderTime = (time) => {
     return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 };
 
+const getReminderRecurrenceSummary = (recurrence) => {
+    if (!recurrence || recurrence.frequency === 'none') return '';
+    if (recurrence.frequency === 'monthly') {
+        const day = recurrence.dayOfMonth || 1;
+        return `Repeats monthly on day ${day}`;
+    }
+    const days = Array.isArray(recurrence.daysOfWeek)
+        ? recurrence.daysOfWeek.map((day) => REMINDER_WEEKDAY_LABELS[day]).filter(Boolean)
+        : [];
+    const dayLabel = days.length ? ` on ${days.join(', ')}` : '';
+    return recurrence.frequency === 'biweekly'
+        ? `Repeats every 2 weeks${dayLabel}`
+        : `Repeats weekly${dayLabel}`;
+};
+
 const getReminderStatusMeta = (status) => {
     switch (status) {
         case 'sent':
@@ -553,6 +575,10 @@ const renderReminders = () => {
         const messageMarkup = safeMessage
             ? `<p class="mb-2 reminder-meta text-muted">${safeMessage}</p>`
             : '<p class="mb-2 reminder-meta text-muted">No additional message</p>';
+        const recurrenceSummary = getReminderRecurrenceSummary(reminder.recurrence);
+        const recurrenceMarkup = recurrenceSummary
+            ? `<p class="mb-2 reminder-meta text-muted"><i class="bi bi-repeat me-1"></i>${recurrenceSummary}</p>`
+            : '';
 
         listItem.innerHTML = `
             <div class="d-flex justify-content-between align-items-start gap-3">
@@ -562,6 +588,7 @@ const renderReminders = () => {
                         <span class="badge ${statusMeta.className}">${statusMeta.label}</span>
                     </div>
                     ${messageMarkup}
+                    ${recurrenceMarkup}
                     <p class="mb-0 reminder-meta"><i class="bi bi-clock me-1"></i>${formatReminderTime(reminder.time)}</p>
                 </div>
                 <button class="btn btn-sm btn-outline-danger" data-action="delete-reminder" aria-label="Delete reminder">
@@ -611,6 +638,58 @@ const updateReminderTimeMin = () => {
     reminderTimeInput.min = formatLocalDateTime(minTime);
 };
 
+const buildMonthlyDayOptions = () => {
+    if (!reminderMonthlyDaySelect) return;
+    reminderMonthlyDaySelect.innerHTML = '';
+    for (let day = 1; day <= 31; day += 1) {
+        const option = document.createElement('option');
+        option.value = String(day);
+        option.textContent = String(day);
+        reminderMonthlyDaySelect.appendChild(option);
+    }
+};
+
+const setMonthlyDayFromTime = () => {
+    if (!reminderMonthlyDaySelect || !reminderTimeInput?.value) return;
+    const selectedDate = new Date(reminderTimeInput.value);
+    if (Number.isNaN(selectedDate.getTime())) return;
+    reminderMonthlyDaySelect.value = String(selectedDate.getDate());
+};
+
+const getSelectedWeekdays = () => {
+    if (!reminderWeekdayInputs?.length) return [];
+    return Array.from(reminderWeekdayInputs)
+        .filter((input) => input.checked)
+        .map((input) => parseInt(input.dataset.reminderWeekday, 10))
+        .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
+};
+
+const setWeekdaySelectionFromTime = () => {
+    if (!reminderTimeInput?.value || !reminderWeekdayInputs?.length) return;
+    const selectedDate = new Date(reminderTimeInput.value);
+    if (Number.isNaN(selectedDate.getTime())) return;
+    const selectedDay = selectedDate.getDay();
+    const hasChecked = getSelectedWeekdays().length > 0;
+    if (hasChecked) return;
+    Array.from(reminderWeekdayInputs).forEach((input) => {
+        input.checked = parseInt(input.dataset.reminderWeekday, 10) === selectedDay;
+    });
+};
+
+const updateRecurrenceFields = () => {
+    const recurrenceValue = reminderRecurrenceSelect?.value || 'none';
+    const showWeekday = recurrenceValue === 'weekly' || recurrenceValue === 'biweekly';
+    const showMonthly = recurrenceValue === 'monthly';
+    reminderWeekdayGroup?.classList.toggle('d-none', !showWeekday);
+    reminderMonthlyGroup?.classList.toggle('d-none', !showMonthly);
+    if (showWeekday) {
+        setWeekdaySelectionFromTime();
+    }
+    if (showMonthly) {
+        setMonthlyDayFromTime();
+    }
+};
+
 const sendReminderNotification = (reminder) => {
     if (!('Notification' in window)) return false;
     if (Notification.permission !== 'granted') return false;
@@ -621,6 +700,61 @@ const sendReminderNotification = (reminder) => {
         renotify: true
     });
     return true;
+};
+
+function normalizeReminderRecurrence(reminder) {
+    const recurrence = reminder?.recurrence || {};
+    const frequencyOptions = ['weekly', 'biweekly', 'monthly', 'none'];
+    const frequency = frequencyOptions.includes(recurrence.frequency) ? recurrence.frequency : 'none';
+    const daysOfWeek = Array.isArray(recurrence.daysOfWeek)
+        ? recurrence.daysOfWeek.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+        : [];
+    const reminderDate = new Date(reminder?.time || Date.now());
+    const defaultDayOfMonth = Number.isNaN(reminderDate.getTime()) ? 1 : reminderDate.getDate();
+    const dayOfMonth = Number.isInteger(recurrence.dayOfMonth) ? recurrence.dayOfMonth : defaultDayOfMonth;
+    const startDate = recurrence.startDate || reminder?.time || new Date().toISOString();
+    return {
+        frequency,
+        daysOfWeek,
+        dayOfMonth,
+        startDate
+    };
+}
+
+const isRecurringReminder = (reminder) => reminder?.recurrence?.frequency && reminder.recurrence.frequency !== 'none';
+
+const getNextRecurringTime = (reminder, fromTime) => {
+    const recurrence = normalizeReminderRecurrence(reminder);
+    const baseDate = new Date(fromTime);
+    if (Number.isNaN(baseDate.getTime())) return null;
+    const hours = baseDate.getHours();
+    const minutes = baseDate.getMinutes();
+    if (recurrence.frequency === 'monthly') {
+        const nextDate = new Date(baseDate);
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        const daysInMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+        const day = Math.min(recurrence.dayOfMonth || 1, daysInMonth);
+        nextDate.setDate(day);
+        nextDate.setHours(hours, minutes, 0, 0);
+        return nextDate;
+    }
+
+    const allowedDays = recurrence.daysOfWeek?.length ? recurrence.daysOfWeek : [baseDate.getDay()];
+    const startDate = new Date(recurrence.startDate || baseDate);
+    startDate.setHours(0, 0, 0, 0);
+    const maxDays = recurrence.frequency === 'biweekly' ? 14 : 7;
+    for (let offset = 1; offset <= maxDays * 2; offset += 1) {
+        const candidate = new Date(baseDate);
+        candidate.setDate(candidate.getDate() + offset);
+        candidate.setHours(hours, minutes, 0, 0);
+        if (!allowedDays.includes(candidate.getDay())) continue;
+        if (recurrence.frequency === 'biweekly') {
+            const diffWeeks = Math.floor((candidate - startDate) / (7 * 24 * 60 * 60 * 1000));
+            if (diffWeeks % 2 !== 0) continue;
+        }
+        return candidate;
+    }
+    return null;
 };
 
 const checkDueReminders = () => {
@@ -637,7 +771,17 @@ const checkDueReminders = () => {
         }
         if (dueTime <= now) {
             const didSend = sendReminderNotification(reminder);
-            reminder.status = didSend ? 'sent' : 'missed';
+            if (isRecurringReminder(reminder)) {
+                const nextTime = getNextRecurringTime(reminder, reminder.time);
+                if (nextTime) {
+                    reminder.time = nextTime.toISOString();
+                    reminder.status = 'scheduled';
+                } else {
+                    reminder.status = didSend ? 'sent' : 'missed';
+                }
+            } else {
+                reminder.status = didSend ? 'sent' : 'missed';
+            }
             updated = true;
         }
     });
@@ -664,18 +808,51 @@ const addReminder = () => {
         return;
     }
 
+    const recurrenceType = reminderRecurrenceSelect?.value || 'none';
+    let recurrence = {
+        frequency: 'none',
+        daysOfWeek: [],
+        dayOfMonth: scheduledDate.getDate(),
+        startDate: scheduledDate.toISOString()
+    };
+    if (recurrenceType === 'weekly' || recurrenceType === 'biweekly') {
+        const selectedDays = getSelectedWeekdays();
+        if (!selectedDays.length) {
+            alert('Select at least one weekday for recurring reminders.');
+            return;
+        }
+        recurrence = {
+            frequency: recurrenceType,
+            daysOfWeek: selectedDays,
+            dayOfMonth: scheduledDate.getDate(),
+            startDate: scheduledDate.toISOString()
+        };
+    }
+    if (recurrenceType === 'monthly') {
+        const dayOfMonth = parseInt(reminderMonthlyDaySelect?.value, 10);
+        recurrence = {
+            frequency: 'monthly',
+            daysOfWeek: [],
+            dayOfMonth: Number.isInteger(dayOfMonth) ? dayOfMonth : scheduledDate.getDate(),
+            startDate: scheduledDate.toISOString()
+        };
+    }
+
     reminders.push({
         id: generateId(),
         title,
         message,
         time: scheduledDate.toISOString(),
         status: 'scheduled',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        recurrence
     });
     saveReminders();
     renderReminders();
     updateReminderTimeMin();
     reminderForm?.reset();
+    updateRecurrenceFields();
+    setMonthlyDayFromTime();
 };
 
 const updateTodoProgress = () => {
@@ -2129,6 +2306,11 @@ communicationCancelButton?.addEventListener('click', () => setCommunicationFormM
 communicationFormBody?.addEventListener('shown.bs.collapse', () => applyCommunicationFormState(true));
 communicationFormBody?.addEventListener('hidden.bs.collapse', () => applyCommunicationFormState(false));
 requestNotificationPermissionButton?.addEventListener('click', requestNotificationPermission);
+reminderRecurrenceSelect?.addEventListener('change', updateRecurrenceFields);
+reminderTimeInput?.addEventListener('change', () => {
+    setMonthlyDayFromTime();
+    setWeekdaySelectionFromTime();
+});
 reminderForm?.addEventListener('submit', (event) => {
     event.preventDefault();
     addReminder();
@@ -2174,6 +2356,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderReminders();
     updateNotificationStatus();
     updateReminderTimeMin();
+    buildMonthlyDayOptions();
+    updateRecurrenceFields();
+    setMonthlyDayFromTime();
     checkDueReminders();
     reminderCheckInterval = setInterval(checkDueReminders, 30000);
 
