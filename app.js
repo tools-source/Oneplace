@@ -60,12 +60,21 @@ const communicationSubmitButton = document.getElementById('communication-submit'
 const communicationCancelButton = document.getElementById('communication-cancel');
 const communicationFormToggle = document.getElementById('communication-form-toggle');
 const communicationFormBody = document.getElementById('communication-form-body');
+const reminderForm = document.getElementById('reminder-form');
+const reminderTitleInput = document.getElementById('reminder-title');
+const reminderMessageInput = document.getElementById('reminder-message');
+const reminderTimeInput = document.getElementById('reminder-time');
+const reminderList = document.getElementById('reminder-list');
+const reminderCount = document.getElementById('reminder-count');
+const notificationStatus = document.getElementById('notification-status');
+const requestNotificationPermissionButton = document.getElementById('request-notification-permission');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
 const SHARED_PARTICIPANTS_KEY = 'sharedParticipants';
 const SHARED_EXPENSES_KEY = 'sharedExpenses';
 const COMMUNICATION_ITEMS_KEY = 'communicationItems';
+const REMINDER_STORAGE_KEY = 'phoneReminders';
 const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
 const COMMUNICATION_FORM_COLLAPSE_KEY = 'communicationFormCollapsed';
 
@@ -109,6 +118,7 @@ let todos = safeJsonParse(TODO_STORAGE_KEY, []);
 let sharedParticipants = safeJsonParse(SHARED_PARTICIPANTS_KEY, []);
 let sharedExpenses = safeJsonParse(SHARED_EXPENSES_KEY, []);
 let communicationItems = safeJsonParse(COMMUNICATION_ITEMS_KEY, []);
+let reminders = safeJsonParse(REMINDER_STORAGE_KEY, []);
 let editingCommunicationId = null;
 let communicationAudioData = '';
 let recordingChunks = [];
@@ -116,6 +126,7 @@ let mediaRecorder = null;
 let recordingStream = null;
 let activeAudioElement = null;
 let isCommunicationAudioPlaying = false;
+let reminderCheckInterval = null;
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -421,6 +432,16 @@ communicationItems = Array.isArray(communicationItems)
         isCustom: item.isCustom ?? true
     }))
     : [];
+reminders = Array.isArray(reminders)
+    ? reminders.map((reminder, index) => ({
+        id: typeof reminder.id === 'number' ? reminder.id : generateId() + index,
+        title: reminder.title || 'Reminder',
+        message: reminder.message || '',
+        time: reminder.time || new Date().toISOString(),
+        status: reminder.status || 'scheduled',
+        createdAt: reminder.createdAt || new Date().toISOString()
+    }))
+    : [];
 if (!communicationItems.length) {
     communicationItems = DEFAULT_COMMUNICATION_ITEMS.map(item => ({ ...item }));
     safeStorage.set(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
@@ -476,6 +497,185 @@ const saveSharedParticipants = () => {
 
 const saveSharedExpenses = () => {
     safeStorage.set(SHARED_EXPENSES_KEY, JSON.stringify(sharedExpenses));
+};
+
+const saveReminders = () => {
+    safeStorage.set(REMINDER_STORAGE_KEY, JSON.stringify(reminders));
+};
+
+const formatLocalDateTime = (date) => {
+    const offset = date.getTimezoneOffset();
+    const localTime = new Date(date.getTime() - offset * 60000);
+    return localTime.toISOString().slice(0, 16);
+};
+
+const formatReminderTime = (time) => {
+    const date = new Date(time);
+    if (Number.isNaN(date.getTime())) return 'Invalid date';
+    return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+const getReminderStatusMeta = (status) => {
+    switch (status) {
+        case 'sent':
+            return { label: 'Sent', className: 'bg-success-subtle text-success-emphasis' };
+        case 'missed':
+            return { label: 'Missed', className: 'bg-secondary-subtle text-secondary-emphasis' };
+        default:
+            return { label: 'Scheduled', className: 'bg-primary-subtle text-primary-emphasis' };
+    }
+};
+
+const updateReminderCount = () => {
+    if (!reminderCount) return;
+    const scheduledCount = reminders.filter(reminder => reminder.status === 'scheduled').length;
+    reminderCount.textContent = `${scheduledCount} scheduled`;
+};
+
+const renderReminders = () => {
+    if (!reminderList) return;
+    reminderList.innerHTML = '';
+
+    if (!reminders.length) {
+        reminderList.innerHTML = '<li class="list-group-item text-center text-muted py-4">No reminders yet</li>';
+        updateReminderCount();
+        return;
+    }
+
+    const sortedReminders = [...reminders].sort((a, b) => new Date(a.time) - new Date(b.time));
+    sortedReminders.forEach(reminder => {
+        const listItem = document.createElement('li');
+        listItem.className = 'list-group-item reminder-item';
+        listItem.dataset.id = reminder.id;
+        const statusMeta = getReminderStatusMeta(reminder.status);
+        const safeTitle = escapeHtml(reminder.title || '');
+        const safeMessage = escapeHtml(reminder.message || '');
+        const messageMarkup = safeMessage
+            ? `<p class="mb-2 reminder-meta text-muted">${safeMessage}</p>`
+            : '<p class="mb-2 reminder-meta text-muted">No additional message</p>';
+
+        listItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                        <h5 class="mb-0">${safeTitle}</h5>
+                        <span class="badge ${statusMeta.className}">${statusMeta.label}</span>
+                    </div>
+                    ${messageMarkup}
+                    <p class="mb-0 reminder-meta"><i class="bi bi-clock me-1"></i>${formatReminderTime(reminder.time)}</p>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" data-action="delete-reminder" aria-label="Delete reminder">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        `;
+        reminderList.appendChild(listItem);
+    });
+    updateReminderCount();
+};
+
+const getNotificationStatusDetails = () => {
+    if (!('Notification' in window)) {
+        return {
+            text: 'Notifications are not supported in this browser.',
+            canRequest: false
+        };
+    }
+    if (Notification.permission === 'granted') {
+        return { text: 'Enabled and ready to send alerts.', canRequest: false };
+    }
+    if (Notification.permission === 'denied') {
+        return { text: 'Blocked. Enable notifications in browser settings.', canRequest: true };
+    }
+    return { text: 'Not enabled yet. Tap enable to allow alerts.', canRequest: true };
+};
+
+const updateNotificationStatus = () => {
+    if (!notificationStatus) return;
+    const details = getNotificationStatusDetails();
+    notificationStatus.textContent = details.text;
+    if (requestNotificationPermissionButton) {
+        requestNotificationPermissionButton.disabled = !details.canRequest;
+    }
+};
+
+const requestNotificationPermission = () => {
+    if (!('Notification' in window)) return;
+    Notification.requestPermission().then(() => updateNotificationStatus());
+};
+
+const updateReminderTimeMin = () => {
+    if (!reminderTimeInput) return;
+    const minTime = new Date();
+    minTime.setMinutes(minTime.getMinutes() + 1);
+    reminderTimeInput.min = formatLocalDateTime(minTime);
+};
+
+const sendReminderNotification = (reminder) => {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission !== 'granted') return false;
+    const body = reminder.message?.trim() || 'Reminder time';
+    new Notification(reminder.title || 'Reminder', {
+        body,
+        tag: `reminder-${reminder.id}`,
+        renotify: true
+    });
+    return true;
+};
+
+const checkDueReminders = () => {
+    const now = Date.now();
+    let updated = false;
+
+    reminders.forEach(reminder => {
+        if (reminder.status !== 'scheduled') return;
+        const dueTime = new Date(reminder.time).getTime();
+        if (Number.isNaN(dueTime)) {
+            reminder.status = 'missed';
+            updated = true;
+            return;
+        }
+        if (dueTime <= now) {
+            const didSend = sendReminderNotification(reminder);
+            reminder.status = didSend ? 'sent' : 'missed';
+            updated = true;
+        }
+    });
+
+    if (updated) {
+        saveReminders();
+        renderReminders();
+    }
+};
+
+const addReminder = () => {
+    if (!reminderTitleInput || !reminderTimeInput) return;
+    const title = reminderTitleInput.value.trim();
+    const message = reminderMessageInput?.value.trim() || '';
+    const timeValue = reminderTimeInput.value;
+    if (!title || !timeValue) return;
+    const scheduledDate = new Date(timeValue);
+    if (Number.isNaN(scheduledDate.getTime())) {
+        alert('Please choose a valid reminder time.');
+        return;
+    }
+    if (scheduledDate.getTime() <= Date.now()) {
+        alert('Please choose a time in the future.');
+        return;
+    }
+
+    reminders.push({
+        id: generateId(),
+        title,
+        message,
+        time: scheduledDate.toISOString(),
+        status: 'scheduled',
+        createdAt: new Date().toISOString()
+    });
+    saveReminders();
+    renderReminders();
+    updateReminderTimeMin();
+    reminderForm?.reset();
 };
 
 const updateTodoProgress = () => {
@@ -1928,6 +2128,21 @@ communicationStopButton?.addEventListener('click', () => {
 communicationCancelButton?.addEventListener('click', () => setCommunicationFormMode());
 communicationFormBody?.addEventListener('shown.bs.collapse', () => applyCommunicationFormState(true));
 communicationFormBody?.addEventListener('hidden.bs.collapse', () => applyCommunicationFormState(false));
+requestNotificationPermissionButton?.addEventListener('click', requestNotificationPermission);
+reminderForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    addReminder();
+});
+reminderList?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="delete-reminder"]');
+    if (!button) return;
+    const listItem = button.closest('li[data-id]');
+    if (!listItem) return;
+    const reminderId = parseInt(listItem.dataset.id);
+    reminders = reminders.filter(reminder => reminder.id !== reminderId);
+    saveReminders();
+    renderReminders();
+});
 
 themeToggle?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-theme-mode]');
@@ -1956,6 +2171,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSharedExpenseHistory();
     normalizeCommunicationItems();
     renderCommunicationItems();
+    renderReminders();
+    updateNotificationStatus();
+    updateReminderTimeMin();
+    checkDueReminders();
+    reminderCheckInterval = setInterval(checkDueReminders, 30000);
 
     transactions = loadTransactions();
     updateBalance();
