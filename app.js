@@ -641,10 +641,22 @@ const getNotificationStatusDetails = () => {
         };
     }
     if (Notification.permission === 'granted') {
-        const suffix = supportsBackground
-            ? 'Background scheduling is available when installed as an app (including on locked screens).'
-            : 'Alerts fire while this page stays open. Use “Add to calendar” for locked-screen alerts.';
-        return { text: `Enabled. ${suffix}`, canRequest: false };
+        if (IS_IOS && !supportsBackground) {
+            return {
+                text: 'Enabled, but iOS cannot schedule lock-screen alerts yet. Use “Add to calendar” for locked-screen reminders.',
+                canRequest: false
+            };
+        }
+        if (supportsBackground) {
+            const suffix = IS_STANDALONE
+                ? 'Background scheduling is active, including on locked screens.'
+                : 'Install the app to enable background scheduling on locked screens.';
+            return { text: `Enabled. ${suffix}`, canRequest: false };
+        }
+        return {
+            text: 'Enabled, but this browser can only alert while the app stays open. Use “Add to calendar” for locked-screen alerts.',
+            canRequest: false
+        };
     }
     if (Notification.permission === 'denied') {
         return { text: 'Blocked. Enable notifications in browser settings.', canRequest: true };
