@@ -872,13 +872,13 @@ const checkDueReminders = async () => {
     const now = Date.now();
     let updated = false;
 
-    reminders.forEach(reminder => {
-        if (reminder.status !== 'scheduled') return;
+    for (const reminder of reminders) {
+        if (reminder.status !== 'scheduled') continue;
         const dueTime = new Date(reminder.time).getTime();
         if (Number.isNaN(dueTime)) {
             reminder.status = 'missed';
             updated = true;
-            return;
+            continue;
         }
         if (dueTime <= now) {
             if (reminder.triggerScheduled && supportsNotificationTriggers()) {
@@ -895,7 +895,7 @@ const checkDueReminders = async () => {
                     reminder.status = 'sent';
                 }
                 updated = true;
-                return;
+                continue;
             }
 
             const didSend = await sendReminderNotification(reminder);
@@ -912,7 +912,7 @@ const checkDueReminders = async () => {
             }
             updated = true;
         }
-    });
+    }
 
     if (updated) {
         saveReminders();
