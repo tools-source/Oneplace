@@ -60,6 +60,9 @@ const communicationSubmitButton = document.getElementById('communication-submit'
 const communicationCancelButton = document.getElementById('communication-cancel');
 const communicationFormToggle = document.getElementById('communication-form-toggle');
 const communicationFormBody = document.getElementById('communication-form-body');
+const financeReminderToggle = document.getElementById('finance-reminder-toggle');
+const financeReminderTime = document.getElementById('finance-reminder-time');
+const financeReminderStatus = document.getElementById('finance-reminder-status');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
@@ -68,6 +71,7 @@ const SHARED_EXPENSES_KEY = 'sharedExpenses';
 const COMMUNICATION_ITEMS_KEY = 'communicationItems';
 const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
 const COMMUNICATION_FORM_COLLAPSE_KEY = 'communicationFormCollapsed';
+const FINANCE_REMINDER_SETTINGS_KEY = 'financeReminderSettings';
 
 const safeStorage = {
     get(key) {
@@ -116,6 +120,8 @@ let mediaRecorder = null;
 let recordingStream = null;
 let activeAudioElement = null;
 let isCommunicationAudioPlaying = false;
+let financeReminderSettings = safeJsonParse(FINANCE_REMINDER_SETTINGS_KEY, {});
+let financeReminderTimeout = null;
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -170,6 +176,16 @@ const getCategoryConfig = (categoryValue) => CATEGORY_LOOKUP[categoryValue];
 const DEFAULT_URGENCY = 'not-urgent';
 const getUrgencyLabel = (urgencyValue) => URGENCY_LOOKUP[urgencyValue]?.label || 'Not urgent';
 const getUrgencyBadgeClass = (urgencyValue) => URGENCY_LOOKUP[urgencyValue]?.badgeClass || 'bg-secondary';
+
+const DEFAULT_FINANCE_REMINDER = {
+    enabled: false,
+    time: '18:00',
+    lastSentDate: ''
+};
+financeReminderSettings = {
+    ...DEFAULT_FINANCE_REMINDER,
+    ...(financeReminderSettings && typeof financeReminderSettings === 'object' ? financeReminderSettings : {})
+};
 
 const hexToRgba = (hex, alpha = 1) => {
     if (!hex) return `rgba(0,0,0,${alpha})`;
@@ -298,6 +314,8 @@ const normalizeEmojiValue = (value = '', fallback = '🗣️') => {
     return normalized || fallback;
 };
 
+const supportsNotifications = () => typeof Notification !== 'undefined';
+
 const calculateNet = (list = []) => list.reduce((sum, transaction) => {
     const amount = Math.abs(transaction.amount);
     return transaction.type === 'income' ? sum + amount : sum - amount;
@@ -391,6 +409,99 @@ const sortTodos = (list) => list
         if (orderDiff !== 0) return orderDiff;
         return new Date(a.createdAt) - new Date(b.createdAt);
     });
+
+const requestNotificationPermission = () => {
+    if (!supportsNotifications()) return Promise.resolve('unsupported');
+    if (Notification.permission === 'granted') return Promise.resolve('granted');
+    if (Notification.permission === 'denied') return Promise.resolve('denied');
+    return Notification.requestPermission();
+};
+
+const getNextReminderDate = (timeValue) => {
+    if (!timeValue) return null;
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(hours, minutes, 0, 0);
+    if (next <= now) {
+        next.setDate(next.getDate() + 1);
+    }
+    return next;
+};
+
+const formatReminderDate = (date) => {
+    if (!date) return '';
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const dayLabel = isToday
+        ? 'Today'
+        : date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const timeLabel = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return `${dayLabel} at ${timeLabel}`;
+};
+
+const saveFinanceReminderSettings = () => {
+    safeStorage.set(FINANCE_REMINDER_SETTINGS_KEY, JSON.stringify(financeReminderSettings));
+};
+
+const updateFinanceReminderStatus = () => {
+    if (!financeReminderStatus) return;
+    if (!supportsNotifications()) {
+        financeReminderStatus.textContent = 'Notifications are not supported in this browser.';
+        return;
+    }
+    if (Notification.permission === 'denied') {
+        financeReminderStatus.textContent = 'Notifications are blocked. Enable them in your browser settings to use reminders.';
+        return;
+    }
+    if (!financeReminderSettings.enabled) {
+        financeReminderStatus.textContent = 'Turn on reminders to get a daily nudge to log your finances.';
+        return;
+    }
+    const nextDate = getNextReminderDate(financeReminderSettings.time);
+    const label = nextDate ? formatReminderDate(nextDate) : 'Select a time to schedule reminders.';
+    financeReminderStatus.textContent = `Next reminder: ${label}.`;
+};
+
+const scheduleFinanceReminder = () => {
+    if (financeReminderTimeout) {
+        clearTimeout(financeReminderTimeout);
+        financeReminderTimeout = null;
+    }
+    if (!financeReminderSettings.enabled) return;
+    const nextDate = getNextReminderDate(financeReminderSettings.time);
+    if (!nextDate) return;
+    const delay = Math.max(nextDate.getTime() - Date.now(), 1000);
+    financeReminderTimeout = window.setTimeout(() => {
+        sendFinanceReminder();
+        scheduleFinanceReminder();
+    }, delay);
+};
+
+const sendFinanceReminder = () => {
+    if (!financeReminderSettings.enabled) return;
+    const today = new Date().toISOString().split('T')[0];
+    if (financeReminderSettings.lastSentDate === today) return;
+    if (supportsNotifications() && Notification.permission === 'granted') {
+        new Notification('Log your finances', {
+            body: 'Add today’s income or expenses to keep your balance updated.',
+            icon: 'assets/icons/icon-192.png'
+        });
+    }
+    financeReminderSettings.lastSentDate = today;
+    saveFinanceReminderSettings();
+};
+
+const syncFinanceReminderUI = () => {
+    if (financeReminderToggle) {
+        financeReminderToggle.checked = Boolean(financeReminderSettings.enabled);
+    }
+    if (financeReminderTime) {
+        financeReminderTime.value = financeReminderSettings.time || DEFAULT_FINANCE_REMINDER.time;
+    }
+    updateFinanceReminderStatus();
+};
 
 transactions = loadTransactions();
 todos = Array.isArray(todos) ? todos.map((todo, index) => normalizeTodo(todo, index)) : [];
@@ -1717,6 +1828,11 @@ const resetWorkspaceData = () => {
     updateBalance();
     displayTransactions();
     setInputSectionVisibility(true);
+
+    financeReminderSettings = { ...DEFAULT_FINANCE_REMINDER };
+    saveFinanceReminderSettings();
+    syncFinanceReminderUI();
+    scheduleFinanceReminder();
 };
 
 // Event Listeners
@@ -1748,6 +1864,28 @@ const setInputSectionVisibility = (shouldShow) => {
 toggleInputButton?.addEventListener('click', () => {
     const isHidden = inputSection?.style.display === 'none';
     setInputSectionVisibility(isHidden);
+});
+
+financeReminderToggle?.addEventListener('change', async () => {
+    const shouldEnable = financeReminderToggle.checked;
+    financeReminderSettings.enabled = shouldEnable;
+    if (shouldEnable) {
+        const permission = await requestNotificationPermission();
+        if (permission !== 'granted') {
+            financeReminderSettings.enabled = false;
+            financeReminderToggle.checked = false;
+        }
+    }
+    saveFinanceReminderSettings();
+    updateFinanceReminderStatus();
+    scheduleFinanceReminder();
+});
+
+financeReminderTime?.addEventListener('change', () => {
+    financeReminderSettings.time = financeReminderTime.value || DEFAULT_FINANCE_REMINDER.time;
+    saveFinanceReminderSettings();
+    updateFinanceReminderStatus();
+    scheduleFinanceReminder();
 });
 
 historyList.addEventListener('click', (e) => {
@@ -1962,6 +2100,8 @@ document.addEventListener('DOMContentLoaded', () => {
     displayTransactions();
     setCommunicationFormMode();
     setInputSectionVisibility(true);
+    syncFinanceReminderUI();
+    scheduleFinanceReminder();
     const savedCommunicationFormState = safeStorage.get(COMMUNICATION_FORM_COLLAPSE_KEY);
     const shouldExpand = savedCommunicationFormState !== 'collapsed';
     applyCommunicationFormState(shouldExpand);

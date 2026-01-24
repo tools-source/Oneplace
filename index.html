@@ -191,6 +191,12 @@
             transform: rotate(180deg);
         }
 
+        .reminder-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+        }
+
         .upload-preview {
             border: 1px dashed var(--card-border);
             border-radius: 8px;
@@ -960,6 +966,27 @@
                         <button id="save-transaction" class="btn btn-primary" style="display: none;">
                             <i class="bi bi-save"></i> Save Changes
                         </button>
+                    </div>
+                    <div class="reminder-panel mt-4 p-3">
+                        <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+                            <div>
+                                <p class="section-heading mb-1">Finance reminder</p>
+                                <p class="text-muted small mb-2">Set a daily nudge to log income or expenses while the app is open.</p>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="finance-reminder-toggle">
+                                <label class="form-check-label" for="finance-reminder-toggle">Remind me</label>
+                            </div>
+                        </div>
+                        <div class="row g-2 align-items-center">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small text-muted mb-1" for="finance-reminder-time">Reminder time</label>
+                                <input type="time" id="finance-reminder-time" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-12 col-md-8">
+                                <div id="finance-reminder-status" class="small text-muted mt-2 mt-md-4"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
