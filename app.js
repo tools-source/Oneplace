@@ -1368,8 +1368,18 @@ const saveShortcuts = () => {
     safeStorage.set(SHORTCUTS_STORAGE_KEY, JSON.stringify(shortcuts));
 };
 
+const seedShortcutsIfEmpty = () => {
+    if (shortcuts.length || !DEFAULT_SHORTCUTS.length) return;
+    shortcuts = DEFAULT_SHORTCUTS.map(item => ({
+        ...item,
+        createdAt: item.createdAt || new Date().toISOString()
+    }));
+    saveShortcuts();
+};
+
 const renderShortcuts = () => {
     if (!shortcutList) return;
+    seedShortcutsIfEmpty();
     shortcutList.innerHTML = '';
 
     if (!shortcuts.length) {
