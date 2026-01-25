@@ -61,6 +61,13 @@ const communicationSubmitButton = document.getElementById('communication-submit'
 const communicationCancelButton = document.getElementById('communication-cancel');
 const communicationFormToggle = document.getElementById('communication-form-toggle');
 const communicationFormBody = document.getElementById('communication-form-body');
+const shortcutForm = document.getElementById('shortcut-form');
+const shortcutTitleInput = document.getElementById('shortcut-title');
+const shortcutDescriptionInput = document.getElementById('shortcut-description');
+const shortcutRoutineInput = document.getElementById('shortcut-routine');
+const shortcutLinkInput = document.getElementById('shortcut-link');
+const shortcutList = document.getElementById('shortcut-list');
+const shortcutCount = document.getElementById('shortcut-count');
 const reminderForm = document.getElementById('reminder-form');
 const reminderTitleInput = document.getElementById('reminder-title');
 const reminderMessageInput = document.getElementById('reminder-message');
@@ -83,6 +90,7 @@ const TODO_STORAGE_KEY = 'organizerTodos';
 const SHARED_PARTICIPANTS_KEY = 'sharedParticipants';
 const SHARED_EXPENSES_KEY = 'sharedExpenses';
 const COMMUNICATION_ITEMS_KEY = 'communicationItems';
+const SHORTCUTS_STORAGE_KEY = 'iphoneShortcuts';
 const REMINDER_STORAGE_KEY = 'phoneReminders';
 const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
 const COMMUNICATION_FORM_COLLAPSE_KEY = 'communicationFormCollapsed';
@@ -129,6 +137,7 @@ let todos = safeJsonParse(TODO_STORAGE_KEY, []);
 let sharedParticipants = safeJsonParse(SHARED_PARTICIPANTS_KEY, []);
 let sharedExpenses = safeJsonParse(SHARED_EXPENSES_KEY, []);
 let communicationItems = safeJsonParse(COMMUNICATION_ITEMS_KEY, []);
+let shortcuts = safeJsonParse(SHORTCUTS_STORAGE_KEY, []);
 let reminders = safeJsonParse(REMINDER_STORAGE_KEY, []);
 let editingCommunicationId = null;
 let communicationAudioData = '';
@@ -296,6 +305,36 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         audioData: ''
     }
 ];
+const DEFAULT_SHORTCUTS = [
+    {
+        id: 'shortcut-morning-briefing',
+        title: 'Morning Briefing',
+        description: 'Opens weather, calendar, and today’s top tasks.',
+        routine: 'Right after I wake up',
+        link: ''
+    },
+    {
+        id: 'shortcut-commute-eta',
+        title: 'Commute ETA',
+        description: 'Sends my ETA to a favorite contact.',
+        routine: 'When I leave home',
+        link: ''
+    },
+    {
+        id: 'shortcut-focus-sprint',
+        title: 'Focus Sprint',
+        description: 'Starts a focus playlist and a 25-minute timer.',
+        routine: 'Before deep work',
+        link: ''
+    },
+    {
+        id: 'shortcut-hydration',
+        title: 'Hydration Log',
+        description: 'Logs water intake and updates a hydration reminder.',
+        routine: 'After I refill my bottle',
+        link: ''
+    }
+];
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -451,6 +490,16 @@ communicationItems = Array.isArray(communicationItems)
         isCustom: item.isCustom ?? true
     }))
     : [];
+shortcuts = Array.isArray(shortcuts)
+    ? shortcuts.map((shortcut, index) => ({
+        id: shortcut.id || `shortcut-${generateId() + index}`,
+        title: shortcut.title || 'New shortcut',
+        description: shortcut.description || '',
+        routine: shortcut.routine || '',
+        link: shortcut.link || '',
+        createdAt: shortcut.createdAt || new Date().toISOString()
+    }))
+    : [];
 reminders = Array.isArray(reminders)
     ? reminders.map((reminder, index) => ({
         id: typeof reminder.id === 'number' ? reminder.id : generateId() + index,
@@ -466,6 +515,10 @@ reminders = Array.isArray(reminders)
 if (!communicationItems.length) {
     communicationItems = DEFAULT_COMMUNICATION_ITEMS.map(item => ({ ...item }));
     safeStorage.set(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
+}
+if (!shortcuts.length) {
+    shortcuts = DEFAULT_SHORTCUTS.map(item => ({ ...item }));
+    safeStorage.set(SHORTCUTS_STORAGE_KEY, JSON.stringify(shortcuts));
 }
 if (!sharedParticipants.length) {
     sharedParticipants = createDefaultSharedParticipants();
@@ -1309,6 +1362,82 @@ const deleteSubtask = (todoId, subtaskId) => {
     );
     saveTodos();
     renderTodos();
+};
+
+const saveShortcuts = () => {
+    safeStorage.set(SHORTCUTS_STORAGE_KEY, JSON.stringify(shortcuts));
+};
+
+const renderShortcuts = () => {
+    if (!shortcutList) return;
+    shortcutList.innerHTML = '';
+
+    if (!shortcuts.length) {
+        shortcutList.innerHTML = '<div class="text-center text-muted py-4">No shortcuts yet</div>';
+        if (shortcutCount) shortcutCount.textContent = '0 saved';
+        return;
+    }
+
+    shortcuts.forEach(shortcut => {
+        const card = document.createElement('div');
+        card.className = 'shortcut-card';
+        card.dataset.shortcutId = shortcut.id;
+        const safeTitle = escapeHtml(shortcut.title || 'Untitled');
+        const safeDescription = escapeHtml(shortcut.description || '');
+        const safeRoutine = escapeHtml(shortcut.routine || '');
+        const safeLink = escapeHtml(shortcut.link || '');
+        const routineMarkup = safeRoutine
+            ? `<div class="shortcut-meta"><i class="bi bi-clock me-1"></i>${safeRoutine}</div>`
+            : '';
+        const linkMarkup = safeLink
+            ? `<a class="btn btn-sm btn-outline-primary" href="${safeLink}" target="_blank" rel="noopener">
+                    <i class="bi bi-box-arrow-up-right me-1"></i> Open
+               </a>`
+            : '<span class="badge text-bg-light">No link yet</span>';
+
+        card.innerHTML = `
+            <div class="shortcut-card-header">
+                <div>
+                    <div class="fw-semibold">${safeTitle}</div>
+                    ${routineMarkup}
+                </div>
+                <button class="btn btn-sm btn-outline-danger" data-action="delete-shortcut" aria-label="Delete shortcut">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+            <div>${safeDescription || '<span class="text-muted">Add notes to remember what this shortcut does.</span>'}</div>
+            <div class="shortcut-actions">
+                ${linkMarkup}
+            </div>
+        `;
+        shortcutList.appendChild(card);
+    });
+
+    if (shortcutCount) {
+        shortcutCount.textContent = `${shortcuts.length} saved`;
+    }
+};
+
+const addShortcut = (title, description, routine, link) => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+    const newShortcut = {
+        id: `shortcut-${generateId()}`,
+        title: trimmedTitle,
+        description: description.trim(),
+        routine: routine.trim(),
+        link: link.trim(),
+        createdAt: new Date().toISOString()
+    };
+    shortcuts = [newShortcut, ...shortcuts];
+    saveShortcuts();
+    renderShortcuts();
+};
+
+const deleteShortcut = (id) => {
+    shortcuts = shortcuts.filter(shortcut => shortcut.id !== id);
+    saveShortcuts();
+    renderShortcuts();
 };
 
 const getSharedBalances = () => {
@@ -2657,6 +2786,23 @@ reminderList?.addEventListener('click', (event) => {
     renderReminders();
     clearScheduledNotification(reminderId);
 });
+shortcutForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    addShortcut(
+        shortcutTitleInput?.value || '',
+        shortcutDescriptionInput?.value || '',
+        shortcutRoutineInput?.value || '',
+        shortcutLinkInput?.value || ''
+    );
+    shortcutForm.reset();
+});
+shortcutList?.addEventListener('click', (event) => {
+    const deleteButton = event.target.closest('[data-action="delete-shortcut"]');
+    if (!deleteButton) return;
+    const card = deleteButton.closest('[data-shortcut-id]');
+    if (!card) return;
+    deleteShortcut(card.dataset.shortcutId);
+});
 
 themeToggle?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-theme-mode]');
@@ -2680,6 +2826,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const validTab = savedTab && Array.from(tabButtons).some((button) => button.dataset.tabTarget === savedTab);
     setActiveTab(validTab ? savedTab : 'finance');
     renderTodos();
+    renderShortcuts();
     renderSharedParticipants();
     updateSharedExpenseControls();
     renderSharedExpenseHistory();
