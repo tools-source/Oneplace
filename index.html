@@ -932,9 +932,6 @@
             <button class="btn btn-outline-primary" type="button" data-tab-target="communication">
                 <i class="bi bi-chat-dots me-1"></i> Communication
             </button>
-            <button class="btn btn-outline-primary" type="button" data-tab-target="shortcuts">
-                <i class="bi bi-phone me-1"></i> Shortcuts
-            </button>
         </div>
 
         <div class="tab-panel active" data-tab-panel="finance">
@@ -1302,86 +1299,6 @@
             </div>
         </div> <!-- end communication panel -->
 
-        <div class="tab-panel" data-tab-panel="shortcuts">
-            <div class="section-header mb-3">
-                <div>
-                    <p class="section-heading">iPhone</p>
-                    <h2 class="section-title">Shortcuts</h2>
-                    <p class="section-subtitle">Save the automations you rely on and add new ones as they come to mind.</p>
-                </div>
-            </div>
-
-            <div class="row g-3">
-                <div class="col-12 col-lg-5">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-body">
-                            <div class="section-header mb-3">
-                                <div>
-                                    <p class="section-heading">Add shortcut</p>
-                                    <h3 class="section-title h5">Capture a new routine</h3>
-                                    <p class="section-subtitle">Note what it does and how you like to trigger it.</p>
-                                </div>
-                            </div>
-                            <form id="shortcut-form" class="vstack gap-3">
-                                <div>
-                                    <label class="form-label" for="shortcut-title">Shortcut name</label>
-                                    <input id="shortcut-title" type="text" class="form-control" placeholder="Morning Briefing" required>
-                                </div>
-                                <div>
-                                    <label class="form-label" for="shortcut-description">What it does</label>
-                                    <textarea id="shortcut-description" class="form-control" rows="3" placeholder="Opens weather, calendar, and my top tasks."></textarea>
-                                </div>
-                                <div>
-                                    <label class="form-label" for="shortcut-routine">When you use it</label>
-                                    <input id="shortcut-routine" type="text" class="form-control" placeholder="Right after I wake up">
-                                </div>
-                                <div>
-                                    <label class="form-label" for="shortcut-link">Shortcut URL (optional)</label>
-                                    <input id="shortcut-link" type="url" class="form-control" placeholder="shortcuts://run-shortcut?name=...">
-                                </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-plus-lg me-1"></i> Add shortcut
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-lg-7">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <div>
-                                    <p class="section-heading">Your shortcuts</p>
-                                    <h3 class="section-title h5">Ready to run</h3>
-                                    <p class="section-subtitle">Tap a shortcut to jump into the Shortcuts app.</p>
-                                </div>
-                                <span class="badge text-bg-primary" id="shortcut-count">0 saved</span>
-                            </div>
-                            <div id="shortcut-list" class="d-grid gap-3"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card shadow-sm mt-4">
-                <div class="card-body">
-                    <div class="section-header mb-3">
-                        <div>
-                            <p class="section-heading">Daily inspiration</p>
-                            <h3 class="section-title h5">Shortcut ideas</h3>
-                            <p class="section-subtitle">Use these as prompts the next time you ask me to add a shortcut.</p>
-                        </div>
-                    </div>
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item">Start a focus playlist and set a 25-minute timer.</li>
-                        <li class="list-group-item">Log water intake and update a hydration reminder.</li>
-                        <li class="list-group-item">Send your ETA to a favorite contact.</li>
-                        <li class="list-group-item">Pull up your top three tasks and open your notes app.</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
