@@ -5,6 +5,7 @@ const categorySelect = document.getElementById('category');
 const urgencySelect = document.getElementById('urgency');
 const categoryFilter = document.getElementById('category-filter');
 const urgencyFilter = document.getElementById('urgency-filter');
+const transactionSearchInput = document.getElementById('transaction-search');
 const addTransactionButton = document.getElementById('add-transaction');
 const saveTransactionButton = document.getElementById('save-transaction');
 const balanceElement = document.getElementById('balance');
@@ -15,13 +16,21 @@ const toggleHistoryButton = document.getElementById('toggle-history');
 const inputSection = document.getElementById('input-section');
 const toggleInputButton = document.getElementById('toggle-input');
 const exportDataButton = document.getElementById('export-data');
+const exportBackupButton = document.getElementById('export-backup');
+const importTransactionsButton = document.getElementById('import-transactions');
+const importDataInput = document.getElementById('import-data');
 const clearDataButton = document.getElementById('clear-data');
+const loadDemoDataButton = document.getElementById('load-demo-data');
+const openHelpButton = document.getElementById('open-help');
 const tabButtons = document.querySelectorAll('[data-tab-target]');
 const tabPanels = document.querySelectorAll('[data-tab-panel]');
 const tabNav = document.querySelector('.tab-nav');
 const categoryPillGroup = document.getElementById('category-pill-group');
 const categoryHint = document.getElementById('category-hint');
 const categoryGuidance = document.getElementById('category-guidance');
+const customCategoryNameInput = document.getElementById('custom-category-name');
+const customCategoryTypeSelect = document.getElementById('custom-category-type');
+const addCategoryButton = document.getElementById('add-category');
 const themeToggle = document.getElementById('theme-toggle');
 const themeModeButtons = document.querySelectorAll('[data-theme-mode]');
 const accentOptionsContainer = document.getElementById('accent-options');
@@ -36,6 +45,7 @@ const todoInput = document.getElementById('todo-input');
 const todoPriority = document.getElementById('todo-priority');
 const todoList = document.getElementById('todo-list');
 const todoProgress = document.getElementById('todo-progress');
+const todoSearchInput = document.getElementById('todo-search');
 const sharedParticipantList = document.getElementById('shared-participant-list');
 const sharedParticipantForm = document.getElementById('shared-participant-form');
 const sharedParticipantInput = document.getElementById('shared-participant-input');
@@ -47,10 +57,13 @@ const sharedExpenseParticipants = document.getElementById('shared-expense-partic
 const sharedExpenseHistory = document.getElementById('shared-expense-history');
 const sharedExpenseSummary = document.getElementById('shared-expense-summary');
 const resetSharedBalancesButton = document.getElementById('reset-shared-balances');
+const shareSplitSummaryButton = document.getElementById('share-split-summary');
 const communicationForm = document.getElementById('communication-form');
 const communicationTitleInput = document.getElementById('communication-title');
+const communicationPhraseInput = document.getElementById('communication-phrase');
 const communicationImageInput = document.getElementById('communication-image');
 const communicationEmojiInput = document.getElementById('communication-emoji');
+const communicationLanguageSelect = document.getElementById('communication-language');
 const communicationPreview = document.getElementById('communication-preview');
 const communicationGrid = document.getElementById('communication-grid');
 const communicationRecordButton = document.getElementById('communication-record');
@@ -86,6 +99,7 @@ const copyPushSubscriptionButton = document.getElementById('copy-push-subscripti
 const clearPushSubscriptionButton = document.getElementById('clear-push-subscription');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
+const CUSTOM_CATEGORIES_KEY = 'customCategories';
 const TODO_STORAGE_KEY = 'organizerTodos';
 const SHARED_PARTICIPANTS_KEY = 'sharedParticipants';
 const SHARED_EXPENSES_KEY = 'sharedExpenses';
@@ -133,6 +147,7 @@ const safeJsonParse = (key, fallback) => {
 
 let transactions = safeJsonParse('transactions', []);
 let editTransactionId = null;
+let customCategories = safeJsonParse(CUSTOM_CATEGORIES_KEY, []);
 let todos = safeJsonParse(TODO_STORAGE_KEY, []);
 let sharedParticipants = safeJsonParse(SHARED_PARTICIPANTS_KEY, []);
 let sharedExpenses = safeJsonParse(SHARED_EXPENSES_KEY, []);
@@ -148,6 +163,8 @@ let activeAudioElement = null;
 let isCommunicationAudioPlaying = false;
 let reminderCheckInterval = null;
 let reminderSchedulingInProgress = false;
+let transactionSearchQuery = '';
+let todoSearchQuery = '';
 const REMINDER_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const REMINDER_NOTIFICATION_ICON = 'assets/icons/icon-192.png';
 const REMINDER_NOTIFICATION_BADGE = 'assets/icons/icon-72.png';
@@ -159,7 +176,7 @@ const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
 
-const CATEGORY_CONFIG = [
+const BASE_CATEGORY_CONFIG = [
     { value: 'salary', label: 'Salary', type: 'income', color: '#28a745', hint: 'Log your paycheck or recurring income.' },
     { value: 'freelance', label: 'Freelance', type: 'income', color: '#20c997', hint: 'Track side gigs and one-off projects.' },
     { value: 'investments', label: 'Investments', type: 'income', color: '#198754', hint: 'Record dividends, interest, or payouts.' },
@@ -174,10 +191,17 @@ const CATEGORY_CONFIG = [
     { value: 'other-expense', label: 'Other Expense', type: 'expense', color: '#6c757d', hint: 'Everything that does not fit elsewhere.' }
 ];
 
-const CATEGORY_LOOKUP = CATEGORY_CONFIG.reduce((acc, category) => {
+const buildCategoryLookup = (categories) => categories.reduce((acc, category) => {
     acc[category.value] = category;
     return acc;
 }, {});
+
+const getAllCategories = () => [
+    ...BASE_CATEGORY_CONFIG,
+    ...(Array.isArray(customCategories) ? customCategories : [])
+];
+
+let CATEGORY_LOOKUP = buildCategoryLookup(getAllCategories());
 
 const URGENCY_OPTIONS = [
     { value: 'urgent', label: 'Urgent', badgeClass: 'bg-danger' },
@@ -237,6 +261,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'I want a drink',
         phrase: 'I would like a drink, please.',
         emoji: '🧃',
+        lang: 'en',
         color: '#0d6efd',
         isCustom: false,
         audioData: ''
@@ -246,6 +271,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'I am hungry',
         phrase: 'I am hungry. Can I have something to eat?',
         emoji: '🍎',
+        lang: 'en',
         color: '#fd7e14',
         isCustom: false,
         audioData: ''
@@ -255,6 +281,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'Bathroom',
         phrase: 'I need to use the bathroom.',
         emoji: '🚻',
+        lang: 'en',
         color: '#20c997',
         isCustom: false,
         audioData: ''
@@ -264,6 +291,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'Help me',
         phrase: 'Please help me.',
         emoji: '🆘',
+        lang: 'en',
         color: '#dc3545',
         isCustom: false,
         audioData: ''
@@ -273,6 +301,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'I need a break',
         phrase: 'I need a break.',
         emoji: '🧸',
+        lang: 'en',
         color: '#6f42c1',
         isCustom: false,
         audioData: ''
@@ -282,6 +311,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'Hola',
         phrase: 'Hola, ¿puedo tener esto?',
         emoji: '😊',
+        lang: 'es',
         color: '#17a2b8',
         isCustom: false,
         audioData: ''
@@ -291,6 +321,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'مرحبا',
         phrase: 'مرحباً، كيف حالك اليوم؟',
         emoji: '👋',
+        lang: 'ar',
         color: '#0d6efd',
         isCustom: false,
         audioData: ''
@@ -300,6 +331,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'شكراً',
         phrase: 'شكراً جزيلاً على مساعدتك.',
         emoji: '🙏',
+        lang: 'ar',
         color: '#20c997',
         isCustom: false,
         audioData: ''
@@ -383,7 +415,11 @@ const getFilteredTransactions = () => {
     return transactions.filter(transaction => {
         const matchesCategory = !activeCategoryFilter || transaction.category === activeCategoryFilter;
         const matchesUrgency = !activeUrgencyFilter || transaction.urgency === activeUrgencyFilter;
-        return matchesCategory && matchesUrgency;
+        const description = (transaction.description || '').toLowerCase();
+        const matchesSearch = !transactionSearchQuery
+            || description.includes(transactionSearchQuery)
+            || getCategoryName(transaction.category).toLowerCase().includes(transactionSearchQuery);
+        return matchesCategory && matchesUrgency && matchesSearch;
     });
 };
 
@@ -445,6 +481,17 @@ const getFilterLabel = () => {
     return parts.length ? parts.join(' · ') : 'All categories';
 };
 
+const normalizeCustomCategories = (categories = []) => (
+    Array.isArray(categories)
+        ? categories.map((category, index) => ({
+            value: category.value || `custom-${generateId() + index}`,
+            label: category.label || 'Custom',
+            type: category.type === 'income' ? 'income' : 'expense',
+            color: category.color || '#0d6efd'
+        }))
+        : []
+);
+
 const normalizeTodo = (todo, index = 0) => ({
     ...todo,
     order: typeof todo.order === 'number' ? todo.order : Math.min((index + 1) * 10, MAX_ORDER_VALUE),
@@ -462,6 +509,8 @@ const sortTodos = (list) => list
     });
 
 transactions = loadTransactions();
+customCategories = normalizeCustomCategories(customCategories);
+CATEGORY_LOOKUP = buildCategoryLookup(getAllCategories());
 todos = Array.isArray(todos) ? todos.map((todo, index) => normalizeTodo(todo, index)) : [];
 sharedParticipants = Array.isArray(sharedParticipants)
     ? sharedParticipants.map((participant, index) => ({
@@ -483,6 +532,7 @@ communicationItems = Array.isArray(communicationItems)
         id: item.id || `comm-${generateId() + index}`,
         title: item.title || 'New card',
         phrase: item.phrase || '',
+        lang: item.lang || 'en',
         audioData: item.audioData || '',
         emoji: item.emoji || '💬',
         color: item.color || '#0d6efd',
@@ -529,10 +579,13 @@ const setActiveTab = (target) => {
     tabButtons.forEach(button => {
         const isActive = button.dataset.tabTarget === target;
         button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        button.tabIndex = isActive ? 0 : -1;
     });
     tabPanels.forEach(panel => {
         const isActive = panel.dataset.tabPanel === target;
         panel.classList.toggle('active', isActive);
+        panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
     });
     if (target) {
         safeStorage.set(ACTIVE_TAB_STORAGE_KEY, target);
@@ -1245,14 +1298,27 @@ const updateTodoProgress = () => {
 const renderTodos = () => {
     if (!todoList) return;
     todoList.innerHTML = '';
-    
-    if (todos.length === 0) {
-        todoList.innerHTML = '<li class="list-group-item text-center text-muted py-4">No tasks yet</li>';
+
+    const filteredTodos = todoSearchQuery
+        ? todos.filter(todo => {
+            const text = (todo.text || '').toLowerCase();
+            const matchesText = text.includes(todoSearchQuery);
+            const matchesSubtask = Array.isArray(todo.subtasks)
+                && todo.subtasks.some(subtask => (subtask.text || '').toLowerCase().includes(todoSearchQuery));
+            return matchesText || matchesSubtask;
+        })
+        : todos;
+
+    if (filteredTodos.length === 0) {
+        const message = todos.length === 0
+            ? 'No tasks yet'
+            : 'No tasks match this search';
+        todoList.innerHTML = `<li class="list-group-item text-center text-muted py-4">${message}</li>`;
         updateTodoProgress();
         return;
     }
     
-    sortTodos(todos).forEach(todo => {
+    sortTodos(filteredTodos).forEach(todo => {
         const meta = TODO_PRIORITY_META[todo.priority] || TODO_PRIORITY_META.normal;
         const li = document.createElement('li');
         li.className = 'list-group-item';
@@ -1267,7 +1333,7 @@ const renderTodos = () => {
                             <input class="form-check-input" type="checkbox" data-role="subtodo-toggle" data-subtask-id="${subtask.id}" ${subtask.completed ? 'checked' : ''}>
                             <span class="${subtask.completed ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(subtask.text || '')}</span>
                         </div>
-                        <button class="btn btn-sm btn-outline-danger" data-action="delete-subtask" data-subtask-id="${subtask.id}">
+                        <button class="btn btn-sm btn-outline-danger" data-action="delete-subtask" data-subtask-id="${subtask.id}" aria-label="Delete subtask">
                             <i class="bi bi-x"></i>
                         </button>
                     </li>
@@ -1285,10 +1351,10 @@ const renderTodos = () => {
                 ${subtaskMarkup}
             </div>
             <div class="todo-actions d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary" data-action="add-subtask">
+                <button class="btn btn-sm btn-outline-primary" data-action="add-subtask" aria-label="Add subtask">
                     <i class="bi bi-node-plus"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-secondary" data-action="delete">
+                <button class="btn btn-sm btn-outline-secondary" data-action="delete" aria-label="Delete task">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
@@ -1501,7 +1567,7 @@ const renderSharedParticipants = () => {
                     <strong>${safeName}</strong>
                     <div class="d-flex align-items-center gap-2">
                         <span class="${balanceClass}">${formatCurrency(balance, { includePlus: true })}</span>
-                        <button class="btn btn-sm btn-outline-danger" data-shared-action="delete-participant">
+                        <button class="btn btn-sm btn-outline-danger" data-shared-action="delete-participant" aria-label="Remove participant">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
@@ -1540,7 +1606,7 @@ const renderSharedExpenseHistory = () => {
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="shared-expense-chip">${formatCurrency(expense.amount)}</span>
-                        <button class="btn btn-sm btn-outline-danger" data-shared-action="delete-expense">
+                        <button class="btn btn-sm btn-outline-danger" data-shared-action="delete-expense" aria-label="Delete shared expense">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
@@ -1548,6 +1614,36 @@ const renderSharedExpenseHistory = () => {
             `;
         })
         .join('');
+};
+
+const buildSplitSummary = () => {
+    if (!sharedParticipants.length) return 'No participants yet.';
+    const balances = getSharedBalances();
+    const lines = sharedParticipants.map(participant => {
+        const balance = balances[participant.id] || 0;
+        const label = balance >= 0 ? 'is owed' : 'owes';
+        return `${participant.name}: ${label} ${formatCurrency(balance, { includePlus: true })}`;
+    });
+    const totalExpenses = sharedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    return [
+        'One Place split summary',
+        `Total shared expenses: ${formatCurrency(totalExpenses)}`,
+        ...lines
+    ].join('\n');
+};
+
+const copySplitSummary = async () => {
+    const summary = buildSplitSummary();
+    if (!navigator.clipboard) {
+        alert(summary);
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(summary);
+        alert('Split summary copied to clipboard.');
+    } catch (error) {
+        alert(summary);
+    }
 };
 
 const addSharedParticipant = (name) => {
@@ -1598,8 +1694,9 @@ const resetSharedExpenses = () => {
 const renderCategoryPills = () => {
     if (!categoryPillGroup) return;
     categoryPillGroup.innerHTML = '';
-    
-    CATEGORY_CONFIG.forEach(category => {
+    const categories = getAllCategories();
+
+    categories.forEach(category => {
         const pill = document.createElement('button');
         pill.type = 'button';
         pill.className = 'category-pill';
@@ -1628,12 +1725,81 @@ const renderCategoryOptions = () => {
     placeholder.textContent = 'Choose a category';
     categorySelect.appendChild(placeholder);
 
-    CATEGORY_CONFIG.forEach(category => {
+    const categories = getAllCategories();
+    categories.forEach(category => {
         const option = document.createElement('option');
         option.value = category.value;
         option.textContent = category.label;
         categorySelect.appendChild(option);
     });
+};
+
+const renderCategoryFilters = () => {
+    if (!categoryFilter) return;
+    categoryFilter.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'All Categories';
+    categoryFilter.appendChild(placeholder);
+
+    const categories = getAllCategories();
+    const incomeGroup = document.createElement('optgroup');
+    incomeGroup.label = 'Income';
+    const expenseGroup = document.createElement('optgroup');
+    expenseGroup.label = 'Expenses';
+
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.value;
+        option.textContent = category.label;
+        if (category.type === 'income') {
+            incomeGroup.appendChild(option);
+        } else {
+            expenseGroup.appendChild(option);
+        }
+    });
+
+    if (incomeGroup.children.length) categoryFilter.appendChild(incomeGroup);
+    if (expenseGroup.children.length) categoryFilter.appendChild(expenseGroup);
+    if (activeCategoryFilter) {
+        categoryFilter.value = activeCategoryFilter;
+    }
+};
+
+const saveCustomCategories = () => {
+    safeStorage.set(CUSTOM_CATEGORIES_KEY, JSON.stringify(customCategories));
+};
+
+const generateCategoryValue = (label) => label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+const getNextCustomCategoryColor = () => {
+    const palette = ['#0d6efd', '#20c997', '#6f42c1', '#fd7e14', '#dc3545', '#198754'];
+    return palette[customCategories.length % palette.length];
+};
+
+const addCustomCategory = () => {
+    if (!customCategoryNameInput || !customCategoryTypeSelect) return;
+    const label = customCategoryNameInput.value.trim();
+    const type = customCategoryTypeSelect.value === 'income' ? 'income' : 'expense';
+    if (!label) return;
+    const value = generateCategoryValue(label);
+    if (CATEGORY_LOOKUP[value]) {
+        alert('That category already exists.');
+        return;
+    }
+    const color = getNextCustomCategoryColor();
+    customCategories.push({ value, label, type, color });
+    saveCustomCategories();
+    CATEGORY_LOOKUP = buildCategoryLookup(getAllCategories());
+    renderCategoryOptions();
+    renderCategoryPills();
+    renderCategoryFilters();
+    customCategoryNameInput.value = '';
+    setActiveCategory(value);
 };
 
 const setActiveCategory = (categoryValue) => {
@@ -1823,10 +1989,10 @@ function createTransactionElement(transaction) {
             </div>
             <div class="transaction-actions d-flex gap-2 align-items-center">
                 <span class="${transaction.type === 'income' ? 'positive' : 'negative'} fw-bold">${transactionAmount}</span>
-                <button class="btn btn-sm btn-outline-primary edit-btn">
+                <button class="btn btn-sm btn-outline-primary edit-btn" aria-label="Edit transaction">
                     <i class="bi bi-pencil"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-danger delete-btn">
+                <button class="btn btn-sm btn-outline-danger delete-btn" aria-label="Delete transaction">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
@@ -1885,6 +2051,7 @@ function displayTransactions(list) {
     if (!hasTransactions) {
         historySection.style.display = 'none';
         toggleHistoryButton.innerHTML = '<i class="bi bi-chevron-down"></i> Show';
+        toggleHistoryButton.setAttribute('aria-expanded', 'false');
         delete historySection.dataset.userToggled;
         return;
     }
@@ -1892,11 +2059,13 @@ function displayTransactions(list) {
     if (historySection.dataset.userToggled !== 'true') {
         historySection.style.display = 'block';
         toggleHistoryButton.innerHTML = '<i class="bi bi-chevron-up"></i> Hide';
+        toggleHistoryButton.setAttribute('aria-expanded', 'true');
         return;
     }
 
     const isHidden = historySection.style.display === 'none';
     toggleHistoryButton.innerHTML = `<i class="bi bi-chevron-${isHidden ? 'down' : 'up'}"></i> ${isHidden ? 'Show' : 'Hide'}`;
+    toggleHistoryButton.setAttribute('aria-expanded', isHidden ? 'false' : 'true');
 }
 
 const parseTransactionDate = (transaction) => {
@@ -2133,6 +2302,161 @@ function exportToCSV() {
     link.click();
 }
 
+const parseCsvRow = (row) => {
+    const output = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < row.length; i += 1) {
+        const char = row[i];
+        const nextChar = row[i + 1];
+        if (char === '"' && inQuotes && nextChar === '"') {
+            current += '"';
+            i += 1;
+        } else if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            output.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    output.push(current);
+    return output.map((cell) => cell.trim());
+};
+
+const findCategoryValue = (label = '', type = '') => {
+    const normalizedLabel = label.toLowerCase();
+    const categories = getAllCategories();
+    const match = categories.find((category) =>
+        category.value.toLowerCase() === normalizedLabel
+        || category.label.toLowerCase() === normalizedLabel
+    );
+    if (match) return match.value;
+    if (!label) return '';
+    const value = generateCategoryValue(label);
+    const color = getNextCustomCategoryColor();
+    const normalizedType = type === 'income' ? 'income' : 'expense';
+    customCategories.push({ value, label, type: normalizedType, color });
+    saveCustomCategories();
+    CATEGORY_LOOKUP = buildCategoryLookup(getAllCategories());
+    renderCategoryOptions();
+    renderCategoryPills();
+    renderCategoryFilters();
+    return value;
+};
+
+const importTransactionsFromCsv = (text) => {
+    const lines = text.split(/\r?\n/).filter((line) => line.trim());
+    if (!lines.length) return;
+    const header = parseCsvRow(lines[0]).map((value) => value.toLowerCase());
+    const hasHeader = header.includes('date') || header.includes('description');
+    const startIndex = hasHeader ? 1 : 0;
+
+    const getValue = (row, key, index) => {
+        if (hasHeader) {
+            const keyIndex = header.indexOf(key);
+            return keyIndex >= 0 ? row[keyIndex] : '';
+        }
+        return row[index] || '';
+    };
+
+    for (let i = startIndex; i < lines.length; i += 1) {
+        const row = parseCsvRow(lines[i]);
+        const description = getValue(row, 'description', 1);
+        const categoryLabel = getValue(row, 'category', 2);
+        const urgency = normalizeUrgencyValue(getValue(row, 'urgency', 3));
+        const typeRaw = getValue(row, 'type', 4).toLowerCase();
+        const amountRaw = parseFloat(getValue(row, 'amount', 5));
+        const type = typeRaw === 'income' || typeRaw === 'expense'
+            ? typeRaw
+            : amountRaw < 0
+                ? 'expense'
+                : 'income';
+        const categoryValue = findCategoryValue(categoryLabel, type);
+        const dateValue = getValue(row, 'date', 0);
+        const parsedDate = new Date(dateValue);
+        const date = Number.isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
+
+        const transaction = normalizeTransaction({
+            id: generateId(),
+            description,
+            amount: Math.abs(amountRaw || 0),
+            type,
+            category: categoryValue,
+            urgency,
+            date
+        });
+        transactions.push(transaction);
+    }
+    saveTransactions();
+    updateBalance();
+    displayTransactions();
+};
+
+const exportFullBackup = () => {
+    const payload = {
+        exportedAt: new Date().toISOString(),
+        transactions,
+        todos,
+        sharedParticipants,
+        sharedExpenses,
+        communicationItems,
+        customCategories
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `oneplace_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+};
+
+const importBackupData = (data) => {
+    if (!data) return;
+    if (Array.isArray(data)) {
+        data.forEach((item, index) => {
+            const transaction = normalizeTransaction(item, index);
+            transactions.push(transaction);
+        });
+    } else if (typeof data === 'object') {
+        if (Array.isArray(data.customCategories)) {
+            customCategories = normalizeCustomCategories(data.customCategories);
+            saveCustomCategories();
+            CATEGORY_LOOKUP = buildCategoryLookup(getAllCategories());
+        }
+        if (Array.isArray(data.transactions)) {
+            transactions = data.transactions.map((item, index) => normalizeTransaction(item, index));
+            saveTransactions();
+        }
+        if (Array.isArray(data.todos)) {
+            todos = data.todos.map((item, index) => normalizeTodo(item, index));
+            saveTodos();
+        }
+        if (Array.isArray(data.sharedParticipants)) {
+            sharedParticipants = data.sharedParticipants;
+            saveSharedParticipants();
+        }
+        if (Array.isArray(data.sharedExpenses)) {
+            sharedExpenses = data.sharedExpenses;
+            saveSharedExpenses();
+        }
+        if (Array.isArray(data.communicationItems)) {
+            communicationItems = data.communicationItems;
+            saveCommunicationItems();
+        }
+    }
+    renderCategoryOptions();
+    renderCategoryPills();
+    renderCategoryFilters();
+    renderTodos();
+    renderSharedParticipants();
+    renderSharedExpenseHistory();
+    normalizeCommunicationItems();
+    renderCommunicationItems();
+    updateBalance();
+    displayTransactions();
+};
+
 function showAlert(message, type = 'warning') {
     const alert = document.createElement('div');
     alert.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
@@ -2165,6 +2489,7 @@ const normalizeCommunicationItems = () => {
         return {
             ...rest,
             phrase: item.phrase || '',
+            lang: item.lang || 'en',
             audioData: item.audioData || '',
             color: rest.color || nextCommunicationColor(index),
             emoji: normalizeEmojiValue(rest.emoji || rest.title?.charAt(0) || '')
@@ -2345,6 +2670,8 @@ const renderCommunicationItems = () => {
         const cleanPhrase = stripLeadingEmoji(item.phrase || '', emoji);
         const displayTitle = cleanTitle || item.title || 'Communication card';
         const displayPhrase = cleanPhrase || item.phrase || '';
+        const language = item.lang || 'en';
+        const dir = language === 'ar' ? 'rtl' : 'ltr';
         const card = document.createElement('div');
         card.className = 'communication-card text-start';
         card.dataset.communicationId = item.id;
@@ -2363,18 +2690,18 @@ const renderCommunicationItems = () => {
         card.innerHTML = `
             <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
                 ${item.imageData
-                    ? `<img src="${item.imageData}" alt="${safeAlt}">`
+                    ? `<img src="${item.imageData}" alt="${safeAlt}" loading="lazy">`
                     : `<div class="communication-placeholder" aria-hidden="true">
                         <span class="communication-emoji">${fallbackEmoji}</span>
                     </div>`}
             </div>
-            <div class="fw-semibold">${safeTitle}</div>
-            <div class="text-muted small">${safePhrase}</div>
+            <div class="fw-semibold" lang="${language}" dir="${dir}">${safeTitle}</div>
+            <div class="text-muted small" lang="${language}" dir="${dir}">${safePhrase}</div>
             <div class="communication-meta">
                 <div>${recordingMessage}</div>
                 <div class="communication-actions">
-                    <button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>
-                    <button class="btn btn-outline-primary btn-sm" data-action="edit-communication"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-outline-danger btn-sm" data-action="delete-communication" aria-label="Delete communication card"><i class="bi bi-trash"></i></button>
+                    <button class="btn btn-outline-primary btn-sm" data-action="edit-communication" aria-label="Edit communication card"><i class="bi bi-pencil"></i></button>
                 </div>
             </div>
         `;
@@ -2395,8 +2722,14 @@ const setCommunicationFormMode = (item = null) => {
 
     if (isEditing) {
         communicationTitleInput.value = item.title;
+        if (communicationPhraseInput) {
+            communicationPhraseInput.value = item.phrase || '';
+        }
         if (communicationEmojiInput) {
             communicationEmojiInput.value = item.emoji || '';
+        }
+        if (communicationLanguageSelect) {
+            communicationLanguageSelect.value = item.lang || 'en';
         }
         applyRecordingFromItem(item);
         if (item.imageData) {
@@ -2410,6 +2743,12 @@ const setCommunicationFormMode = (item = null) => {
         communicationForm.reset();
         if (communicationEmojiInput) {
             communicationEmojiInput.value = '';
+        }
+        if (communicationPhraseInput) {
+            communicationPhraseInput.value = '';
+        }
+        if (communicationLanguageSelect) {
+            communicationLanguageSelect.value = 'en';
         }
         resetCommunicationPreview();
         resetRecordingState();
@@ -2431,7 +2770,8 @@ const handleCommunicationFormSubmit = (e) => {
     const currentItem = editingCommunicationId
         ? communicationItems.find((item) => item.id === editingCommunicationId)
         : null;
-    const phrase = currentItem?.phrase || title;
+    const phrase = communicationPhraseInput?.value.trim() || currentItem?.phrase || title;
+    const language = communicationLanguageSelect?.value || currentItem?.lang || 'en';
     const emoji = normalizeEmojiValue(
         (communicationEmojiInput?.value || '').trim() || currentItem?.emoji || title.charAt(0),
         '🗣️'
@@ -2448,6 +2788,7 @@ const handleCommunicationFormSubmit = (e) => {
                         ...item,
                         title,
                         phrase,
+                        lang: language,
                         audioData,
                         imageData,
                         emoji
@@ -2460,6 +2801,7 @@ const handleCommunicationFormSubmit = (e) => {
                 title,
                 phrase,
                 audioData,
+                lang: language,
                 imageData,
                 emoji,
                 color: nextCommunicationColor(communicationItems.length),
@@ -2518,12 +2860,14 @@ const resetWorkspaceData = () => {
     mediaRecorder = null;
 
     transactions = [];
+    customCategories = [];
     todos = [];
     sharedParticipants = createDefaultSharedParticipants();
     sharedExpenses = [];
     communicationItems = DEFAULT_COMMUNICATION_ITEMS.map(item => ({ ...item }));
 
     saveTransactions();
+    saveCustomCategories();
     saveTodos();
     saveSharedParticipants();
     saveSharedExpenses();
@@ -2532,6 +2876,14 @@ const resetWorkspaceData = () => {
     activeCategoryFilter = '';
     if (categoryFilter) {
         categoryFilter.value = '';
+    }
+    transactionSearchQuery = '';
+    if (transactionSearchInput) {
+        transactionSearchInput.value = '';
+    }
+    todoSearchQuery = '';
+    if (todoSearchInput) {
+        todoSearchInput.value = '';
     }
     activeUrgencyFilter = '';
     if (urgencyFilter) {
@@ -2546,6 +2898,9 @@ const resetWorkspaceData = () => {
     setActiveCategory(null);
 
     renderTodos();
+    renderCategoryOptions();
+    renderCategoryPills();
+    renderCategoryFilters();
     updateSharedExpenseControls();
     renderSharedParticipants();
     renderSharedExpenseHistory();
@@ -2563,9 +2918,190 @@ const resetWorkspaceData = () => {
     setInputSectionVisibility(true);
 };
 
+const loadDemoData = () => {
+    if (!confirm('Load demo data? This will replace your current workspace.')) return;
+    const now = new Date();
+    customCategories = [
+        { value: 'pet-care', label: 'Pet care', type: 'expense', color: '#6f42c1' }
+    ];
+    CATEGORY_LOOKUP = buildCategoryLookup(getAllCategories());
+    saveCustomCategories();
+
+    transactions = [
+        {
+            id: generateId(),
+            description: 'Paycheck',
+            amount: 3200,
+            type: 'income',
+            category: 'salary',
+            urgency: 'not-urgent',
+            date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2).toISOString()
+        },
+        {
+            id: generateId(),
+            description: 'Groceries',
+            amount: 145.32,
+            type: 'expense',
+            category: 'food',
+            urgency: 'urgent',
+            date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString()
+        },
+        {
+            id: generateId(),
+            description: 'Metro pass',
+            amount: 60,
+            type: 'expense',
+            category: 'transport',
+            urgency: 'later',
+            date: now.toISOString()
+        },
+        {
+            id: generateId(),
+            description: 'Pet supplies',
+            amount: 82.45,
+            type: 'expense',
+            category: 'pet-care',
+            urgency: 'not-urgent',
+            date: now.toISOString()
+        },
+        {
+            id: generateId(),
+            description: 'Freelance design',
+            amount: 450,
+            type: 'income',
+            category: 'freelance',
+            urgency: 'not-urgent',
+            date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 4).toISOString()
+        }
+    ].map((transaction, index) => normalizeTransaction(transaction, index));
+    saveTransactions();
+
+    todos = [
+        {
+            id: generateId(),
+            text: 'Submit rent payment',
+            priority: 'high',
+            completed: false,
+            createdAt: now.toISOString(),
+            order: 10,
+            subtasks: [
+                { id: generateId(), text: 'Check balance', completed: true },
+                { id: generateId(), text: 'Schedule transfer', completed: false }
+            ]
+        },
+        {
+            id: generateId(),
+            text: 'Plan weekly meals',
+            priority: 'normal',
+            completed: false,
+            createdAt: now.toISOString(),
+            order: 20,
+            subtasks: []
+        }
+    ];
+    saveTodos();
+
+    sharedParticipants = [
+        { id: generateId(), name: 'You' },
+        { id: generateId(), name: 'Jordan' },
+        { id: generateId(), name: 'Riley' }
+    ];
+    saveSharedParticipants();
+
+    sharedExpenses = [
+        {
+            id: generateId(),
+            description: 'Streaming subscription',
+            amount: 18.99,
+            payerId: sharedParticipants[0].id,
+            participantIds: sharedParticipants.map((participant) => participant.id),
+            date: now.toISOString()
+        },
+        {
+            id: generateId(),
+            description: 'Household supplies',
+            amount: 54.2,
+            payerId: sharedParticipants[1].id,
+            participantIds: sharedParticipants.map((participant) => participant.id),
+            date: now.toISOString()
+        }
+    ];
+    saveSharedExpenses();
+
+    communicationItems = [
+        ...DEFAULT_COMMUNICATION_ITEMS.map(item => ({ ...item })),
+        {
+            id: `comm-${generateId()}`,
+            title: 'Check in',
+            phrase: 'Can we check in for a moment?',
+            emoji: '✅',
+            lang: 'en',
+            color: '#20c997',
+            isCustom: true,
+            audioData: ''
+        }
+    ];
+    saveCommunicationItems();
+
+    activeCategoryFilter = '';
+    activeUrgencyFilter = '';
+    if (categoryFilter) categoryFilter.value = '';
+    if (urgencyFilter) urgencyFilter.value = '';
+    transactionSearchQuery = '';
+    todoSearchQuery = '';
+    if (transactionSearchInput) transactionSearchInput.value = '';
+    if (todoSearchInput) todoSearchInput.value = '';
+
+    renderCategoryOptions();
+    renderCategoryPills();
+    renderCategoryFilters();
+    renderTodos();
+    updateSharedExpenseControls();
+    renderSharedParticipants();
+    renderSharedExpenseHistory();
+    normalizeCommunicationItems();
+    renderCommunicationItems();
+    updateBalance();
+    displayTransactions();
+    setActiveTab('finance');
+    setCommunicationFormMode();
+};
+
+const handleImportFile = () => {
+    const file = importDataInput?.files?.[0];
+    if (!file) {
+        alert('Please choose a file to import.');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+        const content = reader.result;
+        if (typeof content !== 'string') return;
+        if (file.name.toLowerCase().endsWith('.json')) {
+            try {
+                const data = JSON.parse(content);
+                importBackupData(data);
+            } catch (error) {
+                alert('Unable to read JSON file.');
+            }
+            if (importDataInput) importDataInput.value = '';
+            return;
+        }
+        if (file.name.toLowerCase().endsWith('.csv')) {
+            importTransactionsFromCsv(content);
+            if (importDataInput) importDataInput.value = '';
+            return;
+        }
+        alert('Unsupported file type. Please upload a CSV or JSON file.');
+        if (importDataInput) importDataInput.value = '';
+    };
+    reader.readAsText(file);
+};
+
 // Event Listeners
 addTransactionButton?.addEventListener('click', addTransaction);
 saveTransactionButton?.addEventListener('click', saveEdit);
+addCategoryButton?.addEventListener('click', addCustomCategory);
 clearDataButton?.addEventListener('click', () => {
     if (confirm('Reset your workspace? This clears transactions, todos, shared balances, and communication cards.')) {
         resetWorkspaceData();
@@ -2573,6 +3109,10 @@ clearDataButton?.addEventListener('click', () => {
 });
 
 exportDataButton?.addEventListener('click', exportToCSV);
+exportBackupButton?.addEventListener('click', exportFullBackup);
+importTransactionsButton?.addEventListener('click', handleImportFile);
+loadDemoDataButton?.addEventListener('click', loadDemoData);
+openHelpButton?.addEventListener('click', () => setActiveTab('help'));
 
 toggleHistoryButton?.addEventListener('click', () => {
     if (!historySection) return;
@@ -2582,12 +3122,14 @@ toggleHistoryButton?.addEventListener('click', () => {
         historySection.dataset.userToggled = 'true';
     }
     toggleHistoryButton.innerHTML = `<i class="bi bi-chevron-${isHidden ? 'up' : 'down'}"></i> ${isHidden ? 'Hide' : 'Show'}`;
+    toggleHistoryButton.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
 });
 
 const setInputSectionVisibility = (shouldShow) => {
     if (!inputSection || !toggleInputButton) return;
     inputSection.style.display = shouldShow ? 'block' : 'none';
     toggleInputButton.innerHTML = `<i class="bi bi-chevron-${shouldShow ? 'up' : 'down'}"></i> ${shouldShow ? 'Hide' : 'Show'}`;
+    toggleInputButton.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
 };
 
 toggleInputButton?.addEventListener('click', () => {
@@ -2619,6 +3161,11 @@ historyList?.addEventListener('change', (e) => {
 
 categoryFilter?.addEventListener('change', filterTransactions);
 urgencyFilter?.addEventListener('change', filterTransactions);
+transactionSearchInput?.addEventListener('input', (event) => {
+    transactionSearchQuery = event.target.value.trim().toLowerCase();
+    displayTransactions();
+    updateBalance();
+});
 
 categoryPillGroup?.addEventListener('click', (e) => {
     const pill = e.target.closest('.category-pill');
@@ -2637,6 +3184,11 @@ todoForm?.addEventListener('submit', (e) => {
     addTodo(text, todoPriority.value);
     todoForm.reset();
     todoInput.focus();
+});
+
+todoSearchInput?.addEventListener('input', (event) => {
+    todoSearchQuery = event.target.value.trim().toLowerCase();
+    renderTodos();
 });
 
 todoList?.addEventListener('change', (e) => {
@@ -2728,6 +3280,9 @@ resetSharedBalancesButton?.addEventListener('click', () => {
     if (confirm('Clear all shared expenses?')) {
         resetSharedExpenses();
     }
+});
+shareSplitSummaryButton?.addEventListener('click', () => {
+    copySplitSummary();
 });
 
 communicationForm?.addEventListener('submit', handleCommunicationFormSubmit);
@@ -2830,7 +3385,10 @@ accentOptionsContainer?.addEventListener('click', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     renderCategoryOptions();
     renderCategoryPills();
+    renderCategoryFilters();
     initializeThemeControls();
+    transactionSearchQuery = transactionSearchInput?.value.trim().toLowerCase() || '';
+    todoSearchQuery = todoSearchInput?.value.trim().toLowerCase() || '';
     setupTabs();
     const savedTab = safeStorage.get(ACTIVE_TAB_STORAGE_KEY);
     const validTab = savedTab && Array.from(tabButtons).some((button) => button.dataset.tabTarget === savedTab);

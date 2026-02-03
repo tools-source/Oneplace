@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>One Place</title>
+    <title>One Place | Budgeting, Tasks, Shared Expenses, and Communication</title>
     <!-- Mobile web app capable meta tags -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -35,6 +35,22 @@
             color: #212529;
             font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
             line-height: 1.6;
+        }
+
+        .skip-link {
+            position: absolute;
+            left: -999px;
+            top: 0;
+            background: #0d6efd;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 0 0 6px 6px;
+            z-index: 1000;
+        }
+
+        .skip-link:focus {
+            left: 1rem;
+            top: 1rem;
         }
         
         body.dark-mode {
@@ -379,6 +395,16 @@
             border-color: var(--accent-color);
             box-shadow: 0 0 0 0.2rem var(--accent-color-soft);
         }
+
+        .btn:focus-visible,
+        .form-control:focus-visible,
+        .form-select:focus-visible,
+        .category-pill:focus-visible,
+        .communication-card:focus-visible,
+        .tab-nav .btn:focus-visible {
+            outline: 3px solid var(--accent-color);
+            outline-offset: 2px;
+        }
         
         .btn-success {
             background-color: var(--income-color);
@@ -702,6 +728,11 @@
             min-width: 150px;
         }
 
+        #transaction-search,
+        #todo-search {
+            min-width: 200px;
+        }
+
         .tab-nav .btn {
             border-radius: 999px;
             transition: all 0.2s ease;
@@ -763,6 +794,47 @@
 
         .tab-panel.active {
             display: block;
+        }
+
+        .onboarding-card {
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            background: var(--card-bg);
+            box-shadow: var(--surface-shadow);
+        }
+
+        .onboarding-steps {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .onboarding-step {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+
+        .onboarding-step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-color-soft);
+            color: var(--accent-color);
+            flex-shrink: 0;
+        }
+
+        .help-card {
+            border-radius: 18px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            box-shadow: var(--surface-shadow);
+        }
+
+        .help-list {
+            padding-left: 1.25rem;
         }
 
         .organizer-header {
@@ -886,6 +958,7 @@
     </style>
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="container mt-4 app-shell">
         <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4 app-header">
             <div>
@@ -919,22 +992,66 @@
             </div>
         </div>
 
-        <div class="mb-4 tab-nav">
-            <button class="btn btn-outline-primary active" type="button" data-tab-target="finance">
+        <section class="onboarding-card p-4 mb-4" aria-label="Quick start">
+            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                <div>
+                    <h2 class="h5 mb-2">Quick start your workspace</h2>
+                    <p class="text-muted mb-0">See a guided snapshot, then replace with your own data at any time.</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" type="button" id="load-demo-data">
+                        <i class="bi bi-stars me-1"></i> Load demo data
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" id="open-help">
+                        <i class="bi bi-question-circle me-1"></i> View help & privacy
+                    </button>
+                </div>
+            </div>
+            <div class="onboarding-steps mt-3">
+                <div class="onboarding-step">
+                    <span class="onboarding-step-icon"><i class="bi bi-wallet2"></i></span>
+                    <div>
+                        <strong>Finance</strong>
+                        <div class="text-muted small">Add gains and owes, then filter by urgency or category.</div>
+                    </div>
+                </div>
+                <div class="onboarding-step">
+                    <span class="onboarding-step-icon"><i class="bi bi-check2-square"></i></span>
+                    <div>
+                        <strong>Organizer</strong>
+                        <div class="text-muted small">Capture tasks, set priorities, and keep subtasks together.</div>
+                    </div>
+                </div>
+                <div class="onboarding-step">
+                    <span class="onboarding-step-icon"><i class="bi bi-chat-dots"></i></span>
+                    <div>
+                        <strong>Communication</strong>
+                        <div class="text-muted small">Save phrase cards with transcripts, images, and recordings.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="mb-4 tab-nav" role="tablist" aria-label="Primary sections">
+            <button class="btn btn-outline-primary active" type="button" data-tab-target="finance" role="tab" aria-selected="true" aria-controls="panel-finance" id="tab-finance">
                 <i class="bi bi-wallet2 me-1"></i> Finance
             </button>
-            <button class="btn btn-outline-primary" type="button" data-tab-target="organizer">
+            <button class="btn btn-outline-primary" type="button" data-tab-target="organizer" role="tab" aria-selected="false" aria-controls="panel-organizer" id="tab-organizer">
                 <i class="bi bi-check2-square me-1"></i> Organizer
             </button>
-            <button class="btn btn-outline-primary" type="button" data-tab-target="shared">
+            <button class="btn btn-outline-primary" type="button" data-tab-target="shared" role="tab" aria-selected="false" aria-controls="panel-shared" id="tab-shared">
                 <i class="bi bi-people me-1"></i> Split
             </button>
-            <button class="btn btn-outline-primary" type="button" data-tab-target="communication">
+            <button class="btn btn-outline-primary" type="button" data-tab-target="communication" role="tab" aria-selected="false" aria-controls="panel-communication" id="tab-communication">
                 <i class="bi bi-chat-dots me-1"></i> Communication
+            </button>
+            <button class="btn btn-outline-primary" type="button" data-tab-target="help" role="tab" aria-selected="false" aria-controls="panel-help" id="tab-help">
+                <i class="bi bi-life-preserver me-1"></i> Help
             </button>
         </div>
 
-        <div class="tab-panel active" data-tab-panel="finance">
+        <main id="main-content">
+        <div class="tab-panel active" data-tab-panel="finance" role="tabpanel" aria-labelledby="tab-finance" id="panel-finance">
         <div class="section-header mb-3">
             <div>
                 <p class="section-heading">Finance</p>
@@ -976,16 +1093,18 @@
                         <h2 class="section-title">Add a new entry</h2>
                         <p class="section-subtitle">Log a gain or owe with a few taps.</p>
                     </div>
-                    <button id="toggle-input" class="btn btn-outline-secondary btn-sm">
+                    <button id="toggle-input" class="btn btn-outline-secondary btn-sm" aria-controls="input-section" aria-expanded="true">
                         <i class="bi bi-chevron-up"></i> Hide
                     </button>
                 </div>
                 <div class="input-section" id="input-section">
                     <div class="row g-2">
                         <div class="col-12 col-md-4">
-                            <input type="text" id="description" class="form-control" placeholder="Description" required>
+                            <label class="form-label small text-muted" for="description">Description</label>
+                            <input type="text" id="description" class="form-control" placeholder="E.g. Paycheck or groceries" required>
                         </div>
                         <div class="col-12 col-md-2">
+                            <label class="form-label small text-muted" for="amount">Amount</label>
                             <input type="number" 
                                    id="amount" 
                                    class="form-control" 
@@ -996,6 +1115,7 @@
                                    pattern="[0-9]*">
                         </div>
                         <div class="col-12 col-md-3">
+                            <label class="form-label small text-muted" for="category">Category</label>
                             <select id="category" class="form-select mb-2" required aria-label="Category">
                                 <option value="">Choose a category</option>
                             </select>
@@ -1005,6 +1125,7 @@
                             </small>
                         </div>
                         <div class="col-12 col-md-3">
+                            <span class="form-label small text-muted d-block mb-2">Type</span>
                             <div class="d-flex gap-3">
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" name="transactionType" id="incomeRadio" value="income" checked>
@@ -1020,9 +1141,28 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row g-2 mt-2 align-items-end">
+                        <div class="col-12 col-md-5">
+                            <label class="form-label small text-muted" for="custom-category-name">Add custom category</label>
+                            <input type="text" id="custom-category-name" class="form-control" placeholder="Custom category name">
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label small text-muted" for="custom-category-type">Category type</label>
+                            <select id="custom-category-type" class="form-select">
+                                <option value="income">Gain</option>
+                                <option value="expense">Owe</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <button id="add-category" class="btn btn-outline-primary w-100" type="button">
+                                <i class="bi bi-tags me-1"></i> Add custom category
+                            </button>
+                            <small class="text-muted d-block mt-1">Custom categories appear in filters and insights.</small>
+                        </div>
+                    </div>
                     <div class="d-grid gap-2 mt-3">
                         <button id="add-transaction" class="btn btn-success">
-                            <i class="bi bi-plus-circle"></i> Add Transaction
+                            <i class="bi bi-plus-circle"></i> Add income or expense
                         </button>
                         <button id="save-transaction" class="btn btn-primary" style="display: none;">
                             <i class="bi bi-save"></i> Save Changes
@@ -1052,12 +1192,16 @@
                         <div class="text-muted small text-end" id="category-balance-indicator">
                             All categories · Balance $0.00
                         </div>
-                        <button id="toggle-history" class="btn btn-info btn-sm">
+                        <button id="toggle-history" class="btn btn-info btn-sm" aria-controls="history-section" aria-expanded="false">
                             <i class="bi bi-chevron-down"></i> Show
                         </button>
                     </div>
                 </div>
                 <div class="history-filter-bar">
+                    <div class="history-filter-group">
+                        <label class="history-filter-label" for="transaction-search">Search</label>
+                        <input id="transaction-search" class="form-control form-control-sm" type="search" placeholder="Search description or category">
+                    </div>
                     <div class="history-filter-group">
                         <label class="history-filter-label" for="urgency-filter">Urgency</label>
                         <select id="urgency-filter" class="form-select form-select-sm">
@@ -1071,22 +1215,6 @@
                         <label class="history-filter-label" for="category-filter">Category</label>
                         <select id="category-filter" class="form-select form-select-sm">
                             <option value="">All Categories</option>
-                            <optgroup label="Income">
-                                <option value="salary">Salary</option>
-                                <option value="freelance">Freelance</option>
-                                <option value="investments">Investments</option>
-                                <option value="other-income">Other Income</option>
-                            </optgroup>
-                            <optgroup label="Expenses">
-                                <option value="food">Food & Dining</option>
-                                <option value="transport">Transport</option>
-                                <option value="bills">Bills & Utilities</option>
-                                <option value="shopping">Shopping</option>
-                                <option value="entertainment">Entertainment</option>
-                                <option value="health">Healthcare</option>
-                                <option value="education">Education</option>
-                                <option value="other-expense">Other Expense</option>
-                            </optgroup>
                         </select>
                     </div>
                 </div>
@@ -1105,10 +1233,21 @@
                         <p class="section-subtitle">Export a backup or reset your workspace.</p>
                     </div>
                 </div>
-                <p class="text-muted small mb-3">Exports include finance history only. Resetting clears transactions, todos, shared balances, and communication cards.</p>
+                <p class="text-muted small mb-3">Exports include finance history and optional full backups. Resetting clears transactions, todos, shared balances, and communication cards.</p>
+                <div class="mb-3">
+                    <label class="form-label small text-muted" for="import-data">Import transactions (CSV) or full backup (JSON)</label>
+                    <input type="file" id="import-data" class="form-control" accept=".csv,.json">
+                    <small class="text-muted d-block mt-1">CSV columns: Date, Description, Category, Urgency, Type, Amount.</small>
+                </div>
                 <div class="utility-actions">
                     <button id="export-data" class="btn btn-secondary">
                         <i class="bi bi-download"></i> Export transactions (CSV)
+                    </button>
+                    <button id="export-backup" class="btn btn-outline-secondary">
+                        <i class="bi bi-cloud-arrow-down"></i> Export full backup (JSON)
+                    </button>
+                    <button id="import-transactions" class="btn btn-outline-primary">
+                        <i class="bi bi-upload"></i> Import file
                     </button>
                     <button id="clear-data" class="btn btn-outline-danger">
                         <i class="bi bi-trash"></i> Reset workspace
@@ -1118,7 +1257,7 @@
         </div>
         </div> <!-- end finance panel -->
 
-        <div class="tab-panel" data-tab-panel="organizer">
+        <div class="tab-panel" data-tab-panel="organizer" role="tabpanel" aria-labelledby="tab-organizer" id="panel-organizer">
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
                     <div class="organizer-header justify-content-between mb-3">
@@ -1129,9 +1268,13 @@
                         </div>
                         <span class="badge bg-primary" id="todo-progress">0 of 0 complete</span>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted" for="todo-search">Search tasks</label>
+                        <input type="search" id="todo-search" class="form-control" placeholder="Search tasks or subtasks">
+                    </div>
                     <form id="todo-form" class="row g-2 mb-3">
                         <div class="col-12 col-md-8">
-                            <input type="text" id="todo-input" class="form-control" placeholder="Add new task" required>
+                            <input type="text" id="todo-input" class="form-control" placeholder="Add a new task" required>
                         </div>
                         <div class="col-12 col-md-4">
                             <div class="input-group">
@@ -1141,7 +1284,7 @@
                                     <option value="low">Low</option>
                                 </select>
                                 <button class="btn btn-primary" type="submit">
-                                    <i class="bi bi-plus-circle me-1"></i> Add
+                                    <i class="bi bi-plus-circle me-1"></i> Add task
                                 </button>
                             </div>
                         </div>
@@ -1151,7 +1294,7 @@
             </div>
         </div> <!-- end organizer panel -->
 
-        <div class="tab-panel" data-tab-panel="shared">
+        <div class="tab-panel" data-tab-panel="shared" role="tabpanel" aria-labelledby="tab-shared" id="panel-shared">
             <div class="shared-grid mb-4">
                 <div class="card shadow-sm">
                     <div class="card-body">
@@ -1161,15 +1304,18 @@
                                 <h2 class="section-title">Balances</h2>
                                 <p class="section-subtitle">Track who owes what.</p>
                             </div>
-                            <button class="btn btn-sm btn-outline-primary" id="reset-shared-balances">
+                            <button class="btn btn-sm btn-outline-primary" id="reset-shared-balances" aria-label="Reset shared balances">
                                 <i class="bi bi-arrow-counterclockwise"></i>
                             </button>
                         </div>
+                        <button class="btn btn-outline-secondary btn-sm mb-3" id="share-split-summary">
+                            <i class="bi bi-share"></i> Copy split summary
+                        </button>
                         <ul id="shared-participant-list" class="list-unstyled mb-3"></ul>
                         <form id="shared-participant-form" class="input-group">
-                            <input type="text" id="shared-participant-input" class="form-control" placeholder="Add person" required>
+                            <input type="text" id="shared-participant-input" class="form-control" placeholder="Add person" required aria-label="Add person to split list">
                             <button class="btn btn-primary" type="submit">
-                                <i class="bi bi-person-plus"></i>
+                                <i class="bi bi-person-plus"></i> Invite
                             </button>
                         </form>
                     </div>
@@ -1180,13 +1326,16 @@
                         <h2 class="section-title mb-3">New shared expense</h2>
                         <form id="shared-expense-form" class="row g-2">
                             <div class="col-12">
-                                <input type="text" id="shared-expense-description" class="form-control" placeholder="Description" required>
+                                <label class="form-label small text-muted" for="shared-expense-description">Description</label>
+                                <input type="text" id="shared-expense-description" class="form-control" placeholder="Description (e.g. groceries)" required>
                             </div>
                             <div class="col-12 col-md-6">
+                                <label class="form-label small text-muted" for="shared-expense-amount">Amount</label>
                                 <input type="number" id="shared-expense-amount" class="form-control" placeholder="Amount" step="0.01" min="0.01" required>
                             </div>
                             <div class="col-12 col-md-6">
-                                <select id="shared-expense-payer" class="form-select" required></select>
+                                <label class="form-label small text-muted" for="shared-expense-payer">Paid by</label>
+                                <select id="shared-expense-payer" class="form-select" required aria-label="Person who paid"></select>
                             </div>
                             <div class="col-12">
                                 <label class="form-label small text-muted">Split between</label>
@@ -1194,7 +1343,7 @@
                             </div>
                             <div class="col-12">
                                 <button class="btn btn-primary w-100" type="submit">
-                                    <i class="bi bi-scissors"></i> Log Split
+                                    <i class="bi bi-scissors"></i> Log shared expense
                                 </button>
                             </div>
                         </form>
@@ -1215,7 +1364,7 @@
             </div>
         </div> <!-- end shared panel -->
 
-        <div class="tab-panel" data-tab-panel="communication">
+        <div class="tab-panel" data-tab-panel="communication" role="tabpanel" aria-labelledby="tab-communication" id="panel-communication">
             <div class="row g-3">
                 <div class="col-12 col-lg-4">
                     <div class="card shadow-sm h-100 communication-form-card">
@@ -1243,9 +1392,25 @@
                                         <small class="text-muted">Short text that shows on the card.</small>
                                     </div>
                                     <div>
+                                        <label class="form-label" for="communication-phrase">Spoken phrase / transcript</label>
+                                        <input type="text" id="communication-phrase" class="form-control" placeholder="E.g. I would like a snack, please.">
+                                        <small class="text-muted">This text appears on the card and acts as a transcript.</small>
+                                    </div>
+                                    <div>
                                         <label class="form-label" for="communication-emoji">Emoji or symbol (optional)</label>
                                         <input type="text" id="communication-emoji" class="form-control communication-emoji-input" placeholder="Emoji" inputmode="text" autocomplete="off" maxlength="4">
                                         <small class="text-muted">Pick the emoji that appears on the card if no picture is used.</small>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="communication-language">Language</label>
+                                        <select id="communication-language" class="form-select">
+                                            <option value="en">English</option>
+                                            <option value="es">Español</option>
+                                            <option value="ar">العربية</option>
+                                            <option value="fr">Français</option>
+                                            <option value="pt">Português</option>
+                                        </select>
+                                        <small class="text-muted">Helps screen readers pronounce phrases correctly.</small>
                                     </div>
                                     <div>
                                         <label class="form-label mb-0">Record your voice</label>
@@ -1299,9 +1464,46 @@
             </div>
         </div> <!-- end communication panel -->
 
+        <div class="tab-panel" data-tab-panel="help" role="tabpanel" aria-labelledby="tab-help" id="panel-help">
+            <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                    <div class="help-card p-4 h-100">
+                        <h2 class="h5">Help & onboarding</h2>
+                        <p class="text-muted">Need a refresher? Here’s the fastest way to get comfortable.</p>
+                        <ol class="help-list">
+                            <li>Add a gain or owe in Finance, then filter by urgency.</li>
+                            <li>Use Organizer to set tasks with priority and subtasks.</li>
+                            <li>Build Communication cards with transcripts and recordings.</li>
+                            <li>Export or import data in the Finance tab.</li>
+                        </ol>
+                        <div class="mt-3">
+                            <a href="mailto:support@oneplace.app" class="btn btn-outline-primary">
+                                <i class="bi bi-envelope"></i> Contact support
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="help-card p-4 h-100">
+                        <h2 class="h5">Privacy & security</h2>
+                        <p class="text-muted">Your data is stored locally on this device unless you export or share it.</p>
+                        <ul class="help-list">
+                            <li>Use HTTPS when hosting One Place to encrypt traffic.</li>
+                            <li>Export backups regularly to avoid data loss.</li>
+                            <li>Audio and images never auto-play.</li>
+                            <li>Use strong device security if storing finances.</li>
+                        </ul>
+                        <div class="alert alert-info mt-3 mb-0">
+                            <strong>Tip:</strong> Consider connecting to cloud storage or sign-in for multi-device backups.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> <!-- end help panel -->
+        </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="app.js" defer></script>
 </body>
 </html>
