@@ -577,6 +577,9 @@
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
         }
 
         .category-pill:hover {
@@ -586,6 +589,52 @@
         .category-pill.active {
             color: #fff;
             box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+        }
+
+        .category-pill .pill-icon {
+            display: none;
+            font-size: 0.9rem;
+        }
+
+        .category-pill.active .pill-icon {
+            display: inline-flex;
+        }
+
+        .trend-list {
+            display: grid;
+            gap: 0.85rem;
+        }
+
+        .trend-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .trend-label {
+            min-width: 110px;
+            font-weight: 600;
+        }
+
+        .trend-bar {
+            flex: 1;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(13, 110, 253, 0.1);
+            overflow: hidden;
+        }
+
+        .trend-bar-fill {
+            height: 100%;
+            background: var(--expense-color);
+            border-radius: 999px;
+            transition: width 0.2s ease;
+        }
+
+        .trend-amount {
+            min-width: 90px;
+            text-align: right;
+            font-weight: 600;
         }
 
         .category-hint {
@@ -859,6 +908,19 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .todo-due-date {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        body.dark-mode .todo-due-date {
+            color: #adb5bd;
         }
 
         #todo-list .todo-actions button {
@@ -1183,6 +1245,19 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-body">
+                <div class="section-header mb-3">
+                    <div>
+                        <p class="section-heading">Insights</p>
+                        <h3 class="section-title">Spending trend</h3>
+                        <p class="section-subtitle">Weekly owes over the last six weeks.</p>
+                    </div>
+                </div>
+                <div id="spending-trend" class="trend-list" role="list"></div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
                 <div class="section-header mb-3 history-header">
                     <div>
                         <p class="section-heading">History</p>
@@ -1264,7 +1339,7 @@
                         <div>
                             <p class="section-heading">Organizer</p>
                             <h2 class="section-title">Today’s focus</h2>
-                            <p class="section-subtitle">Capture quick todos and stay on top of priorities.</p>
+                            <p class="section-subtitle">Capture quick todos, add due dates, and stay on top of priorities.</p>
                         </div>
                         <span class="badge bg-primary" id="todo-progress">0 of 0 complete</span>
                     </div>
@@ -1273,10 +1348,13 @@
                         <input type="search" id="todo-search" class="form-control" placeholder="Search tasks or subtasks">
                     </div>
                     <form id="todo-form" class="row g-2 mb-3">
-                        <div class="col-12 col-md-8">
+                        <div class="col-12 col-lg-6">
                             <input type="text" id="todo-input" class="form-control" placeholder="Add a new task" required>
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-4 col-lg-3">
+                            <input type="date" id="todo-due-date" class="form-control" aria-label="Optional due date">
+                        </div>
+                        <div class="col-12 col-md-8 col-lg-3">
                             <div class="input-group">
                                 <select id="todo-priority" class="form-select">
                                     <option value="normal">Normal</option>
@@ -1472,7 +1550,7 @@
                         <p class="text-muted">Need a refresher? Here’s the fastest way to get comfortable.</p>
                         <ol class="help-list">
                             <li>Add a gain or owe in Finance, then filter by urgency.</li>
-                            <li>Use Organizer to set tasks with priority and subtasks.</li>
+                            <li>Use Organizer to set tasks with priority, due dates, and subtasks.</li>
                             <li>Build Communication cards with transcripts and recordings.</li>
                             <li>Export or import data in the Finance tab.</li>
                         </ol>

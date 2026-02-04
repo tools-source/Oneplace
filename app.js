@@ -39,9 +39,11 @@ const insightExpense = document.getElementById('insight-expense');
 const insightTopCategory = document.getElementById('insight-top-category');
 const insightTopCategoryAmount = document.getElementById('insight-top-category-amount');
 const insightRecent = document.getElementById('insight-recent');
+const spendingTrend = document.getElementById('spending-trend');
 const categoryBalanceIndicator = document.getElementById('category-balance-indicator');
 const todoForm = document.getElementById('todo-form');
 const todoInput = document.getElementById('todo-input');
+const todoDueDateInput = document.getElementById('todo-due-date');
 const todoPriority = document.getElementById('todo-priority');
 const todoList = document.getElementById('todo-list');
 const todoProgress = document.getElementById('todo-progress');
@@ -249,9 +251,9 @@ const DEFAULT_GUIDANCE = 'Picking a category will auto-select the right type.';
 let activeCategoryFilter = categoryFilter?.value || '';
 let activeUrgencyFilter = urgencyFilter?.value || '';
 const TODO_PRIORITY_META = {
-    high: { label: 'High', className: 'bg-danger' },
-    normal: { label: 'Normal', className: 'bg-secondary' },
-    low: { label: 'Low', className: 'bg-success' }
+    high: { label: 'High', className: 'bg-danger', icon: 'bi-exclamation-triangle-fill' },
+    normal: { label: 'Normal', className: 'bg-secondary', icon: 'bi-circle-fill' },
+    low: { label: 'Low', className: 'bg-success', icon: 'bi-arrow-down-circle-fill' }
 };
 const TODO_PRIORITY_ORDER = { high: 3, normal: 2, low: 1 };
 const MAX_ORDER_VALUE = 100;
@@ -411,6 +413,19 @@ const escapeHtml = (value = '') => value
     .replace(/\"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
+const formatTodoDueDate = (dateValue) => {
+    if (!dateValue) return '';
+    const date = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return dateValue;
+    const now = new Date();
+    const options = {
+        month: 'short',
+        day: 'numeric',
+        ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {})
+    };
+    return date.toLocaleDateString(undefined, options);
+};
+
 const getFilteredTransactions = () => {
     return transactions.filter(transaction => {
         const matchesCategory = !activeCategoryFilter || transaction.category === activeCategoryFilter;
@@ -495,7 +510,8 @@ const normalizeCustomCategories = (categories = []) => (
 const normalizeTodo = (todo, index = 0) => ({
     ...todo,
     order: typeof todo.order === 'number' ? todo.order : Math.min((index + 1) * 10, MAX_ORDER_VALUE),
-    subtasks: Array.isArray(todo.subtasks) ? todo.subtasks : []
+    subtasks: Array.isArray(todo.subtasks) ? todo.subtasks : [],
+    dueDate: todo.dueDate || ''
 });
 
 const sortTodos = (list) => list
@@ -503,6 +519,16 @@ const sortTodos = (list) => list
     .sort((a, b) => {
         const priorityDiff = (TODO_PRIORITY_ORDER[b.priority] || 0) - (TODO_PRIORITY_ORDER[a.priority] || 0);
         if (priorityDiff !== 0) return priorityDiff;
+        const hasDueDateA = Boolean(a.dueDate);
+        const hasDueDateB = Boolean(b.dueDate);
+        if (hasDueDateA && hasDueDateB) {
+            const dueDiff = new Date(`${a.dueDate}T00:00:00`) - new Date(`${b.dueDate}T00:00:00`);
+            if (dueDiff !== 0) return dueDiff;
+        } else if (hasDueDateA) {
+            return -1;
+        } else if (hasDueDateB) {
+            return 1;
+        }
         const orderDiff = (a.order ?? 50) - (b.order ?? 50);
         if (orderDiff !== 0) return orderDiff;
         return new Date(a.createdAt) - new Date(b.createdAt);
@@ -1324,6 +1350,10 @@ const renderTodos = () => {
         li.className = 'list-group-item';
         li.dataset.id = todo.id;
         const safeTodoText = escapeHtml(todo.text || '');
+        const dueDateMarkup = todo.dueDate
+            ? `<span class="todo-due-date"><i class="bi bi-calendar-event" aria-hidden="true"></i>Due ${escapeHtml(formatTodoDueDate(todo.dueDate))}</span>`
+            : '';
+        const priorityMarkup = `<span class="badge ${meta.className}"><i class="bi ${meta.icon} me-1" aria-hidden="true"></i>${meta.label}</span>`;
 
         const subtaskMarkup = todo.subtasks.length
             ? `<ul class="list-group list-group-flush small ms-4 mt-2">
@@ -1346,7 +1376,8 @@ const renderTodos = () => {
                 <div class="todo-meta">
                     <input class="form-check-input me-2" type="checkbox" data-role="todo-toggle" ${todo.completed ? 'checked' : ''}>
                     <span class="${todo.completed ? 'text-decoration-line-through text-muted' : ''}">${safeTodoText}</span>
-                    <span class="badge ${meta.className}">${meta.label}</span>
+                    ${priorityMarkup}
+                    ${dueDateMarkup}
                 </div>
                 ${subtaskMarkup}
             </div>
@@ -1365,7 +1396,7 @@ const renderTodos = () => {
     updateTodoProgress();
 };
 
-const addTodo = (text, priority) => {
+const addTodo = (text, priority, dueDate = '') => {
     const todo = {
         id: Date.now(),
         text,
@@ -1373,7 +1404,8 @@ const addTodo = (text, priority) => {
         completed: false,
         createdAt: new Date().toISOString(),
         order: Math.min((todos.length + 1) * 10, MAX_ORDER_VALUE),
-        subtasks: []
+        subtasks: [],
+        dueDate
     };
     todos.push(todo);
     saveTodos();
@@ -1708,7 +1740,15 @@ const renderCategoryPills = () => {
         pill.setAttribute('aria-label', `${category.label} category`);
         pill.style.backgroundColor = hexToRgba(category.color, 0.08);
         pill.style.color = category.color;
-        pill.textContent = category.label;
+        const icon = document.createElement('span');
+        icon.className = 'pill-icon bi bi-check2-circle';
+        icon.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        label.className = 'pill-label';
+        label.textContent = category.label;
+        const status = document.createElement('span');
+        status.className = 'visually-hidden pill-status';
+        pill.append(icon, label, status);
         categoryPillGroup.appendChild(pill);
     });
     
@@ -1816,6 +1856,8 @@ const setActiveCategory = (categoryValue) => {
             pill.style.borderColor = 'transparent';
         }
         pill.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        const status = pill.querySelector('.pill-status');
+        if (status) status.textContent = isActive ? 'Selected' : '';
     });
     
     if (categorySelect) {
@@ -2232,8 +2274,74 @@ function updateCategoryBalanceIndicator(list = []) {
     categoryBalanceIndicator.classList.toggle('text-danger', net < 0);
 }
 
+const getWeekStartDate = (date) => {
+    const start = new Date(date);
+    const day = start.getDay();
+    start.setDate(start.getDate() - day);
+    start.setHours(0, 0, 0, 0);
+    return start;
+};
+
+const formatWeekLabel = (startDate) => {
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    const startLabel = startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const endLabel = endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${startLabel}–${endLabel}`;
+};
+
+const renderSpendingTrend = () => {
+    if (!spendingTrend) return;
+    const now = new Date();
+    const startOfWeek = getWeekStartDate(now);
+    const weeks = Array.from({ length: 6 }, (_, index) => {
+        const start = new Date(startOfWeek);
+        start.setDate(startOfWeek.getDate() - (5 - index) * 7);
+        return start;
+    });
+
+    const totals = weeks.map(weekStart => {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const total = transactions
+            .filter(t => t.type === 'expense')
+            .filter(t => {
+                const date = parseTransactionDate(t);
+                return date >= weekStart && date <= weekEnd;
+            })
+            .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        return { weekStart, total };
+    });
+
+    const maxTotal = Math.max(...totals.map(item => item.total), 0);
+    spendingTrend.innerHTML = '';
+
+    if (!maxTotal) {
+        spendingTrend.innerHTML = '<div class="text-muted">No spending data yet.</div>';
+        return;
+    }
+
+    totals.forEach(({ weekStart, total }) => {
+        const item = document.createElement('div');
+        item.className = 'trend-item';
+        item.setAttribute('role', 'listitem');
+        const percentage = maxTotal ? Math.max((total / maxTotal) * 100, 6) : 0;
+        item.innerHTML = `
+            <div class="trend-label">${formatWeekLabel(weekStart)}</div>
+            <div class="trend-bar" aria-hidden="true">
+                <div class="trend-bar-fill" style="width: ${percentage}%;"></div>
+            </div>
+            <div class="trend-amount">${formatCurrency(-total)}</div>
+        `;
+        spendingTrend.appendChild(item);
+    });
+};
+
 function updateInsights() {
-    if (!insightIncome || !insightExpense || !insightTopCategory || !insightRecent || !insightTopCategoryAmount) return;
+    if (!insightIncome || !insightExpense || !insightTopCategory || !insightRecent || !insightTopCategoryAmount) {
+        renderSpendingTrend();
+        return;
+    }
     
     const totalIncome = transactions
         .filter(t => t.type === 'income')
@@ -2273,6 +2381,7 @@ function updateInsights() {
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     
     insightRecent.textContent = formatCurrency(-recentExpense);
+    renderSpendingTrend();
 }
 
 function exportToCSV() {
@@ -2984,6 +3093,7 @@ const loadDemoData = () => {
             completed: false,
             createdAt: now.toISOString(),
             order: 10,
+            dueDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2).toISOString().split('T')[0],
             subtasks: [
                 { id: generateId(), text: 'Check balance', completed: true },
                 { id: generateId(), text: 'Schedule transfer', completed: false }
@@ -2996,6 +3106,7 @@ const loadDemoData = () => {
             completed: false,
             createdAt: now.toISOString(),
             order: 20,
+            dueDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 5).toISOString().split('T')[0],
             subtasks: []
         }
     ];
@@ -3181,7 +3292,8 @@ todoForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = todoInput.value.trim();
     if (!text) return;
-    addTodo(text, todoPriority.value);
+    const dueDate = todoDueDateInput?.value || '';
+    addTodo(text, todoPriority.value, dueDate);
     todoForm.reset();
     todoInput.focus();
 });
