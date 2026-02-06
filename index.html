@@ -455,9 +455,14 @@
 
         .quick-add-main-grid {
             display: grid;
-            grid-template-columns: minmax(120px, 170px) minmax(220px, 1fr) minmax(170px, 220px) auto auto;
+            grid-template-columns: minmax(200px, 260px) minmax(220px, 1fr) minmax(170px, 220px) auto auto;
             gap: 0.6rem;
             align-items: start;
+        }
+
+        .amount-description-stack {
+            display: grid;
+            gap: 0.5rem;
         }
 
         .amount-field {
@@ -1318,9 +1323,11 @@
                 <div class="input-section" id="input-section">
                     <div class="quick-add-bar">
                         <div class="quick-add-main-grid">
-                            <input type="number" id="amount" class="form-control amount-field" placeholder="0.00" required step="0.01" inputmode="decimal" pattern="[0-9]*" aria-label="Amount">
+                            <div class="amount-description-stack">
+                                <input type="number" id="amount" class="form-control amount-field" placeholder="0.00" required step="0.01" inputmode="decimal" pattern="[0-9]*" aria-label="Amount">
+                                <input type="text" id="description" class="form-control" placeholder="What was this for?" required aria-label="Description">
+                            </div>
                             <div class="category-picker-wrap">
-                                <input type="search" id="category-search" class="form-control form-control-sm mb-2" placeholder="Find category" aria-label="Search categories">
                                 <select id="category" class="form-select" required aria-label="Category"><option value="">Choose category</option></select>
                                 <div id="category-pill-group" class="category-pill-group mt-2"></div>
                             </div>
@@ -1336,15 +1343,11 @@
                         <button class="btn btn-link btn-sm ps-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#quick-add-details" aria-expanded="false" aria-controls="quick-add-details">Add details</button>
                         <div class="collapse" id="quick-add-details">
                             <div class="row g-2">
-                                <div class="col-12 col-md-5">
-                                    <label class="form-label small text-muted" for="description">Description</label>
-                                    <input type="text" id="description" class="form-control" placeholder="What was this for?" required>
-                                </div>
                                 <div class="col-12 col-md-4">
                                     <label class="form-label small text-muted" for="date">Date</label>
                                     <input type="date" id="date" class="form-control">
                                 </div>
-                                <div class="col-12 col-md-3">
+                                <div class="col-12 col-md-4">
                                     <span class="form-label small text-muted d-block">Urgency</span>
                                     <div id="urgency" class="urgency-chip-group" role="radiogroup" aria-label="Urgency">
                                         <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="not-urgent" aria-pressed="true">Normal</button>

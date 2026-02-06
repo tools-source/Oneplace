@@ -2,7 +2,6 @@
 const descriptionInput = document.getElementById('description');
 const amountInput = document.getElementById('amount');
 const categorySelect = document.getElementById('category');
-const categorySearchInput = document.getElementById('category-search');
 const urgencySelect = document.getElementById('urgency');
 const dateInput = document.getElementById('date');
 const quickAddShell = document.getElementById('quick-add-shell');
@@ -1966,14 +1965,6 @@ const predictCategoryFromDescription = (text) => {
     return match?.category || '';
 };
 
-const filterCategoryPills = () => {
-    const query = categorySearchInput?.value.trim().toLowerCase() || '';
-    categoryPillGroup?.querySelectorAll('.category-pill').forEach((pill) => {
-        const matches = !query || (pill.textContent || '').toLowerCase().includes(query);
-        pill.style.display = matches ? '' : 'none';
-    });
-};
-
 const setFinanceSubTab = (target = 'history') => {
     financeTabButtons.forEach((button) => {
         const active = button.dataset.financeTab === target;
@@ -3411,7 +3402,6 @@ categorySelect?.addEventListener('change', (e) => {
     setActiveCategory(e.target.value);
 });
 
-categorySearchInput?.addEventListener('input', filterCategoryPills);
 
 urgencySelect?.addEventListener('click', (event) => {
     const chip = event.target.closest('[data-urgency-value]');
@@ -3677,7 +3667,6 @@ document.addEventListener('DOMContentLoaded', () => {
     displayTransactions();
     setFinanceSubTab('history');
     applyQuickDefaults();
-    filterCategoryPills();
     if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
         quickAddShell?.classList.add('mobile-sheet');
     }
