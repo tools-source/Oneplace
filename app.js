@@ -2,7 +2,12 @@
 const descriptionInput = document.getElementById('description');
 const amountInput = document.getElementById('amount');
 const categorySelect = document.getElementById('category');
+const categorySearchInput = document.getElementById('category-search');
 const urgencySelect = document.getElementById('urgency');
+const dateInput = document.getElementById('date');
+const quickAddShell = document.getElementById('quick-add-shell');
+const financeTabButtons = document.querySelectorAll('[data-finance-tab]');
+const financeTabPanels = document.querySelectorAll('[data-finance-panel]');
 const categoryFilter = document.getElementById('category-filter');
 const urgencyFilter = document.getElementById('urgency-filter');
 const transactionSearchInput = document.getElementById('transaction-search');
@@ -116,6 +121,7 @@ const REMINDER_STORAGE_KEY = 'phoneReminders';
 const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
 const COMMUNICATION_FORM_COLLAPSE_KEY = 'communicationFormCollapsed';
 const PUSH_SUBSCRIPTION_KEY = 'pushSubscription';
+const FINANCE_DEFAULTS_KEY = 'financeQuickDefaults';
 const VAPID_PUBLIC_KEY = '';
 
 const safeStorage = {
@@ -171,6 +177,7 @@ let isCommunicationAudioPlaying = false;
 let reminderCheckInterval = null;
 let reminderSchedulingInProgress = false;
 let transactionSearchQuery = '';
+let financeQuickDefaults = safeJsonParse(FINANCE_DEFAULTS_KEY, { category: '', type: 'income', urgency: 'not-urgent' });
 let todoSearchQuery = '';
 let activeTodoFilter = 'all';
 const REMINDER_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -239,6 +246,11 @@ const getCategoryName = (categoryValue) => {
 const getCategoryConfig = (categoryValue) => CATEGORY_LOOKUP[categoryValue];
 
 const DEFAULT_URGENCY = 'not-urgent';
+financeQuickDefaults = {
+    category: financeQuickDefaults?.category || '',
+    type: financeQuickDefaults?.type === 'expense' ? 'expense' : 'income',
+    urgency: URGENCY_LOOKUP[financeQuickDefaults?.urgency] ? financeQuickDefaults.urgency : DEFAULT_URGENCY
+};
 const getUrgencyLabel = (urgencyValue) => URGENCY_LOOKUP[urgencyValue]?.label || 'Not urgent';
 const getUrgencyBadgeClass = (urgencyValue) => URGENCY_LOOKUP[urgencyValue]?.badgeClass || 'bg-secondary';
 
@@ -1915,6 +1927,62 @@ const updateCategoryHint = (categoryValue) => {
         : 'Heads up: owes reduce your balance.';
 };
 
+const saveFinanceDefaults = () => {
+    safeStorage.set(FINANCE_DEFAULTS_KEY, JSON.stringify(financeQuickDefaults));
+};
+
+const setUrgencyChipState = (urgencyValue = DEFAULT_URGENCY) => {
+    const normalized = URGENCY_LOOKUP[urgencyValue] ? urgencyValue : DEFAULT_URGENCY;
+    urgencySelect?.querySelectorAll('[data-urgency-value]').forEach((chip) => {
+        const active = chip.dataset.urgencyValue === normalized;
+        chip.classList.toggle('active', active);
+        chip.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    if (urgencySelect) urgencySelect.dataset.value = normalized;
+};
+
+const getSelectedUrgency = () => urgencySelect?.dataset.value || DEFAULT_URGENCY;
+
+const applyQuickDefaults = () => {
+    const defaultType = financeQuickDefaults.type === 'expense' ? 'expense' : 'income';
+    const typeInput = document.querySelector(`input[value="${defaultType}"]`);
+    if (typeInput) typeInput.checked = true;
+    if (financeQuickDefaults.category) setActiveCategory(financeQuickDefaults.category);
+    setUrgencyChipState(financeQuickDefaults.urgency);
+};
+
+const predictCategoryFromDescription = (text) => {
+    const value = (text || '').trim().toLowerCase();
+    if (!value) return '';
+    const rules = [
+        { keys: ['salary', 'paycheck', 'bonus', 'income'], category: 'salary' },
+        { keys: ['uber', 'lyft', 'bus', 'train', 'fuel', 'gas'], category: 'transport' },
+        { keys: ['rent', 'electric', 'water', 'internet', 'bill', 'subscription'], category: 'bills' },
+        { keys: ['coffee', 'lunch', 'dinner', 'grocery', 'food'], category: 'food' },
+        { keys: ['doctor', 'pharmacy', 'medicine', 'health'], category: 'health' },
+        { keys: ['course', 'book', 'class', 'tuition'], category: 'education' }
+    ];
+    const match = rules.find(rule => rule.keys.some(key => value.includes(key)) && getCategoryConfig(rule.category));
+    return match?.category || '';
+};
+
+const filterCategoryPills = () => {
+    const query = categorySearchInput?.value.trim().toLowerCase() || '';
+    categoryPillGroup?.querySelectorAll('.category-pill').forEach((pill) => {
+        const matches = !query || (pill.textContent || '').toLowerCase().includes(query);
+        pill.style.display = matches ? '' : 'none';
+    });
+};
+
+const setFinanceSubTab = (target = 'history') => {
+    financeTabButtons.forEach((button) => {
+        const active = button.dataset.financeTab === target;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    financeTabPanels.forEach((panel) => panel.classList.toggle('active', panel.dataset.financePanel === target));
+};
+
 const applyTheme = (mode) => {
     const resolvedMode = mode === 'auto'
         ? (prefersDarkScheme.matches ? 'dark' : 'light')
@@ -1980,12 +2048,8 @@ function addTransaction(e) {
     const amount = parseFloat(amountInput.value);
     const type = document.querySelector('input[name="transactionType"]:checked').value;
     const category = categorySelect.value;
-    const urgency = DEFAULT_URGENCY;
-    
-    if (!description) {
-        showAlert('Please enter a description', 'warning');
-        return;
-    }
+    const urgency = normalizeUrgencyValue(getSelectedUrgency());
+    const customDate = dateInput?.value ? new Date(`${dateInput.value}T12:00:00`).toISOString() : new Date().toISOString();
     
     if (isNaN(amount) || amount <= 0) {
         showAlert('Please enter a valid amount greater than 0', 'warning');
@@ -1996,30 +2060,36 @@ function addTransaction(e) {
         showAlert('Please choose a category', 'warning');
         return;
     }
+
+    const finalDescription = description || getCategoryName(category);
     
     const transaction = {
         id: Date.now(),
-        description,
+        description: finalDescription,
         amount: Math.abs(amount),
         type,
         category,
         urgency,
-        date: new Date().toISOString()
+        date: customDate
     };
 
     transactions.push(transaction);
+    financeQuickDefaults = { category, type, urgency };
+    saveFinanceDefaults();
     saveTransactions();
 
     descriptionInput.value = '';
     amountInput.value = '';
-    document.getElementById('incomeRadio').checked = true;
-    setActiveCategory(null);
+    if (dateInput) dateInput.value = '';
+    setActiveCategory(financeQuickDefaults.category || null);
+    applyQuickDefaults();
     editTransactionId = null;
     addTransactionButton.style.display = 'block';
     saveTransactionButton.style.display = 'none';
 
     updateBalance();
     displayTransactions();
+    amountInput.focus();
 }
 
 function createTransactionElement(transaction) {
@@ -2039,29 +2109,24 @@ function createTransactionElement(transaction) {
     const transactionDate = new Date(transaction.date || transaction.dateModified || transaction.id);
     const safeDescription = escapeHtml(transaction.description || '');
     const safeCategoryName = escapeHtml(categoryName);
-    const urgencyOptions = URGENCY_OPTIONS.map(option => `
-                        <option value="${option.value}" ${option.value === transaction.urgency ? 'selected' : ''}>
-                            ${escapeHtml(option.label)}
-                        </option>
-                    `).join('');
+    const urgencyChips = URGENCY_OPTIONS.map(option => {
+        const active = option.value === normalizeUrgencyValue(transaction.urgency);
+        return `<button type="button" class="btn btn-sm urgency-chip urgency-chip-inline ${active ? 'active' : ''}" data-urgency-value="${option.value}" aria-pressed="${active ? 'true' : 'false'}">${escapeHtml(option.label === 'Not urgent' ? 'Normal' : option.label)}</button>`;
+    }).join('');
 
     li.innerHTML = `
         <div class="transaction-details">
             <div class="transaction-info">
-                <div class="fw-bold">${safeDescription}</div>
+                <input class="form-control form-control-sm inline-description" value="${safeDescription}" aria-label="Transaction description">
                 <div class="transaction-meta">
-                    <span class="category-badge" style="background-color: ${categoryColor}">${safeCategoryName}</span>
-                    <select class="form-select form-select-sm urgency-select" aria-label="Update urgency">
-                        ${urgencyOptions}
-                    </select>
+                    <span class="category-color-dot" style="background-color: ${categoryColor}" aria-hidden="true"></span><span class="category-badge" style="background-color: ${categoryColor}">${safeCategoryName}</span>
+                    <div class="urgency-inline-group" role="group" aria-label="Update urgency">${urgencyChips}</div>
                     <span>${transactionDate.toLocaleDateString()}</span>
                 </div>
             </div>
             <div class="transaction-actions d-flex gap-2 align-items-center">
-                <span class="${transaction.type === 'income' ? 'positive' : 'negative'} fw-bold">${transactionAmount}</span>
-                <button class="btn btn-sm btn-outline-primary edit-btn" aria-label="Edit transaction">
-                    <i class="bi bi-pencil"></i>
-                </button>
+                <input type="number" step="0.01" inputmode="decimal" class="form-control form-control-sm inline-amount ${transaction.type === 'income' ? 'positive' : 'negative'}" value="${normalizedAmount}" aria-label="Transaction amount">
+                <button class="btn btn-sm btn-outline-primary edit-btn" aria-label="Save inline changes"><i class="bi bi-check2"></i></button>
                 <button class="btn btn-sm btn-outline-danger delete-btn" aria-label="Delete transaction">
                     <i class="bi bi-trash"></i>
                 </button>
@@ -2080,7 +2145,11 @@ function displayTransactions(list) {
         const message = transactions.length === 0 
             ? 'No transactions yet'
             : 'No transactions match this view';
-        historyList.innerHTML = `<li class="list-group-item text-center py-4 text-muted">${message}</li>`;
+        if (transactions.length === 0) {
+            historyList.innerHTML = `<li class="list-group-item p-4"><div class="empty-state"><h4 class="h6 mb-2">Start your finance timeline</h4><p class="text-muted mb-3">Add your first transaction or load demo data to explore insights.</p><div class="d-flex gap-2 justify-content-center flex-wrap"><button class="btn btn-primary btn-sm" type="button" data-action="empty-add">Add first transaction</button><button class="btn btn-outline-secondary btn-sm" type="button" data-action="empty-demo">Load demo data</button></div></div></li>`;
+        } else {
+            historyList.innerHTML = `<li class="list-group-item text-center py-4 text-muted">${message}</li>`;
+        }
     } else {
         const grouped = data.reduce((acc, transaction) => {
             const sourceDate = transaction.date || transaction.dateModified || new Date().toISOString();
@@ -2209,9 +2278,8 @@ function startEdit(transaction) {
     categorySelect.value = transaction.category;
     setActiveCategory(transaction.category);
     document.querySelector(`input[value="${transaction.type}"]`).checked = true;
-    if (urgencySelect) {
-        urgencySelect.value = normalizeUrgencyValue(transaction.urgency);
-    }
+    setUrgencyChipState(normalizeUrgencyValue(transaction.urgency));
+    if (dateInput) dateInput.value = getLocalDateKey(transaction.date || transaction.dateModified || transaction.id);
     
     addTransactionButton.style.display = 'none';
     saveTransactionButton.style.display = 'block';
@@ -2230,7 +2298,7 @@ function saveEdit(e) {
     const amount = parseFloat(amountInput.value);
     const type = document.querySelector('input[name="transactionType"]:checked').value;
     const category = categorySelect.value;
-    const urgency = normalizeUrgencyValue(transactions[transactionIndex].urgency);
+    const urgency = normalizeUrgencyValue(getSelectedUrgency());
 
     if (!description) {
         showAlert('Please enter a description', 'warning');
@@ -2254,15 +2322,17 @@ function saveEdit(e) {
         type,
         category,
         urgency,
-        date: new Date().toISOString()
+        date: dateInput?.value ? new Date(`${dateInput.value}T12:00:00`).toISOString() : new Date().toISOString()
     };
     
     saveTransactions();
     
     descriptionInput.value = '';
     amountInput.value = '';
-    document.getElementById('incomeRadio').checked = true;
-    setActiveCategory(null);
+    if (dateInput) dateInput.value = '';
+    financeQuickDefaults = { category, type, urgency };
+    saveFinanceDefaults();
+    applyQuickDefaults();
     
     addTransactionButton.style.display = 'block';
     saveTransactionButton.style.display = 'none';
@@ -3028,9 +3098,7 @@ const resetWorkspaceData = () => {
     }
     descriptionInput.value = '';
     amountInput.value = '';
-    if (urgencySelect) {
-        urgencySelect.value = DEFAULT_URGENCY;
-    }
+    setUrgencyChipState(DEFAULT_URGENCY);
     document.getElementById('incomeRadio').checked = true;
     setActiveCategory(null);
 
@@ -3280,23 +3348,49 @@ toggleInputButton?.addEventListener('click', () => {
 historyList?.addEventListener('click', (e) => {
     const listItem = e.target.closest('.list-group-item');
     if (!listItem) return;
-    
-    if (e.target.closest('.delete-btn')) {
-        if (confirm('Are you sure you want to delete this transaction?')) {
-            deleteTransaction(parseInt(listItem.dataset.id));
-        }
-    } else if (e.target.closest('.edit-btn')) {
-        const transaction = transactions.find(t => t.id === parseInt(listItem.dataset.id));
-        if (transaction) startEdit(transaction);
-    }
-});
+    const id = parseInt(listItem.dataset.id);
 
-historyList?.addEventListener('change', (e) => {
-    const select = e.target.closest('.urgency-select');
-    if (!select) return;
-    const listItem = select.closest('.list-group-item');
-    if (!listItem) return;
-    updateTransactionUrgency(parseInt(listItem.dataset.id), select.value);
+    if (e.target.closest('.delete-btn')) {
+        if (confirm('Are you sure you want to delete this transaction?')) deleteTransaction(id);
+        return;
+    }
+
+    if (e.target.closest('.edit-btn')) {
+        const transactionIndex = transactions.findIndex(t => t.id === id);
+        if (transactionIndex === -1) return;
+        const desc = listItem.querySelector('.inline-description')?.value.trim() || '';
+        const amount = parseFloat(listItem.querySelector('.inline-amount')?.value || '0');
+        if (!desc || Number.isNaN(amount) || amount <= 0) {
+            showAlert('Please provide a valid description and amount', 'warning');
+            return;
+        }
+        transactions[transactionIndex] = {
+            ...transactions[transactionIndex],
+            description: desc,
+            amount: Math.abs(amount),
+            dateModified: new Date().toISOString()
+        };
+        saveTransactions();
+        displayTransactions();
+        updateBalance();
+        return;
+    }
+
+    const urgencyChip = e.target.closest('.urgency-chip-inline');
+    if (urgencyChip) {
+        updateTransactionUrgency(id, urgencyChip.dataset.urgencyValue);
+        return;
+    }
+
+    if (e.target.closest('[data-action="empty-add"]')) {
+        setInputSectionVisibility(true);
+        amountInput?.focus();
+        return;
+    }
+
+    if (e.target.closest('[data-action="empty-demo"]')) {
+        loadDemoData();
+    }
 });
 
 categoryFilter?.addEventListener('change', filterTransactions);
@@ -3315,6 +3409,24 @@ categoryPillGroup?.addEventListener('click', (e) => {
 
 categorySelect?.addEventListener('change', (e) => {
     setActiveCategory(e.target.value);
+});
+
+categorySearchInput?.addEventListener('input', filterCategoryPills);
+
+urgencySelect?.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-urgency-value]');
+    if (!chip) return;
+    setUrgencyChipState(chip.dataset.urgencyValue);
+});
+
+descriptionInput?.addEventListener('input', (event) => {
+    const predicted = predictCategoryFromDescription(event.target.value);
+    if (!predicted || categorySelect?.value) return;
+    setActiveCategory(predicted);
+});
+
+financeTabButtons.forEach((button) => {
+    button.addEventListener('click', () => setFinanceSubTab(button.dataset.financeTab));
 });
 
 todoForm?.addEventListener('submit', (e) => {
@@ -3563,6 +3675,12 @@ document.addEventListener('DOMContentLoaded', () => {
     transactions = loadTransactions();
     updateBalance();
     displayTransactions();
+    setFinanceSubTab('history');
+    applyQuickDefaults();
+    filterCategoryPills();
+    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+        quickAddShell?.classList.add('mobile-sheet');
+    }
     setCommunicationFormMode();
     setInputSectionVisibility(true);
     const savedCommunicationFormState = safeStorage.get(COMMUNICATION_FORM_COLLAPSE_KEY);
