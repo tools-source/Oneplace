@@ -1017,80 +1017,134 @@
                 align-self: flex-start;
             }
         }
+    
+
+        :root {
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-5: 1.5rem;
+            --space-6: 2rem;
+            --radius-sm: 10px;
+            --radius-md: 14px;
+            --radius-lg: 18px;
+            --focus-ring: 0 0 0 3px rgba(13, 110, 253, 0.25);
+        }
+
+        .app-header {
+            position: sticky;
+            top: 0.5rem;
+            z-index: 1030;
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            padding: var(--space-4);
+            border-radius: var(--radius-lg);
+            background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+            backdrop-filter: blur(8px);
+            box-shadow: var(--surface-shadow);
+        }
+
+        .tab-nav {
+            position: sticky;
+            top: 5.8rem;
+            z-index: 1020;
+            background: color-mix(in srgb, var(--card-bg) 95%, transparent);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-2);
+        }
+
+        .onboarding-card { border-radius: var(--radius-lg); box-shadow: var(--surface-shadow); }
+        .card, .insight-card, .help-card { border-radius: var(--radius-md) !important; box-shadow: var(--surface-shadow); }
+        .form-control, .form-select, .btn { border-radius: var(--radius-sm); }
+        .btn:focus-visible, .form-control:focus-visible, .form-select:focus-visible, .tab-nav .btn:focus-visible, .filter-chip:focus-visible { box-shadow: var(--focus-ring) !important; outline: none; }
+
+        .form-step { padding: var(--space-3); border: 1px solid var(--card-border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel-bg) 70%, transparent); }
+        .step-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: #6c757d; font-weight: 700; }
+        .sticky-save-wrap { position: sticky; bottom: var(--space-2); background: linear-gradient(to top, var(--card-bg) 70%, transparent); padding-top: var(--space-2); }
+
+        .filter-chip-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .filter-chip { border: 1px solid var(--card-border); background: var(--card-bg); border-radius: 999px; padding: 0.35rem 0.8rem; font-size: 0.85rem; }
+        .filter-chip.active { background: var(--accent-color-soft); border-color: var(--accent-color); color: var(--accent-color); }
+
+        .split-summary-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+        .summary-pill { padding: 0.5rem; border: 1px solid var(--card-border); border-radius: 10px; background: var(--panel-bg); display: flex; flex-direction: column; }
+        .summary-pill span { font-size: 0.75rem; color: #6c757d; }
+
+        .shared-balance { border: 1px solid var(--card-border); border-radius: 12px; padding: 0.75rem; margin-bottom: 0.5rem; background: var(--panel-bg); }
+        .learn-more summary { cursor: pointer; color: var(--accent-color); font-weight: 600; }
+        .communication-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
+        .communication-card { min-height: 220px; }
+        .recording-badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; font-weight: 600; }
+
+        @media (max-width: 768px) {
+            .tab-nav { position: fixed; left: 0; right: 0; bottom: 0; top: auto; border-radius: 14px 14px 0 0; padding: 0.4rem; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.25rem; }
+            .tab-nav .btn { font-size: 0.72rem; padding: 0.45rem 0.2rem; display: flex; flex-direction: column; }
+            .container.app-shell { padding-bottom: 5rem; }
+            .tab-nav .btn i { margin-right: 0 !important; }
+            .sticky-save-wrap { position: sticky; bottom: 3.8rem; }
+            .split-summary-strip { grid-template-columns: 1fr; }
+        }
+
     </style>
 </head>
 <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="container mt-4 app-shell">
-        <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4 app-header">
-            <div>
-                <h1 class="mb-1 app-title">One Place</h1>
-                <p class="text-muted mb-0 app-subtitle">Stay on top of every gain and owe with real-time insights across budgets, shared expenses, and communications.</p>
+        <header class="app-header mb-4" role="banner">
+            <div class="brand-wrap">
+                <h1 class="mb-0 app-title">One Place</h1>
+                <p class="text-muted mb-0 app-subtitle">Your local-first home for money, plans, splits, and communication.</p>
             </div>
-            <div class="d-flex flex-wrap gap-3 ms-md-auto w-100 w-md-auto">
-                <div class="theme-controls flex-grow-1 flex-md-grow-0">
-                    <span class="form-label text-muted small mb-0">Theme</span>
-                    <div id="theme-toggle" class="theme-toggle" role="group" aria-label="Theme mode">
-                        <button type="button" class="btn btn-sm" data-theme-mode="auto" aria-pressed="false">
-                            <i class="bi bi-circle-half me-1"></i> System
-                        </button>
-                        <button type="button" class="btn btn-sm" data-theme-mode="light" aria-pressed="false">
-                            <i class="bi bi-sun me-1"></i> Light
-                        </button>
-                        <button type="button" class="btn btn-sm" data-theme-mode="dark" aria-pressed="false">
-                            <i class="bi bi-moon-stars me-1"></i> Dark
-                        </button>
+            <div class="dropdown settings-dropdown ms-auto">
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="settings-menu-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open appearance settings">
+                    <i class="bi bi-sliders me-1"></i> Settings
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="settings-menu-toggle">
+                    <div class="theme-controls mb-3">
+                        <span class="form-label text-muted small mb-1">Theme</span>
+                        <div id="theme-toggle" class="theme-toggle" role="group" aria-label="Theme mode">
+                            <button type="button" class="btn btn-sm" data-theme-mode="auto" aria-pressed="false">
+                                <i class="bi bi-circle-half me-1"></i> System
+                            </button>
+                            <button type="button" class="btn btn-sm" data-theme-mode="light" aria-pressed="false">
+                                <i class="bi bi-sun me-1"></i> Light
+                            </button>
+                            <button type="button" class="btn btn-sm" data-theme-mode="dark" aria-pressed="false">
+                                <i class="bi bi-moon-stars me-1"></i> Dark
+                            </button>
+                        </div>
+                    </div>
+                    <div class="accent-controls">
+                        <span class="form-label text-muted small mb-1">Accent</span>
+                        <div id="accent-options" class="accent-options">
+                            <button type="button" class="accent-swatch active" data-accent="#0d6efd" aria-label="Blue accent" style="background-color: #0d6efd; color: #0d6efd;"></button>
+                            <button type="button" class="accent-swatch" data-accent="#20c997" aria-label="Teal accent" style="background-color: #20c997; color: #20c997;"></button>
+                            <button type="button" class="accent-swatch" data-accent="#6f42c1" aria-label="Purple accent" style="background-color: #6f42c1; color: #6f42c1;"></button>
+                            <button type="button" class="accent-swatch" data-accent="#fd7e14" aria-label="Orange accent" style="background-color: #fd7e14; color: #fd7e14;"></button>
+                        </div>
                     </div>
                 </div>
-                <div class="accent-controls flex-grow-1 flex-md-grow-0">
-                    <span class="form-label text-muted small mb-0">Accent</span>
-                    <div id="accent-options" class="accent-options">
-                        <button type="button" class="accent-swatch active" data-accent="#0d6efd" aria-label="Blue accent" style="background-color: #0d6efd; color: #0d6efd;"></button>
-                        <button type="button" class="accent-swatch" data-accent="#20c997" aria-label="Teal accent" style="background-color: #20c997; color: #20c997;"></button>
-                        <button type="button" class="accent-swatch" data-accent="#6f42c1" aria-label="Purple accent" style="background-color: #6f42c1; color: #6f42c1;"></button>
-                        <button type="button" class="accent-swatch" data-accent="#fd7e14" aria-label="Orange accent" style="background-color: #fd7e14; color: #fd7e14;"></button>
-                    </div>
-                </div>
             </div>
-        </div>
+        </header>
 
         <section class="onboarding-card p-4 mb-4" aria-label="Quick start">
             <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
                 <div>
-                    <h2 class="h5 mb-2">Quick start your workspace</h2>
-                    <p class="text-muted mb-0">See a guided snapshot, then replace with your own data at any time.</p>
+                    <h2 class="h5 mb-2">Get started fast</h2>
+                    <p class="text-muted mb-0">Load sample data or import yours in seconds.</p>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <button class="btn btn-primary" type="button" id="load-demo-data">
                         <i class="bi bi-stars me-1"></i> Load demo data
                     </button>
-                    <button class="btn btn-outline-secondary" type="button" id="open-help">
-                        <i class="bi bi-question-circle me-1"></i> View help & privacy
+                    <button class="btn btn-outline-secondary" type="button" id="quick-import">
+                        <i class="bi bi-upload me-1"></i> Import
                     </button>
                 </div>
-            </div>
-            <div class="onboarding-steps mt-3">
-                <div class="onboarding-step">
-                    <span class="onboarding-step-icon"><i class="bi bi-wallet2"></i></span>
-                    <div>
-                        <strong>Finance</strong>
-                        <div class="text-muted small">Add gains and owes, then filter by urgency or category.</div>
-                    </div>
-                </div>
-                <div class="onboarding-step">
-                    <span class="onboarding-step-icon"><i class="bi bi-check2-square"></i></span>
-                    <div>
-                        <strong>Organizer</strong>
-                        <div class="text-muted small">Capture tasks, set priorities, and keep subtasks together.</div>
-                    </div>
-                </div>
-                <div class="onboarding-step">
-                    <span class="onboarding-step-icon"><i class="bi bi-chat-dots"></i></span>
-                    <div>
-                        <strong>Communication</strong>
-                        <div class="text-muted small">Save phrase cards with transcripts, images, and recordings.</div>
-                    </div>
-                </div>
+                <button class="btn btn-link btn-sm text-decoration-none p-0" type="button" id="open-help">Help & privacy</button>
             </div>
         </section>
 
@@ -1160,69 +1214,78 @@
                     </button>
                 </div>
                 <div class="input-section" id="input-section">
-                    <div class="row g-2">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label small text-muted" for="description">Description</label>
-                            <input type="text" id="description" class="form-control" placeholder="E.g. Paycheck or groceries" required>
-                        </div>
-                        <div class="col-12 col-md-2">
-                            <label class="form-label small text-muted" for="amount">Amount</label>
-                            <input type="number" 
-                                   id="amount" 
-                                   class="form-control" 
-                                   placeholder="Amount" 
-                                   required 
-                                   step="0.01"
-                                   inputmode="decimal"
-                                   pattern="[0-9]*">
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <label class="form-label small text-muted" for="category">Category</label>
-                            <select id="category" class="form-select mb-2" required aria-label="Category">
-                                <option value="">Choose a category</option>
-                            </select>
-                            <div id="category-pill-group" class="category-pill-group"></div>
-                            <small id="category-hint" class="text-muted d-block mt-2 category-hint">
-                                Choose a category to see smart tips.
-                            </small>
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <span class="form-label small text-muted d-block mb-2">Type</span>
-                            <div class="d-flex gap-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="transactionType" id="incomeRadio" value="income" checked>
-                                    <label class="form-check-label" for="incomeRadio">Gain</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="transactionType" id="expenseRadio" value="expense">
-                                    <label class="form-check-label" for="expenseRadio">Owe</label>
+                    <div class="form-step mb-3">
+                        <p class="step-label mb-2">Step A</p>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-3">
+                                <label class="form-label small text-muted" for="amount">Amount</label>
+                                <input type="number" id="amount" class="form-control" placeholder="Amount" required step="0.01" inputmode="decimal" pattern="[0-9]*">
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <span class="form-label small text-muted d-block mb-2">Type</span>
+                                <div class="btn-group w-100" role="group" aria-label="Transaction type">
+                                    <input class="btn-check" type="radio" name="transactionType" id="incomeRadio" value="income" checked>
+                                    <label class="btn btn-outline-success" for="incomeRadio">Gain</label>
+                                    <input class="btn-check" type="radio" name="transactionType" id="expenseRadio" value="expense">
+                                    <label class="btn btn-outline-danger" for="expenseRadio">Owe</label>
                                 </div>
                             </div>
-                            <div id="category-guidance" class="category-guidance text-muted small mt-2">
-                                Picking a category will auto-select the right type.
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small text-muted" for="category">Category</label>
+                                <select id="category" class="form-select mb-2" required aria-label="Category">
+                                    <option value="">Choose a category</option>
+                                </select>
+                                <div id="category-pill-group" class="category-pill-group"></div>
+                                <small id="category-hint" class="text-muted d-block mt-2 category-hint">Choose a category to see smart tips.</small>
                             </div>
                         </div>
                     </div>
-                    <div class="row g-2 mt-2 align-items-end">
-                        <div class="col-12 col-md-5">
-                            <label class="form-label small text-muted" for="custom-category-name">Add custom category</label>
-                            <input type="text" id="custom-category-name" class="form-control" placeholder="Custom category name">
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <label class="form-label small text-muted" for="custom-category-type">Category type</label>
-                            <select id="custom-category-type" class="form-select">
-                                <option value="income">Gain</option>
-                                <option value="expense">Owe</option>
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <button id="add-category" class="btn btn-outline-primary w-100" type="button">
-                                <i class="bi bi-tags me-1"></i> Add custom category
-                            </button>
-                            <small class="text-muted d-block mt-1">Custom categories appear in filters and insights.</small>
+                    <div class="form-step">
+                        <p class="step-label mb-2">Step B</p>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small text-muted" for="description">Description</label>
+                                <input type="text" id="description" class="form-control" placeholder="E.g. Paycheck or groceries" required>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small text-muted" for="urgency">Urgency (optional)</label>
+                                <select id="urgency" class="form-select">
+                                    <option value="urgent">Urgent</option>
+                                    <option value="not-urgent" selected>Not urgent</option>
+                                    <option value="later">Later</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small text-muted" for="date">Date (optional)</label>
+                                <input type="date" id="date" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <div id="category-guidance" class="category-guidance text-muted small">Picking a category will auto-select the right type.</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="d-grid gap-2 mt-3">
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#custom-category-panel" aria-expanded="false" aria-controls="custom-category-panel"><i class="bi bi-plus-lg me-1"></i> Add category</button>
+                    </div>
+                    <div class="collapse mt-2" id="custom-category-panel">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-md-5">
+                                <label class="form-label small text-muted" for="custom-category-name">Category name</label>
+                                <input type="text" id="custom-category-name" class="form-control" placeholder="Custom category name">
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label small text-muted" for="custom-category-type">Category type</label>
+                                <select id="custom-category-type" class="form-select">
+                                    <option value="income">Gain</option>
+                                    <option value="expense">Owe</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <button id="add-category" class="btn btn-outline-primary w-100" type="button"><i class="bi bi-tags me-1"></i> Save category</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2 mt-3 sticky-save-wrap">
                         <button id="add-transaction" class="btn btn-success">
                             <i class="bi bi-plus-circle"></i> Add income or expense
                         </button>
@@ -1308,11 +1371,12 @@
                         <p class="section-subtitle">Export a backup or reset your workspace.</p>
                     </div>
                 </div>
-                <p class="text-muted small mb-3">Exports include finance history and optional full backups. Resetting clears transactions, todos, shared balances, and communication cards.</p>
+                <p class="text-muted small mb-2">Import, export, and reset tools.</p>
+                <details class="learn-more mb-3"><summary>Learn more</summary><small class="text-muted d-block mt-2">Exports include finance history and optional full backups. Resetting clears transactions, todos, shared balances, and communication cards.</small></details>
                 <div class="mb-3">
                     <label class="form-label small text-muted" for="import-data">Import transactions (CSV) or full backup (JSON)</label>
                     <input type="file" id="import-data" class="form-control" accept=".csv,.json">
-                    <small class="text-muted d-block mt-1">CSV columns: Date, Description, Category, Urgency, Type, Amount.</small>
+                    
                 </div>
                 <div class="utility-actions">
                     <button id="export-data" class="btn btn-secondary">
@@ -1367,6 +1431,11 @@
                             </div>
                         </div>
                     </form>
+                    <div class="filter-chip-row mb-3" role="group" aria-label="Task filters">
+                        <button class="filter-chip active" type="button" data-todo-filter="all">Today</button>
+                        <button class="filter-chip" type="button" data-todo-filter="upcoming">Upcoming</button>
+                        <button class="filter-chip" type="button" data-todo-filter="completed">Completed</button>
+                    </div>
                     <ul id="todo-list" class="list-group"></ul>
                 </div>
             </div>
@@ -1380,7 +1449,12 @@
                             <div>
                                 <p class="section-heading">Split</p>
                                 <h2 class="section-title">Balances</h2>
-                                <p class="section-subtitle">Track who owes what.</p>
+                                <p class="section-subtitle">Track who owes what at a glance.</p>
+                                <div class="split-summary-strip mt-2">
+                                    <div class="summary-pill"><span>Net</span><strong id="split-net">$0.00</strong></div>
+                                    <div class="summary-pill"><span>You owe</span><strong id="split-you-owe">$0.00</strong></div>
+                                    <div class="summary-pill"><span>Owed to you</span><strong id="split-owed-to-you">$0.00</strong></div>
+                                </div>
                             </div>
                             <button class="btn btn-sm btn-outline-primary" id="reset-shared-balances" aria-label="Reset shared balances">
                                 <i class="bi bi-arrow-counterclockwise"></i>
@@ -1443,27 +1517,27 @@
         </div> <!-- end shared panel -->
 
         <div class="tab-panel" data-tab-panel="communication" role="tabpanel" aria-labelledby="tab-communication" id="panel-communication">
-            <div class="row g-3">
-                <div class="col-12 col-lg-4">
-                    <div class="card shadow-sm h-100 communication-form-card">
-                        <div class="card-body">
-                            <div class="d-flex align-items-start gap-2 mb-3">
-                                <i class="bi bi-stars text-primary mt-1"></i>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex align-items-start justify-content-between gap-3">
-                                        <div>
-                                            <h5 class="mb-1">Create a button</h5>
-                                            <small class="text-muted">Add a quick card with a title, recording, and optional photo.</small>
-                                        </div>
-                                        <button class="btn btn-sm btn-outline-secondary communication-form-toggle" id="communication-form-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#communication-form-body" aria-expanded="true" aria-controls="communication-form-body">
-                                            <i class="bi bi-chevron-up"></i>
-                                            <span class="visually-hidden">Toggle create button form</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="communication-form-body" class="collapse show">
-                                <form id="communication-form" class="vstack gap-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 communication-header">
+                <div>
+                    <p class="section-heading mb-0">Communication</p>
+                    <h2 class="section-title mb-0">Cards</h2>
+                </div>
+                <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#communication-editor" aria-controls="communication-editor" aria-label="Open communication editor">
+                    <i class="bi bi-plus-circle me-1"></i> Create card
+                </button>
+            </div>
+            <div class="offcanvas offcanvas-end" tabindex="-1" id="communication-editor" aria-labelledby="communication-editor-label">
+                <div class="offcanvas-header">
+                    <h5 class="offcanvas-title" id="communication-editor-label">Create a button</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body">
+                    <button class="btn btn-sm btn-outline-secondary communication-form-toggle d-none" id="communication-form-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#communication-form-body" aria-expanded="true" aria-controls="communication-form-body">
+                        <i class="bi bi-chevron-up"></i>
+                        <span class="visually-hidden">Toggle create button form</span>
+                    </button>
+                    <div id="communication-form-body" class="show">
+                        <form id="communication-form" class="vstack gap-3">
                                     <div>
                                         <label class="form-label" for="communication-title">Button title</label>
                                         <input type="text" id="communication-title" class="form-control" placeholder="E.g. Snack" required>
@@ -1527,17 +1601,13 @@
                                             Cancel
                                         </button>
                                     </div>
-                                </form>
-                            </div>
-                        </div>
+                        </form>
                     </div>
                 </div>
-                <div class="col-12 col-lg-8">
-                    <div class="card shadow-sm h-100 communication-board-card">
-                        <div class="card-body d-flex flex-column">
-                            <div id="communication-grid" class="communication-grid flex-grow-1"></div>
-                        </div>
-                    </div>
+            </div>
+            <div class="card shadow-sm h-100 communication-board-card">
+                <div class="card-body d-flex flex-column">
+                    <div id="communication-grid" class="communication-grid flex-grow-1"></div>
                 </div>
             </div>
         </div> <!-- end communication panel -->

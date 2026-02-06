@@ -18,6 +18,7 @@ const toggleInputButton = document.getElementById('toggle-input');
 const exportDataButton = document.getElementById('export-data');
 const exportBackupButton = document.getElementById('export-backup');
 const importTransactionsButton = document.getElementById('import-transactions');
+const quickImportButton = document.getElementById('quick-import');
 const importDataInput = document.getElementById('import-data');
 const clearDataButton = document.getElementById('clear-data');
 const loadDemoDataButton = document.getElementById('load-demo-data');
@@ -48,6 +49,7 @@ const todoPriority = document.getElementById('todo-priority');
 const todoList = document.getElementById('todo-list');
 const todoProgress = document.getElementById('todo-progress');
 const todoSearchInput = document.getElementById('todo-search');
+const todoFilterButtons = document.querySelectorAll('[data-todo-filter]');
 const sharedParticipantList = document.getElementById('shared-participant-list');
 const sharedParticipantForm = document.getElementById('shared-participant-form');
 const sharedParticipantInput = document.getElementById('shared-participant-input');
@@ -60,6 +62,9 @@ const sharedExpenseHistory = document.getElementById('shared-expense-history');
 const sharedExpenseSummary = document.getElementById('shared-expense-summary');
 const resetSharedBalancesButton = document.getElementById('reset-shared-balances');
 const shareSplitSummaryButton = document.getElementById('share-split-summary');
+const splitNetElement = document.getElementById('split-net');
+const splitYouOweElement = document.getElementById('split-you-owe');
+const splitOwedToYouElement = document.getElementById('split-owed-to-you');
 const communicationForm = document.getElementById('communication-form');
 const communicationTitleInput = document.getElementById('communication-title');
 const communicationPhraseInput = document.getElementById('communication-phrase');
@@ -167,6 +172,7 @@ let reminderCheckInterval = null;
 let reminderSchedulingInProgress = false;
 let transactionSearchQuery = '';
 let todoSearchQuery = '';
+let activeTodoFilter = 'all';
 const REMINDER_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const REMINDER_NOTIFICATION_ICON = 'assets/icons/icon-192.png';
 const REMINDER_NOTIFICATION_BADGE = 'assets/icons/icon-72.png';
@@ -1325,7 +1331,7 @@ const renderTodos = () => {
     if (!todoList) return;
     todoList.innerHTML = '';
 
-    const filteredTodos = todoSearchQuery
+    const bySearch = todoSearchQuery
         ? todos.filter(todo => {
             const text = (todo.text || '').toLowerCase();
             const matchesText = text.includes(todoSearchQuery);
@@ -1334,6 +1340,13 @@ const renderTodos = () => {
             return matchesText || matchesSubtask;
         })
         : todos;
+
+    const today = new Date().toISOString().split('T')[0];
+    const filteredTodos = bySearch.filter(todo => {
+        if (activeTodoFilter === 'completed') return todo.completed;
+        if (activeTodoFilter === 'upcoming') return Boolean(todo.dueDate && todo.dueDate > today && !todo.completed);
+        return !todo.completed || !todo.dueDate || todo.dueDate <= today;
+    });
 
     if (filteredTodos.length === 0) {
         const message = todos.length === 0
@@ -1580,6 +1593,18 @@ const updateSharedExpenseControls = () => {
         `).join('');
 };
 
+
+const updateSplitSummaryHeader = () => {
+    if (!splitNetElement || !splitYouOweElement || !splitOwedToYouElement) return;
+    const balances = Object.values(getSharedBalances());
+    const net = balances.reduce((sum, value) => sum + value, 0);
+    const youOwe = balances.filter(value => value < 0).reduce((sum, value) => sum + Math.abs(value), 0);
+    const owedToYou = balances.filter(value => value > 0).reduce((sum, value) => sum + value, 0);
+    splitNetElement.textContent = formatCurrency(net, { includePlus: true });
+    splitYouOweElement.textContent = formatCurrency(-youOwe);
+    splitOwedToYouElement.textContent = formatCurrency(owedToYou, { includePlus: true });
+};
+
 const renderSharedParticipants = () => {
     if (!sharedParticipantList) return;
     const balances = getSharedBalances();
@@ -1589,6 +1614,8 @@ const renderSharedParticipants = () => {
         return;
     }
     
+    updateSplitSummaryHeader();
+
     sharedParticipantList.innerHTML = sharedParticipants
         .map(participant => {
             const balance = balances[participant.id] || 0;
@@ -1611,6 +1638,7 @@ const renderSharedParticipants = () => {
 
 const renderSharedExpenseHistory = () => {
     if (!sharedExpenseHistory) return;
+    updateSplitSummaryHeader();
     if (!sharedExpenses.length) {
         sharedExpenseHistory.innerHTML = '<li class="list-group-item text-center text-muted py-4">No shared expenses yet</li>';
         sharedExpenseSummary.textContent = 'No expenses yet';
@@ -2789,8 +2817,8 @@ const renderCommunicationItems = () => {
         card.setAttribute('tabindex', '0');
         card.setAttribute('aria-label', `${displayTitle}: ${displayPhrase}`);
         const recordingMessage = item.audioData
-            ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
-            : '<span class="text-warning small fw-semibold">Recording needed</span>';
+            ? '<span class="recording-badge text-primary"><i class="bi bi-volume-up-fill" aria-hidden="true"></i> Ready</span>'
+            : '<span class="recording-badge text-warning"><i class="bi bi-mic-mute-fill" aria-hidden="true"></i> Missing</span>';
         const fallbackEmoji = escapeHtml(emoji);
         const safeTitle = escapeHtml(displayTitle);
         const safePhrase = escapeHtml(displayPhrase || 'Tap to play your recording');
@@ -3222,6 +3250,7 @@ clearDataButton?.addEventListener('click', () => {
 exportDataButton?.addEventListener('click', exportToCSV);
 exportBackupButton?.addEventListener('click', exportFullBackup);
 importTransactionsButton?.addEventListener('click', handleImportFile);
+quickImportButton?.addEventListener('click', handleImportFile);
 loadDemoDataButton?.addEventListener('click', loadDemoData);
 openHelpButton?.addEventListener('click', () => setActiveTab('help'));
 
@@ -3301,6 +3330,14 @@ todoForm?.addEventListener('submit', (e) => {
 todoSearchInput?.addEventListener('input', (event) => {
     todoSearchQuery = event.target.value.trim().toLowerCase();
     renderTodos();
+});
+
+todoFilterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        activeTodoFilter = button.dataset.todoFilter || 'all';
+        todoFilterButtons.forEach((chip) => chip.classList.toggle('active', chip === button));
+        renderTodos();
+    });
 });
 
 todoList?.addEventListener('change', (e) => {
