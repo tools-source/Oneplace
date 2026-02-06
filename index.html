@@ -311,6 +311,7 @@
 
         .app-shell {
             max-width: 1200px;
+            padding-top: 0.5rem;
         }
 
         .app-header {
@@ -558,7 +559,7 @@
         .finance-subpanel.active { display: block; }
 
         .finance-scroll-wrap {
-            padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+            padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
         }
 
         .category-color-dot {
@@ -600,7 +601,7 @@
                 position: fixed;
                 right: 16px;
                 bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
-                z-index: 30;
+                z-index: 1035;
                 height: 44px;
                 border-radius: 999px;
                 align-items: center;
@@ -619,7 +620,7 @@
                 opacity: 0;
                 pointer-events: none;
                 transition: opacity 0.2s ease;
-                z-index: 20;
+                z-index: 1200;
             }
 
             .mobile-sheet-overlay.open {
@@ -634,12 +635,12 @@
                 bottom: 0;
                 transform: translateY(105%);
                 transition: transform 0.25s ease;
-                z-index: 25;
+                z-index: 1210;
                 margin: 0;
                 border-radius: 16px 16px 0 0;
                 max-height: calc(86vh - var(--bottom-safe-offset));
                 overflow-y: auto;
-                padding-bottom: calc(var(--bottom-safe-offset) + 0.5rem);
+                padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.75rem);
             }
 
             .mobile-sheet.open {
@@ -1311,25 +1312,42 @@
             --radius-md: 14px;
             --radius-lg: 18px;
             --focus-ring: 0 0 0 3px rgba(13, 110, 253, 0.25);
+            --app-header-height: 64px;
         }
 
         .app-header {
             position: sticky;
-            top: 0.5rem;
-            z-index: 1030;
+            top: 0;
+            z-index: 1100;
             display: flex;
             align-items: center;
-            gap: var(--space-4);
-            padding: var(--space-4);
-            border-radius: var(--radius-lg);
+            justify-content: space-between;
+            gap: var(--space-3);
+            min-height: var(--app-header-height);
+            padding: 0.5rem 0.85rem;
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
             background: color-mix(in srgb, var(--card-bg) 92%, transparent);
             backdrop-filter: blur(8px);
             box-shadow: var(--surface-shadow);
         }
 
+        .brand-wrap {
+            min-width: 0;
+        }
+
+        .settings-dropdown .btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+        }
+
         .tab-nav {
             position: sticky;
-            top: 5.8rem;
+            top: calc(var(--app-header-height) + 0.75rem);
             z-index: 1020;
             background: color-mix(in srgb, var(--card-bg) 95%, transparent);
             border: 1px solid var(--card-border);
@@ -1361,9 +1379,17 @@
         .recording-badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; font-weight: 600; }
 
         @media (max-width: 768px) {
+            :root {
+                --app-header-height: 58px;
+            }
+
+            .container.app-shell {
+                padding-top: 0.4rem;
+                padding-bottom: calc(var(--bottom-nav-height) + var(--bottom-safe-offset) + 5.5rem);
+            }
+
             .tab-nav { position: fixed; left: 0; right: 0; bottom: 0; top: auto; border-radius: 14px 14px 0 0; padding: 0.4rem; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.25rem; }
             .tab-nav .btn { font-size: 0.72rem; padding: 0.45rem 0.2rem; display: flex; flex-direction: column; }
-            .container.app-shell { padding-bottom: calc(var(--bottom-nav-height) + var(--bottom-safe-offset) + 5.5rem); }
             .tab-nav .btn i { margin-right: 0 !important; }
             .sticky-save-wrap { position: sticky; bottom: calc(var(--bottom-nav-height) + var(--bottom-safe-offset) + 0.35rem); }
             .split-summary-strip { grid-template-columns: 1fr; }
@@ -1374,15 +1400,14 @@
 </head>
 <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    <div class="container mt-4 app-shell">
+    <div class="container app-shell">
         <header class="app-header mb-4" role="banner">
             <div class="brand-wrap">
                 <h1 class="mb-0 app-title">One Place</h1>
-                <p class="text-muted mb-0 app-subtitle">Your local-first home for money, plans, splits, and communication.</p>
             </div>
             <div class="dropdown settings-dropdown ms-auto">
                 <button class="btn btn-outline-secondary btn-sm" type="button" id="settings-menu-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open appearance settings">
-                    <i class="bi bi-sliders me-1"></i> Settings
+                    <i class="bi bi-sliders" aria-hidden="true"></i>
                 </button>
                 <div class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="settings-menu-toggle">
                     <div class="theme-controls mb-3">
