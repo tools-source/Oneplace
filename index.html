@@ -449,15 +449,60 @@
         }
 
         .finance-balance-card #balance {
-            font-size: clamp(2.2rem, 5vw, 3.2rem);
-            letter-spacing: -0.02em;
+            font-size: clamp(1.8rem, 4vw, 2.4rem);
+            letter-spacing: -0.01em;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .overview-metric {
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            background: var(--card-bg);
+            padding: 0.85rem 1rem;
+            box-shadow: var(--surface-shadow);
+        }
+
+        .overview-metric .label {
+            color: #6c757d;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .overview-metric .value {
+            font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+            font-weight: 700;
+        }
+
+        .overview-metric.primary .value {
+            font-size: clamp(1.6rem, 3.5vw, 2.1rem);
         }
 
         .quick-add-main-grid {
             display: grid;
-            grid-template-columns: minmax(200px, 260px) minmax(220px, 1fr) minmax(170px, 220px) auto auto;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
             gap: 0.6rem;
             align-items: start;
+        }
+
+        .quick-add-main-grid .amount-wrap { grid-column: span 2; }
+        .quick-add-main-grid .description-wrap { grid-column: span 2; }
+        .quick-add-main-grid .category-wrap { grid-column: span 2; }
+        .quick-add-main-grid .category-pill-wrap,
+        .quick-add-main-grid .type-wrap,
+        .quick-add-main-grid .action-wrap,
+        .quick-add-main-grid .save-wrap { grid-column: span 2; }
+
+        .quick-add-sticky {
+            position: sticky;
+            top: 0.75rem;
+            z-index: 8;
         }
 
         .amount-description-stack {
@@ -524,28 +569,86 @@
             margin-bottom: 1rem;
         }
 
-        .mobile-sheet .card-body {
-            position: relative;
+        .quick-add-fab,
+        .mobile-sheet-overlay,
+        .mobile-sheet-close {
+            display: none;
         }
 
         @media (max-width: 768px) {
+            .overview-grid {
+                grid-template-columns: 1fr;
+            }
             .quick-add-main-grid {
                 grid-template-columns: 1fr;
             }
             .history-filter-bar.compact {
                 grid-template-columns: 1fr;
             }
-            .mobile-sheet {
-                position: sticky;
-                bottom: 0;
-                z-index: 4;
-                border-radius: 16px 16px 0 0;
-                box-shadow: 0 -12px 20px rgba(0,0,0,0.15);
+            .quick-add-sticky {
+                position: static;
             }
-            #add-transaction,
-            #save-transaction {
-                position: sticky;
-                bottom: 0.5rem;
+
+            .quick-add-fab {
+                display: inline-flex;
+                position: fixed;
+                right: 1rem;
+                bottom: 1rem;
+                z-index: 30;
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+            }
+
+            .mobile-sheet-overlay {
+                display: block;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.45);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease;
+                z-index: 20;
+            }
+
+            .mobile-sheet-overlay.open {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            .mobile-sheet {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                transform: translateY(105%);
+                transition: transform 0.25s ease;
+                z-index: 25;
+                margin: 0;
+                border-radius: 16px 16px 0 0;
+                max-height: 86vh;
+                overflow-y: auto;
+            }
+
+            .mobile-sheet.open {
+                transform: translateY(0);
+            }
+
+            .mobile-sheet-close {
+                display: inline-flex;
+            }
+
+            .quick-add-main-grid .amount-wrap,
+            .quick-add-main-grid .description-wrap,
+            .quick-add-main-grid .category-wrap,
+            .quick-add-main-grid .category-pill-wrap,
+            .quick-add-main-grid .type-wrap,
+            .quick-add-main-grid .action-wrap,
+            .quick-add-main-grid .save-wrap {
+                grid-column: span 1;
             }
         }
         
@@ -1231,23 +1334,9 @@
             </div>
         </header>
 
-        <section class="onboarding-card p-4 mb-4" aria-label="Quick start">
-            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-                <div>
-                    <h2 class="h5 mb-2">Get started fast</h2>
-                    <p class="text-muted mb-0">Load sample data or import yours in seconds.</p>
-                </div>
-                <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-primary" type="button" id="load-demo-data">
-                        <i class="bi bi-stars me-1"></i> Load demo data
-                    </button>
-                    <button class="btn btn-outline-secondary" type="button" id="quick-import">
-                        <i class="bi bi-upload me-1"></i> Import
-                    </button>
-                </div>
-                <button class="btn btn-link btn-sm text-decoration-none p-0" type="button" id="open-help">Help & privacy</button>
-            </div>
-        </section>
+        <div class="d-flex justify-content-end mb-3">
+            <button class="btn btn-link btn-sm text-decoration-none p-0" type="button" id="open-help">Help & privacy</button>
+        </div>
 
         <div class="mb-4 tab-nav" role="tablist" aria-label="Primary sections">
             <button class="btn btn-outline-primary active" type="button" data-tab-target="finance" role="tab" aria-selected="true" aria-controls="panel-finance" id="tab-finance">
@@ -1273,106 +1362,108 @@
             <div>
                 <p class="section-heading">Finance</p>
                 <h2 class="section-title">Overview</h2>
-                <p class="section-subtitle">Track gains, owes, and your top spending focus.</p>
             </div>
         </div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-12 col-md-4">
-                <div class="insight-card h-100">
-                    <div class="insight-label">Total Gain</div>
-                    <div class="insight-value positive" id="insight-income">$0.00</div>
-                    <div class="insight-meta"><i class="bi bi-arrow-up-right"></i> Great job building momentum</div>
-                </div>
+        <div class="overview-grid" aria-label="Financial overview">
+            <div class="overview-metric primary">
+                <div class="label">Net Balance</div>
+                <div id="balance" class="value positive">$0.00</div>
+                <div id="balance-scope" class="small text-muted mt-1">All categories</div>
             </div>
-            <div class="col-12 col-md-4">
-                <div class="insight-card h-100">
-                    <div class="insight-label">Total Owe</div>
-                    <div class="insight-value negative" id="insight-expense">$0.00</div>
-                    <div class="insight-meta"><i class="bi bi-lightning-charge"></i> Keep essentials covered first</div>
-                </div>
+            <div class="overview-metric">
+                <div class="label">Total Gain</div>
+                <div class="value positive" id="insight-income">$0.00</div>
             </div>
-            <div class="col-12 col-md-4">
-                <div class="insight-card h-100">
-                    <div class="insight-label">Top Category</div>
-                    <div class="insight-value" id="insight-top-category">No data yet</div>
-                    <div class="insight-meta"><span id="insight-top-category-amount">$0.00</span> spent · Last 7 days: <span id="insight-recent">$0.00</span></div>
-                </div>
+            <div class="overview-metric">
+                <div class="label">Total Owe</div>
+                <div class="value negative" id="insight-expense">$0.00</div>
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4 finance-balance-card">
-            <div class="card-body text-center">
-                <p class="section-heading">Balance summary</p>
-                <div id="balance" class="balance-display fw-bold">$0.00</div>
-                <div id="balance-scope" class="text-muted small mt-2">All categories</div>
-            </div>
-        </div>
-
-        <div class="card shadow-sm mb-4 quick-add-card" id="quick-add-shell">
+        <div class="card shadow-sm mb-4 quick-add-card quick-add-sticky" id="quick-add-shell" aria-label="Quick add transactions">
             <div class="card-body">
                 <div class="section-header mb-3 history-header">
                     <div>
                         <p class="section-heading">Quick Add</p>
-                        <h3 class="section-title mb-0">Log in seconds</h3>
+                        <h3 class="section-title mb-0">New transaction</h3>
                     </div>
                     <button id="toggle-input" class="btn btn-outline-secondary btn-sm" aria-controls="input-section" aria-expanded="true">
-                        <i class="bi bi-chevron-up"></i> Hide
+                        <i class="bi bi-chevron-up" aria-hidden="true"></i><span class="ms-1">Hide</span>
+                    </button>
+                    <button id="close-mobile-sheet" class="btn btn-outline-secondary btn-sm mobile-sheet-close" type="button" aria-label="Close quick add sheet">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div class="input-section" id="input-section">
-                    <div class="quick-add-bar">
-                        <div class="quick-add-main-grid">
-                            <div class="amount-description-stack">
-                                <input type="number" id="amount" class="form-control amount-field" placeholder="0.00" required step="0.01" inputmode="decimal" pattern="[0-9]*" aria-label="Amount">
-                                <input type="text" id="description" class="form-control" placeholder="What was this for?" required aria-label="Description">
-                            </div>
-                            <div class="category-picker-wrap">
-                                <select id="category" class="form-select" required aria-label="Category"><option value="">Choose category</option></select>
-                                <div id="category-pill-group" class="category-pill-group mt-2"></div>
-                            </div>
+                    <div class="quick-add-main-grid" role="group" aria-label="Quick add form">
+                        <div class="amount-wrap">
+                            <label class="form-label small mb-1" for="amount">Amount</label>
+                            <input type="number" id="amount" class="form-control amount-field" placeholder="0.00" required step="0.01" inputmode="decimal" pattern="[0-9]*" aria-label="Amount" autocomplete="off">
+                        </div>
+                        <div class="description-wrap">
+                            <label class="form-label small mb-1" for="description">Description</label>
+                            <input type="text" id="description" class="form-control" placeholder="e.g. Uber 18" required aria-label="Description" autocomplete="off" aria-describedby="quick-add-suggestion">
+                            <div id="quick-add-suggestion" class="small text-muted mt-1" aria-live="polite"></div>
+                        </div>
+                        <div class="category-wrap">
+                            <label class="form-label small mb-1" for="category">Category</label>
+                            <select id="category" class="form-select" required aria-label="Category"><option value="">Choose category</option></select>
+                        </div>
+                        <div class="category-pill-wrap">
+                            <label class="form-label small mb-1">Category pills</label>
+                            <div id="category-pill-group" class="category-pill-group" role="group" aria-label="Category pills"></div>
+                        </div>
+                        <div class="type-wrap">
+                            <label class="form-label small mb-1">Gain / Owe</label>
                             <div class="btn-group w-100" role="group" aria-label="Transaction type">
                                 <input class="btn-check" type="radio" name="transactionType" id="incomeRadio" value="income" checked>
                                 <label class="btn btn-outline-success" for="incomeRadio">Gain</label>
                                 <input class="btn-check" type="radio" name="transactionType" id="expenseRadio" value="expense">
                                 <label class="btn btn-outline-danger" for="expenseRadio">Owe</label>
                             </div>
-                            <button id="add-transaction" class="btn btn-success quick-add-btn"><i class="bi bi-plus-circle"></i> Add</button>
-                            <button id="save-transaction" class="btn btn-primary quick-add-btn" style="display:none;"><i class="bi bi-save"></i> Save</button>
                         </div>
-                        <button class="btn btn-link btn-sm ps-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#quick-add-details" aria-expanded="false" aria-controls="quick-add-details">Add details</button>
-                        <div class="collapse" id="quick-add-details">
-                            <div class="row g-2">
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label small text-muted" for="date">Date</label>
-                                    <input type="date" id="date" class="form-control">
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <span class="form-label small text-muted d-block">Urgency</span>
-                                    <div id="urgency" class="urgency-chip-group" role="radiogroup" aria-label="Urgency">
-                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="not-urgent" aria-pressed="true">Normal</button>
-                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="urgent" aria-pressed="false">Urgent</button>
-                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="later" aria-pressed="false">Later</button>
-                                    </div>
-                                </div>
-                                <div class="col-12"><small id="category-hint" class="text-muted category-hint">Choose a category to see smart tips.</small></div>
-                                <div class="col-12"><div id="category-guidance" class="category-guidance text-muted small">Picking a category will auto-select the right type.</div></div>
+                        <div class="action-wrap sticky-save-wrap">
+                            <button id="add-transaction" class="btn btn-success quick-add-btn w-100" type="button"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add</button>
+                        </div>
+                        <div class="save-wrap sticky-save-wrap">
+                            <button id="save-transaction" class="btn btn-primary quick-add-btn w-100" style="display:none;" type="button"><i class="bi bi-save" aria-hidden="true"></i> Save</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-link btn-sm ps-0 text-decoration-none mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#quick-add-details" aria-expanded="false" aria-controls="quick-add-details">Add details</button>
+                    <div class="collapse" id="quick-add-details">
+                        <div class="row g-2">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small" for="date">Date</label>
+                                <input type="date" id="date" class="form-control">
                             </div>
-                        </div>
-                        <div class="mt-3 d-flex flex-wrap gap-2">
-                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#custom-category-panel" aria-expanded="false" aria-controls="custom-category-panel"><i class="bi bi-plus-lg me-1"></i> Add category</button>
+                            <div class="col-12 col-md-4">
+                                <span class="form-label small d-block">Urgency</span>
+                                <div id="urgency" class="urgency-chip-group" role="radiogroup" aria-label="Urgency">
+                                    <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="not-urgent" aria-pressed="true" title="Standard priority">Normal</button>
+                                    <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="urgent" aria-pressed="false" title="Needs action soon">Urgent</button>
+                                    <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="later" aria-pressed="false" title="Can wait">Later</button>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#custom-category-panel" aria-expanded="false" aria-controls="custom-category-panel"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Add category</button>
+                            </div>
                         </div>
                         <div class="collapse mt-2" id="custom-category-panel">
                             <div class="row g-2 align-items-end">
                                 <div class="col-12 col-md-5"><input type="text" id="custom-category-name" class="form-control" placeholder="Custom category name"></div>
                                 <div class="col-12 col-md-3"><select id="custom-category-type" class="form-select"><option value="income">Gain</option><option value="expense">Owe</option></select></div>
-                                <div class="col-12 col-md-4"><button id="add-category" class="btn btn-outline-primary w-100" type="button"><i class="bi bi-tags me-1"></i> Save category</button></div>
+                                <div class="col-12 col-md-4"><button id="add-category" class="btn btn-outline-primary w-100" type="button"><i class="bi bi-tags me-1" aria-hidden="true"></i> Save category</button></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        <div id="mobile-sheet-overlay" class="mobile-sheet-overlay" hidden></div>
+        <button id="quick-add-fab" class="btn btn-primary quick-add-fab" type="button" aria-label="Open quick add">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        </button>
 
         <ul class="nav nav-pills finance-content-tabs mb-3" id="finance-content-tabs" role="tablist">
             <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-finance-tab="history" role="tab" aria-selected="true">History</button></li>
