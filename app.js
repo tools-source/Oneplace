@@ -2151,16 +2151,14 @@ function addTransaction(e) {
     amountInput.focus();
 }
 
-function createTransactionElement(transaction) {
+function createTransactionElement(transaction, isEditing = false) {
     const li = document.createElement('li');
     li.className = 'list-group-item';
     li.dataset.id = transaction.id;
     li.dataset.transaction = 'true';
 
     const normalizedAmount = Math.abs(transaction.amount);
-    const signedAmount = transaction.type === 'income'
-        ? normalizedAmount
-        : -normalizedAmount;
+    const signedAmount = transaction.type === 'income' ? normalizedAmount : -normalizedAmount;
     const transactionAmount = formatCurrency(signedAmount, { includePlus: true });
 
     const categoryColor = getCategoryColor(transaction.category);
@@ -2168,28 +2166,72 @@ function createTransactionElement(transaction) {
     const transactionDate = new Date(transaction.date || transaction.dateModified || transaction.id);
     const safeDescription = escapeHtml(transaction.description || '');
     const safeCategoryName = escapeHtml(categoryName);
-    const urgencyChips = URGENCY_OPTIONS.map(option => {
-        const active = option.value === normalizeUrgencyValue(transaction.urgency);
-        return `<button type="button" class="btn btn-sm urgency-chip urgency-chip-inline ${active ? 'active' : ''}" data-urgency-value="${option.value}" aria-pressed="${active ? 'true' : 'false'}">${escapeHtml(option.label === 'Not urgent' ? 'Normal' : option.label)}</button>`;
+    const urgencyValue = normalizeUrgencyValue(transaction.urgency);
+    const urgencyLabel = escapeHtml(getUrgencyLabel(urgencyValue).replace('Not urgent', 'Normal'));
+    const urgencyClass = getUrgencyBadgeClass(urgencyValue);
+    const categoryOptions = getSortedCategories().map((category) => {
+        const selected = category.value === transaction.category ? 'selected' : '';
+        return `<option value="${escapeHtml(category.value)}" ${selected}>${escapeHtml(category.label)}</option>`;
+    }).join('');
+    const urgencyOptions = URGENCY_OPTIONS.map((option) => {
+        const selected = option.value === urgencyValue ? 'selected' : '';
+        const label = option.label === 'Not urgent' ? 'Normal' : option.label;
+        return `<option value="${escapeHtml(option.value)}" ${selected}>${escapeHtml(label)}</option>`;
     }).join('');
 
     li.innerHTML = `
-        <div class="transaction-details">
-            <div class="transaction-info">
-                <input class="form-control form-control-sm inline-description" value="${safeDescription}" aria-label="Transaction description">
-                <div class="transaction-meta">
-                    <span class="category-color-dot" style="background-color: ${categoryColor}" aria-hidden="true"></span><span class="category-badge" style="background-color: ${categoryColor}">${safeCategoryName}</span>
-                    <div class="urgency-inline-group" role="group" aria-label="Update urgency">${urgencyChips}</div>
-                    <span>${transactionDate.toLocaleDateString()}</span>
+        <div class="transaction-details transaction-row" tabindex="0" role="button" aria-label="Edit ${safeDescription || 'transaction'}">
+            <div class="transaction-row-header">
+                <div class="transaction-title">
+                    <span class="category-color-dot" style="background-color: ${categoryColor}" aria-hidden="true"></span>
+                    <span class="transaction-description">${safeDescription || safeCategoryName}</span>
+                </div>
+                <div class="transaction-amount-wrap">
+                    <span class="transaction-amount ${transaction.type === 'income' ? 'positive' : 'negative'}">${transactionAmount}</span>
+                    <button class="btn btn-outline-secondary btn-sm edit-toggle-btn" aria-label="Edit transaction" type="button">
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    </button>
                 </div>
             </div>
-            <div class="transaction-actions d-flex gap-2 align-items-center">
-                <input type="number" step="0.01" inputmode="decimal" class="form-control form-control-sm inline-amount ${transaction.type === 'income' ? 'positive' : 'negative'}" value="${normalizedAmount}" aria-label="Transaction amount">
-                <button class="btn btn-sm btn-outline-primary edit-btn" aria-label="Save inline changes"><i class="bi bi-check2"></i></button>
-                <button class="btn btn-sm btn-outline-danger delete-btn" aria-label="Delete transaction">
-                    <i class="bi bi-trash"></i>
-                </button>
+            <div class="transaction-meta" aria-label="Transaction metadata">
+                <span>${transactionDate.toLocaleDateString()}</span>
+                <span class="transaction-dot-separator" aria-hidden="true">•</span>
+                <span>${safeCategoryName}</span>
+                <span class="badge ${urgencyClass} transaction-urgency-pill">${urgencyLabel}</span>
             </div>
+            ${isEditing ? `
+            <div class="transaction-edit-panel" aria-label="Edit transaction details">
+                <div class="transaction-edit-grid">
+                    <div class="full">
+                        <label class="form-label small mb-1" for="edit-description-${transaction.id}">Description</label>
+                        <input id="edit-description-${transaction.id}" type="text" class="form-control form-control-sm edit-description" value="${safeDescription}" aria-label="Transaction description">
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1" for="edit-amount-${transaction.id}">Amount</label>
+                        <input id="edit-amount-${transaction.id}" type="number" step="0.01" inputmode="decimal" class="form-control form-control-sm edit-amount" value="${normalizedAmount}" aria-label="Transaction amount">
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1" for="edit-category-${transaction.id}">Category</label>
+                        <select id="edit-category-${transaction.id}" class="form-select form-select-sm edit-category" aria-label="Transaction category">${categoryOptions}</select>
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1" for="edit-type-${transaction.id}">Type</label>
+                        <select id="edit-type-${transaction.id}" class="form-select form-select-sm edit-type" aria-label="Transaction type">
+                            <option value="income" ${transaction.type === 'income' ? 'selected' : ''}>Gain</option>
+                            <option value="expense" ${transaction.type === 'expense' ? 'selected' : ''}>Owe</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1" for="edit-urgency-${transaction.id}">Urgency</label>
+                        <select id="edit-urgency-${transaction.id}" class="form-select form-select-sm edit-urgency" aria-label="Transaction urgency">${urgencyOptions}</select>
+                    </div>
+                </div>
+                <div class="transaction-edit-actions">
+                    <button class="btn btn-sm btn-primary edit-save-btn" aria-label="Save transaction" type="button"><i class="bi bi-check2" aria-hidden="true"></i> Save</button>
+                    <button class="btn btn-sm btn-outline-secondary edit-cancel-btn" aria-label="Cancel editing" type="button">Cancel</button>
+                    <button class="btn btn-sm btn-outline-danger delete-btn" aria-label="Delete transaction" type="button"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
+                </div>
+            </div>` : ''}
         </div>
     `;
 
@@ -2239,7 +2281,7 @@ function displayTransactions(list) {
                         return getTransactionSortTimestamp(b) - getTransactionSortTimestamp(a);
                     })
                     .forEach(transaction => {
-                        const element = createTransactionElement(transaction);
+                        const element = createTransactionElement(transaction, String(transaction.id) === historyList?.dataset.editingId);
                         historyList.appendChild(element);
                     });
             });
@@ -3393,6 +3435,13 @@ toggleHistoryButton?.addEventListener('click', () => {
 });
 
 const isMobileViewport = () => window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+const syncBottomNavMetrics = () => {
+    const bottomNav = document.querySelector('.tab-nav');
+    const mobileMode = isMobileViewport();
+    const navHeight = mobileMode && bottomNav ? Math.ceil(bottomNav.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty('--bottom-nav-height', `${navHeight}px`);
+};
+
 
 const setMobileQuickAddOpen = (isOpen) => {
     if (!quickAddShell || !mobileSheetOverlay || !quickAddFab) return;
@@ -3424,43 +3473,64 @@ closeMobileSheetButton?.addEventListener('click', () => setMobileQuickAddOpen(fa
 window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') setMobileQuickAddOpen(false);
 });
+window.addEventListener('resize', syncBottomNavMetrics);
+window.addEventListener('orientationchange', syncBottomNavMetrics);
+
+const openHistoryItemEditor = (id) => {
+    if (!historyList) return;
+    historyList.dataset.editingId = String(id);
+    displayTransactions();
+    requestAnimationFrame(() => {
+        const editField = historyList.querySelector(`[data-id="${id}"] .edit-description`);
+        editField?.focus();
+    });
+};
+
+const closeHistoryItemEditor = () => {
+    if (!historyList) return;
+    delete historyList.dataset.editingId;
+    displayTransactions();
+};
+
+const saveHistoryItemEdit = (listItem, id) => {
+    const transactionIndex = transactions.findIndex(t => t.id === id);
+    if (transactionIndex === -1) return;
+
+    const desc = listItem.querySelector('.edit-description')?.value.trim() || '';
+    const amount = parseFloat(listItem.querySelector('.edit-amount')?.value || '0');
+    const category = listItem.querySelector('.edit-category')?.value || '';
+    const type = listItem.querySelector('.edit-type')?.value === 'expense' ? 'expense' : 'income';
+    const urgency = normalizeUrgencyValue(listItem.querySelector('.edit-urgency')?.value || DEFAULT_URGENCY);
+
+    if (!desc || Number.isNaN(amount) || amount <= 0) {
+        showAlert('Please provide a valid description and amount', 'warning');
+        return;
+    }
+
+    if (!category) {
+        showAlert('Please choose a category', 'warning');
+        return;
+    }
+
+    transactions[transactionIndex] = {
+        ...transactions[transactionIndex],
+        description: desc,
+        amount: Math.abs(amount),
+        type,
+        category,
+        urgency,
+        dateModified: new Date().toISOString()
+    };
+
+    saveTransactions();
+    closeHistoryItemEditor();
+    updateBalance();
+};
 
 historyList?.addEventListener('click', (e) => {
     const listItem = e.target.closest('.list-group-item');
     if (!listItem) return;
     const id = parseInt(listItem.dataset.id);
-
-    if (e.target.closest('.delete-btn')) {
-        if (confirm('Are you sure you want to delete this transaction?')) deleteTransaction(id);
-        return;
-    }
-
-    if (e.target.closest('.edit-btn')) {
-        const transactionIndex = transactions.findIndex(t => t.id === id);
-        if (transactionIndex === -1) return;
-        const desc = listItem.querySelector('.inline-description')?.value.trim() || '';
-        const amount = parseFloat(listItem.querySelector('.inline-amount')?.value || '0');
-        if (!desc || Number.isNaN(amount) || amount <= 0) {
-            showAlert('Please provide a valid description and amount', 'warning');
-            return;
-        }
-        transactions[transactionIndex] = {
-            ...transactions[transactionIndex],
-            description: desc,
-            amount: Math.abs(amount),
-            dateModified: new Date().toISOString()
-        };
-        saveTransactions();
-        displayTransactions();
-        updateBalance();
-        return;
-    }
-
-    const urgencyChip = e.target.closest('.urgency-chip-inline');
-    if (urgencyChip) {
-        updateTransactionUrgency(id, urgencyChip.dataset.urgencyValue);
-        return;
-    }
 
     if (e.target.closest('[data-action="empty-add"]')) {
         setInputSectionVisibility(true);
@@ -3470,6 +3540,45 @@ historyList?.addEventListener('click', (e) => {
 
     if (e.target.closest('[data-action="empty-demo"]')) {
         loadDemoData();
+        return;
+    }
+
+    if (!Number.isFinite(id)) return;
+
+    if (e.target.closest('.delete-btn')) {
+        if (confirm('Are you sure you want to delete this transaction?')) deleteTransaction(id);
+        return;
+    }
+
+    if (e.target.closest('.edit-save-btn')) {
+        saveHistoryItemEdit(listItem, id);
+        return;
+    }
+
+    if (e.target.closest('.edit-cancel-btn')) {
+        closeHistoryItemEditor();
+        return;
+    }
+
+    if (e.target.closest('.edit-toggle-btn') || e.target.closest('.transaction-row-header') || e.target.closest('.transaction-description')) {
+        openHistoryItemEditor(id);
+    }
+});
+
+historyList?.addEventListener('keydown', (event) => {
+    const listItem = event.target.closest('.list-group-item');
+    if (!listItem) return;
+    const id = parseInt(listItem.dataset.id);
+    if (!Number.isFinite(id)) return;
+
+    if ((event.key === 'Enter' || event.key === ' ') && event.target.closest('.transaction-row')) {
+        event.preventDefault();
+        openHistoryItemEditor(id);
+        return;
+    }
+
+    if (event.key === 'Escape' && String(id) === historyList?.dataset.editingId) {
+        closeHistoryItemEditor();
     }
 });
 
@@ -3749,6 +3858,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSharedParticipants();
     updateSharedExpenseControls();
     renderSharedExpenseHistory();
+    syncBottomNavMetrics();
     normalizeCommunicationItems();
     renderCommunicationItems();
     renderReminders();
