@@ -5,9 +5,6 @@ const categorySelect = document.getElementById('category');
 const urgencySelect = document.getElementById('urgency');
 const dateInput = document.getElementById('date');
 const quickAddShell = document.getElementById('quick-add-shell');
-const quickAddFab = document.getElementById('quick-add-fab');
-const mobileSheetOverlay = document.getElementById('mobile-sheet-overlay');
-const closeMobileSheetButton = document.getElementById('close-mobile-sheet');
 const financeTabButtons = document.querySelectorAll('[data-finance-tab]');
 const financeTabPanels = document.querySelectorAll('[data-finance-panel]');
 const categoryFilter = document.getElementById('category-filter');
@@ -3443,18 +3440,6 @@ const syncBottomNavMetrics = () => {
 };
 
 
-const setMobileQuickAddOpen = (isOpen) => {
-    if (!quickAddShell || !mobileSheetOverlay || !quickAddFab) return;
-    if (!isMobileViewport()) return;
-    quickAddShell.classList.toggle('open', isOpen);
-    mobileSheetOverlay.classList.toggle('open', isOpen);
-    mobileSheetOverlay.hidden = !isOpen;
-    quickAddFab.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    if (isOpen) {
-        amountInput?.focus();
-    }
-};
-
 const setInputSectionVisibility = (shouldShow) => {
     if (!inputSection || !toggleInputButton) return;
     inputSection.style.display = shouldShow ? 'block' : 'none';
@@ -3467,12 +3452,6 @@ toggleInputButton?.addEventListener('click', () => {
     setInputSectionVisibility(isHidden);
 });
 
-quickAddFab?.addEventListener('click', () => setMobileQuickAddOpen(true));
-mobileSheetOverlay?.addEventListener('click', () => setMobileQuickAddOpen(false));
-closeMobileSheetButton?.addEventListener('click', () => setMobileQuickAddOpen(false));
-window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') setMobileQuickAddOpen(false);
-});
 window.addEventListener('resize', syncBottomNavMetrics);
 window.addEventListener('orientationchange', syncBottomNavMetrics);
 
@@ -3877,16 +3856,9 @@ document.addEventListener('DOMContentLoaded', () => {
     displayTransactions();
     setFinanceSubTab('history');
     applyQuickDefaults();
-    const syncQuickAddLayout = () => {
-        const mobile = isMobileViewport();
-        quickAddShell?.classList.toggle('mobile-sheet', mobile);
-        if (!mobile) {
-            setMobileQuickAddOpen(false);
-            mobileSheetOverlay && (mobileSheetOverlay.hidden = true);
-        }
-    };
-    syncQuickAddLayout();
-    window.addEventListener('resize', syncQuickAddLayout);
+    if (quickAddShell) {
+        quickAddShell.classList.remove('mobile-sheet', 'open');
+    }
     setCommunicationFormMode();
     setInputSectionVisibility(true);
     const savedCommunicationFormState = safeStorage.get(COMMUNICATION_FORM_COLLAPSE_KEY);
