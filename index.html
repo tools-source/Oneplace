@@ -447,6 +447,102 @@
             transform: translateY(-1px);
             box-shadow: var(--surface-shadow);
         }
+
+        .finance-balance-card #balance {
+            font-size: clamp(2.2rem, 5vw, 3.2rem);
+            letter-spacing: -0.02em;
+        }
+
+        .quick-add-main-grid {
+            display: grid;
+            grid-template-columns: minmax(120px, 170px) minmax(220px, 1fr) minmax(170px, 220px) auto auto;
+            gap: 0.6rem;
+            align-items: start;
+        }
+
+        .amount-field {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .quick-add-btn {
+            white-space: nowrap;
+            align-self: stretch;
+        }
+
+        .urgency-chip-group,
+        .urgency-inline-group {
+            display: flex;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+
+        .urgency-chip {
+            border: 1px solid var(--card-border);
+            border-radius: 999px;
+            background: transparent;
+        }
+
+        .urgency-chip.active {
+            background: var(--accent-color-soft);
+            border-color: var(--accent-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .finance-content-tabs .nav-link {
+            border-radius: 999px;
+            color: var(--primary-color);
+            border: 1px solid rgba(13, 110, 253, 0.2);
+            background: rgba(255,255,255,0.65);
+        }
+
+        .finance-content-tabs .nav-link.active {
+            background: var(--primary-color);
+            color: #fff;
+        }
+
+        .finance-subpanel { display: none; }
+        .finance-subpanel.active { display: block; }
+
+        .category-color-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .history-filter-bar.compact {
+            display: grid;
+            grid-template-columns: 1fr 180px 150px;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+
+        .mobile-sheet .card-body {
+            position: relative;
+        }
+
+        @media (max-width: 768px) {
+            .quick-add-main-grid {
+                grid-template-columns: 1fr;
+            }
+            .history-filter-bar.compact {
+                grid-template-columns: 1fr;
+            }
+            .mobile-sheet {
+                position: sticky;
+                bottom: 0;
+                z-index: 4;
+                border-radius: 16px 16px 0 0;
+                box-shadow: 0 -12px 20px rgba(0,0,0,0.15);
+            }
+            #add-transaction,
+            #save-transaction {
+                position: sticky;
+                bottom: 0.5rem;
+            }
+        }
         
         @media (max-width: 768px) {
             .history-section {
@@ -1175,6 +1271,7 @@
                 <p class="section-subtitle">Track gains, owes, and your top spending focus.</p>
             </div>
         </div>
+
         <div class="row g-3 mb-4">
             <div class="col-12 col-md-4">
                 <div class="insight-card h-100">
@@ -1194,203 +1291,126 @@
                 <div class="insight-card h-100">
                     <div class="insight-label">Top Category</div>
                     <div class="insight-value" id="insight-top-category">No data yet</div>
-                    <div class="insight-meta">
-                        <span id="insight-top-category-amount">$0.00</span> spent · Last 7 days: <span id="insight-recent">$0.00</span>
-                    </div>
+                    <div class="insight-meta"><span id="insight-top-category-amount">$0.00</span> spent · Last 7 days: <span id="insight-recent">$0.00</span></div>
                 </div>
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
+        <div class="card shadow-sm mb-4 finance-balance-card">
+            <div class="card-body text-center">
+                <p class="section-heading">Balance summary</p>
+                <div id="balance" class="balance-display fw-bold">$0.00</div>
+                <div id="balance-scope" class="text-muted small mt-2">All categories</div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4 quick-add-card" id="quick-add-shell">
             <div class="card-body">
                 <div class="section-header mb-3 history-header">
                     <div>
-                        <p class="section-heading">Transactions</p>
-                        <h2 class="section-title">Add a new entry</h2>
-                        <p class="section-subtitle">Log a gain or owe with a few taps.</p>
+                        <p class="section-heading">Quick Add</p>
+                        <h3 class="section-title mb-0">Log in seconds</h3>
                     </div>
                     <button id="toggle-input" class="btn btn-outline-secondary btn-sm" aria-controls="input-section" aria-expanded="true">
                         <i class="bi bi-chevron-up"></i> Hide
                     </button>
                 </div>
                 <div class="input-section" id="input-section">
-                    <div class="form-step mb-3">
-                        <p class="step-label mb-2">Step A</p>
-                        <div class="row g-2">
-                            <div class="col-12 col-md-3">
-                                <label class="form-label small text-muted" for="amount">Amount</label>
-                                <input type="number" id="amount" class="form-control" placeholder="Amount" required step="0.01" inputmode="decimal" pattern="[0-9]*">
+                    <div class="quick-add-bar">
+                        <div class="quick-add-main-grid">
+                            <input type="number" id="amount" class="form-control amount-field" placeholder="0.00" required step="0.01" inputmode="decimal" pattern="[0-9]*" aria-label="Amount">
+                            <div class="category-picker-wrap">
+                                <input type="search" id="category-search" class="form-control form-control-sm mb-2" placeholder="Find category" aria-label="Search categories">
+                                <select id="category" class="form-select" required aria-label="Category"><option value="">Choose category</option></select>
+                                <div id="category-pill-group" class="category-pill-group mt-2"></div>
                             </div>
-                            <div class="col-12 col-md-3">
-                                <span class="form-label small text-muted d-block mb-2">Type</span>
-                                <div class="btn-group w-100" role="group" aria-label="Transaction type">
-                                    <input class="btn-check" type="radio" name="transactionType" id="incomeRadio" value="income" checked>
-                                    <label class="btn btn-outline-success" for="incomeRadio">Gain</label>
-                                    <input class="btn-check" type="radio" name="transactionType" id="expenseRadio" value="expense">
-                                    <label class="btn btn-outline-danger" for="expenseRadio">Owe</label>
+                            <div class="btn-group w-100" role="group" aria-label="Transaction type">
+                                <input class="btn-check" type="radio" name="transactionType" id="incomeRadio" value="income" checked>
+                                <label class="btn btn-outline-success" for="incomeRadio">Gain</label>
+                                <input class="btn-check" type="radio" name="transactionType" id="expenseRadio" value="expense">
+                                <label class="btn btn-outline-danger" for="expenseRadio">Owe</label>
+                            </div>
+                            <button id="add-transaction" class="btn btn-success quick-add-btn"><i class="bi bi-plus-circle"></i> Add</button>
+                            <button id="save-transaction" class="btn btn-primary quick-add-btn" style="display:none;"><i class="bi bi-save"></i> Save</button>
+                        </div>
+                        <button class="btn btn-link btn-sm ps-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#quick-add-details" aria-expanded="false" aria-controls="quick-add-details">Add details</button>
+                        <div class="collapse" id="quick-add-details">
+                            <div class="row g-2">
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label small text-muted" for="description">Description</label>
+                                    <input type="text" id="description" class="form-control" placeholder="What was this for?" required>
                                 </div>
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label small text-muted" for="category">Category</label>
-                                <select id="category" class="form-select mb-2" required aria-label="Category">
-                                    <option value="">Choose a category</option>
-                                </select>
-                                <div id="category-pill-group" class="category-pill-group"></div>
-                                <small id="category-hint" class="text-muted d-block mt-2 category-hint">Choose a category to see smart tips.</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-step">
-                        <p class="step-label mb-2">Step B</p>
-                        <div class="row g-2">
-                            <div class="col-12 col-md-4">
-                                <label class="form-label small text-muted" for="description">Description</label>
-                                <input type="text" id="description" class="form-control" placeholder="E.g. Paycheck or groceries" required>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label small text-muted" for="urgency">Urgency (optional)</label>
-                                <select id="urgency" class="form-select">
-                                    <option value="urgent">Urgent</option>
-                                    <option value="not-urgent" selected>Not urgent</option>
-                                    <option value="later">Later</option>
-                                </select>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label small text-muted" for="date">Date (optional)</label>
-                                <input type="date" id="date" class="form-control">
-                            </div>
-                            <div class="col-12">
-                                <div id="category-guidance" class="category-guidance text-muted small">Picking a category will auto-select the right type.</div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small text-muted" for="date">Date</label>
+                                    <input type="date" id="date" class="form-control">
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <span class="form-label small text-muted d-block">Urgency</span>
+                                    <div id="urgency" class="urgency-chip-group" role="radiogroup" aria-label="Urgency">
+                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="not-urgent" aria-pressed="true">Normal</button>
+                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="urgent" aria-pressed="false">Urgent</button>
+                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="later" aria-pressed="false">Later</button>
+                                    </div>
+                                </div>
+                                <div class="col-12"><small id="category-hint" class="text-muted category-hint">Choose a category to see smart tips.</small></div>
+                                <div class="col-12"><div id="category-guidance" class="category-guidance text-muted small">Picking a category will auto-select the right type.</div></div>
                             </div>
                         </div>
-                    </div>
-                    <div class="mt-3">
-                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#custom-category-panel" aria-expanded="false" aria-controls="custom-category-panel"><i class="bi bi-plus-lg me-1"></i> Add category</button>
-                    </div>
-                    <div class="collapse mt-2" id="custom-category-panel">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-12 col-md-5">
-                                <label class="form-label small text-muted" for="custom-category-name">Category name</label>
-                                <input type="text" id="custom-category-name" class="form-control" placeholder="Custom category name">
-                            </div>
-                            <div class="col-12 col-md-3">
-                                <label class="form-label small text-muted" for="custom-category-type">Category type</label>
-                                <select id="custom-category-type" class="form-select">
-                                    <option value="income">Gain</option>
-                                    <option value="expense">Owe</option>
-                                </select>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <button id="add-category" class="btn btn-outline-primary w-100" type="button"><i class="bi bi-tags me-1"></i> Save category</button>
+                        <div class="mt-3 d-flex flex-wrap gap-2">
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#custom-category-panel" aria-expanded="false" aria-controls="custom-category-panel"><i class="bi bi-plus-lg me-1"></i> Add category</button>
+                        </div>
+                        <div class="collapse mt-2" id="custom-category-panel">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-5"><input type="text" id="custom-category-name" class="form-control" placeholder="Custom category name"></div>
+                                <div class="col-12 col-md-3"><select id="custom-category-type" class="form-select"><option value="income">Gain</option><option value="expense">Owe</option></select></div>
+                                <div class="col-12 col-md-4"><button id="add-category" class="btn btn-outline-primary w-100" type="button"><i class="bi bi-tags me-1"></i> Save category</button></div>
                             </div>
                         </div>
-                    </div>
-                    <div class="d-grid gap-2 mt-3 sticky-save-wrap">
-                        <button id="add-transaction" class="btn btn-success">
-                            <i class="bi bi-plus-circle"></i> Add income or expense
-                        </button>
-                        <button id="save-transaction" class="btn btn-primary" style="display: none;">
-                            <i class="bi bi-save"></i> Save Changes
-                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-body text-center">
-                <p class="section-heading">Balance</p>
-                <h2 class="section-title mb-3">Current total</h2>
-                <div id="balance" class="balance-display fs-2 fw-bold">$0.00</div>
-                <div id="balance-scope" class="text-muted small mt-2">All categories</div>
-            </div>
-        </div>
+        <ul class="nav nav-pills finance-content-tabs mb-3" id="finance-content-tabs" role="tablist">
+            <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-finance-tab="history" role="tab" aria-selected="true">History</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-finance-tab="insights" role="tab" aria-selected="false">Insights</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-finance-tab="tools" role="tab" aria-selected="false">Data Tools</button></li>
+        </ul>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <div class="section-header mb-3">
-                    <div>
-                        <p class="section-heading">Insights</p>
-                        <h3 class="section-title">Spending trend</h3>
-                        <p class="section-subtitle">Weekly owes over the last six weeks.</p>
+        <div data-finance-panel="history" class="finance-subpanel active">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="section-header mb-3 history-header">
+                        <div><p class="section-heading">History</p><h3 class="section-title mb-0">Recent activity</h3></div>
+                        <div class="history-actions"><div class="text-muted small text-end" id="category-balance-indicator">All categories · Balance $0.00</div><button id="toggle-history" class="btn btn-info btn-sm" aria-controls="history-section" aria-expanded="false"><i class="bi bi-chevron-down"></i> Show</button></div>
                     </div>
-                </div>
-                <div id="spending-trend" class="trend-list" role="list"></div>
-            </div>
-        </div>
-
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <div class="section-header mb-3 history-header">
-                    <div>
-                        <p class="section-heading">History</p>
-                        <h3 class="section-title mb-0">Recent activity</h3>
+                    <div class="history-filter-bar compact">
+                        <input id="transaction-search" class="form-control form-control-sm" type="search" placeholder="Search history">
+                        <select id="category-filter" class="form-select form-select-sm"><option value="">All categories</option></select>
+                        <select id="urgency-filter" class="form-select form-select-sm"><option value="">Any urgency</option><option value="urgent">Urgent</option><option value="not-urgent">Normal</option><option value="later">Later</option></select>
                     </div>
-                    <div class="history-actions">
-                        <div class="text-muted small text-end" id="category-balance-indicator">
-                            All categories · Balance $0.00
-                        </div>
-                        <button id="toggle-history" class="btn btn-info btn-sm" aria-controls="history-section" aria-expanded="false">
-                            <i class="bi bi-chevron-down"></i> Show
-                        </button>
-                    </div>
-                </div>
-                <div class="history-filter-bar">
-                    <div class="history-filter-group">
-                        <label class="history-filter-label" for="transaction-search">Search</label>
-                        <input id="transaction-search" class="form-control form-control-sm" type="search" placeholder="Search description or category">
-                    </div>
-                    <div class="history-filter-group">
-                        <label class="history-filter-label" for="urgency-filter">Urgency</label>
-                        <select id="urgency-filter" class="form-select form-select-sm">
-                            <option value="">All urgency</option>
-                            <option value="urgent">Urgent</option>
-                            <option value="not-urgent">Not urgent</option>
-                            <option value="later">Later</option>
-                        </select>
-                    </div>
-                    <div class="history-filter-group">
-                        <label class="history-filter-label" for="category-filter">Category</label>
-                        <select id="category-filter" class="form-select form-select-sm">
-                            <option value="">All Categories</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="history-section" id="history-section" style="display: none;">
-                    <ul id="history-list" class="list-group"></ul>
+                    <div class="history-section" id="history-section" style="display:none;"><ul id="history-list" class="list-group"></ul></div>
                 </div>
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <div class="section-header mb-3">
-                    <div>
-                        <p class="section-heading">Data tools</p>
-                        <h3 class="section-title">Manage your records</h3>
-                        <p class="section-subtitle">Export a backup or reset your workspace.</p>
+        <div data-finance-panel="insights" class="finance-subpanel">
+            <div class="card shadow-sm mb-4"><div class="card-body"><div class="section-header mb-3"><div><p class="section-heading">Insights</p><h3 class="section-title">Spending trend</h3><p class="section-subtitle">Weekly owes over the last six weeks.</p></div></div><div id="spending-trend" class="trend-list" role="list"></div></div></div>
+            <div class="card shadow-sm mb-4"><div class="card-body"><div class="section-header mb-3"><div><p class="section-heading">Insights</p><h3 class="section-title">Coming soon</h3><p class="section-subtitle">Compare categories, detect spikes, and project future cash flow.</p></div></div></div></div>
+        </div>
+
+        <div data-finance-panel="tools" class="finance-subpanel">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="section-header mb-3"><div><p class="section-heading">Data tools</p><h3 class="section-title">Manage your records</h3></div></div>
+                    <details class="learn-more mb-3"><summary>Learn more</summary><small class="text-muted d-block mt-2">Exports include finance history and optional full backups. Resetting clears transactions, todos, shared balances, and communication cards.</small></details>
+                    <div class="mb-3"><input type="file" id="import-data" class="form-control" accept=".csv,.json"></div>
+                    <div class="utility-actions">
+                        <button id="export-data" class="btn btn-secondary"><i class="bi bi-download"></i> Export transactions (CSV)</button>
+                        <button id="export-backup" class="btn btn-outline-secondary"><i class="bi bi-cloud-arrow-down"></i> Export full backup (JSON)</button>
+                        <button id="import-transactions" class="btn btn-outline-primary"><i class="bi bi-upload"></i> Import file</button>
+                        <button id="clear-data" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Reset workspace</button>
                     </div>
-                </div>
-                <p class="text-muted small mb-2">Import, export, and reset tools.</p>
-                <details class="learn-more mb-3"><summary>Learn more</summary><small class="text-muted d-block mt-2">Exports include finance history and optional full backups. Resetting clears transactions, todos, shared balances, and communication cards.</small></details>
-                <div class="mb-3">
-                    <label class="form-label small text-muted" for="import-data">Import transactions (CSV) or full backup (JSON)</label>
-                    <input type="file" id="import-data" class="form-control" accept=".csv,.json">
-                    
-                </div>
-                <div class="utility-actions">
-                    <button id="export-data" class="btn btn-secondary">
-                        <i class="bi bi-download"></i> Export transactions (CSV)
-                    </button>
-                    <button id="export-backup" class="btn btn-outline-secondary">
-                        <i class="bi bi-cloud-arrow-down"></i> Export full backup (JSON)
-                    </button>
-                    <button id="import-transactions" class="btn btn-outline-primary">
-                        <i class="bi bi-upload"></i> Import file
-                    </button>
-                    <button id="clear-data" class="btn btn-outline-danger">
-                        <i class="bi bi-trash"></i> Reset workspace
-                    </button>
                 </div>
             </div>
         </div>
