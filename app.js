@@ -5,6 +5,9 @@ const categorySelect = document.getElementById('category');
 const urgencySelect = document.getElementById('urgency');
 const dateInput = document.getElementById('date');
 const quickAddShell = document.getElementById('quick-add-shell');
+const quickAddFab = document.getElementById('quick-add-fab');
+const mobileSheetOverlay = document.getElementById('mobile-sheet-overlay');
+const closeMobileSheetButton = document.getElementById('close-mobile-sheet');
 const financeTabButtons = document.querySelectorAll('[data-finance-tab]');
 const financeTabPanels = document.querySelectorAll('[data-finance-panel]');
 const categoryFilter = document.getElementById('category-filter');
@@ -33,6 +36,7 @@ const tabNav = document.querySelector('.tab-nav');
 const categoryPillGroup = document.getElementById('category-pill-group');
 const categoryHint = document.getElementById('category-hint');
 const categoryGuidance = document.getElementById('category-guidance');
+const quickAddSuggestion = document.getElementById('quick-add-suggestion');
 const customCategoryNameInput = document.getElementById('custom-category-name');
 const customCategoryTypeSelect = document.getElementById('custom-category-type');
 const addCategoryButton = document.getElementById('add-category');
@@ -1762,10 +1766,26 @@ const resetSharedExpenses = () => {
     renderSharedParticipants();
 };
 
+const getCategoryUsageStats = () => transactions.reduce((acc, transaction) => {
+    const key = transaction.category;
+    if (!key) return acc;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+}, {});
+
+const getSortedCategories = () => {
+    const usage = getCategoryUsageStats();
+    return getAllCategories().slice().sort((a, b) => {
+        const usageDiff = (usage[b.value] || 0) - (usage[a.value] || 0);
+        if (usageDiff !== 0) return usageDiff;
+        return a.label.localeCompare(b.label);
+    });
+};
+
 const renderCategoryPills = () => {
     if (!categoryPillGroup) return;
     categoryPillGroup.innerHTML = '';
-    const categories = getAllCategories();
+    const categories = getSortedCategories();
 
     categories.forEach(category => {
         const pill = document.createElement('button');
@@ -1804,7 +1824,7 @@ const renderCategoryOptions = () => {
     placeholder.textContent = 'Choose a category';
     categorySelect.appendChild(placeholder);
 
-    const categories = getAllCategories();
+    const categories = getSortedCategories();
     categories.forEach(category => {
         const option = document.createElement('option');
         option.value = category.value;
@@ -1950,12 +1970,23 @@ const applyQuickDefaults = () => {
     setUrgencyChipState(financeQuickDefaults.urgency);
 };
 
+const parseNaturalLanguageEntry = (rawText) => {
+    const text = (rawText || '').trim();
+    if (!text) return null;
+    const match = text.match(/^(.*?)(?:\s+|^)(\d+(?:\.\d{1,2})?)$/);
+    if (!match) return null;
+    const description = match[1].trim();
+    const amount = parseFloat(match[2]);
+    if (!description || Number.isNaN(amount) || amount <= 0) return null;
+    return { description, amount };
+};
+
 const predictCategoryFromDescription = (text) => {
     const value = (text || '').trim().toLowerCase();
     if (!value) return '';
     const rules = [
         { keys: ['salary', 'paycheck', 'bonus', 'income'], category: 'salary' },
-        { keys: ['uber', 'lyft', 'bus', 'train', 'fuel', 'gas'], category: 'transport' },
+        { keys: ['uber', 'lyft', 'bus', 'train', 'fuel', 'gas', 'taxi'], category: 'transport' },
         { keys: ['rent', 'electric', 'water', 'internet', 'bill', 'subscription'], category: 'bills' },
         { keys: ['coffee', 'lunch', 'dinner', 'grocery', 'food'], category: 'food' },
         { keys: ['doctor', 'pharmacy', 'medicine', 'health'], category: 'health' },
@@ -1963,6 +1994,35 @@ const predictCategoryFromDescription = (text) => {
     ];
     const match = rules.find(rule => rule.keys.some(key => value.includes(key)) && getCategoryConfig(rule.category));
     return match?.category || '';
+};
+
+const findSimilarTransaction = (descriptionText) => {
+    const query = (descriptionText || '').trim().toLowerCase();
+    if (!query) return null;
+    return [...transactions]
+        .reverse()
+        .find((item) => (item.description || '').toLowerCase().includes(query) || query.includes((item.description || '').toLowerCase()));
+};
+
+const detectRecurringHint = (descriptionText) => {
+    const query = (descriptionText || '').trim().toLowerCase();
+    if (!query) return '';
+    const similar = transactions.filter((item) => (item.description || '').trim().toLowerCase() === query);
+    return similar.length >= 2 ? 'Looks recurring. Consider setting this on a regular schedule.' : '';
+};
+
+const updateQuickAddSuggestion = (text) => {
+    if (!quickAddSuggestion) return;
+    const parsed = parseNaturalLanguageEntry(text);
+    const prediction = predictCategoryFromDescription(parsed?.description || text);
+    const similar = findSimilarTransaction(parsed?.description || text);
+    const recurring = detectRecurringHint(parsed?.description || text);
+    const hints = [];
+    if (parsed) hints.push(`Parsed amount ${formatCurrency(parsed.amount)} from input.`);
+    if (prediction) hints.push(`Suggested category: ${getCategoryName(prediction)}.`);
+    if (similar) hints.push(`Previous amount: ${formatCurrency(similar.type === 'expense' ? -Math.abs(similar.amount) : Math.abs(similar.amount))}.`);
+    if (recurring) hints.push(recurring);
+    quickAddSuggestion.textContent = hints.join(' ');
 };
 
 const setFinanceSubTab = (target = 'history') => {
@@ -2034,14 +2094,21 @@ if (prefersDarkScheme.addEventListener) {
 // Transaction Management
 function addTransaction(e) {
     if (e) e.preventDefault();
-    
+
+    const rawDescription = descriptionInput.value.trim();
+    const parsedEntry = parseNaturalLanguageEntry(rawDescription);
+    if (parsedEntry && (Number.isNaN(parseFloat(amountInput.value)) || !parseFloat(amountInput.value))) {
+        descriptionInput.value = parsedEntry.description;
+        amountInput.value = parsedEntry.amount;
+    }
+
     const description = descriptionInput.value.trim();
     const amount = parseFloat(amountInput.value);
     const type = document.querySelector('input[name="transactionType"]:checked').value;
     const category = categorySelect.value;
     const urgency = normalizeUrgencyValue(getSelectedUrgency());
     const customDate = dateInput?.value ? new Date(`${dateInput.value}T12:00:00`).toISOString() : new Date().toISOString();
-    
+
     if (isNaN(amount) || amount <= 0) {
         showAlert('Please enter a valid amount greater than 0', 'warning');
         return;
@@ -2053,7 +2120,7 @@ function addTransaction(e) {
     }
 
     const finalDescription = description || getCategoryName(category);
-    
+
     const transaction = {
         id: Date.now(),
         description: finalDescription,
@@ -2071,6 +2138,7 @@ function addTransaction(e) {
 
     descriptionInput.value = '';
     amountInput.value = '';
+    updateQuickAddSuggestion('');
     if (dateInput) dateInput.value = '';
     setActiveCategory(financeQuickDefaults.category || null);
     applyQuickDefaults();
@@ -3324,6 +3392,20 @@ toggleHistoryButton?.addEventListener('click', () => {
     toggleHistoryButton.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
 });
 
+const isMobileViewport = () => window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+
+const setMobileQuickAddOpen = (isOpen) => {
+    if (!quickAddShell || !mobileSheetOverlay || !quickAddFab) return;
+    if (!isMobileViewport()) return;
+    quickAddShell.classList.toggle('open', isOpen);
+    mobileSheetOverlay.classList.toggle('open', isOpen);
+    mobileSheetOverlay.hidden = !isOpen;
+    quickAddFab.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    if (isOpen) {
+        amountInput?.focus();
+    }
+};
+
 const setInputSectionVisibility = (shouldShow) => {
     if (!inputSection || !toggleInputButton) return;
     inputSection.style.display = shouldShow ? 'block' : 'none';
@@ -3334,6 +3416,13 @@ const setInputSectionVisibility = (shouldShow) => {
 toggleInputButton?.addEventListener('click', () => {
     const isHidden = inputSection?.style.display === 'none';
     setInputSectionVisibility(isHidden);
+});
+
+quickAddFab?.addEventListener('click', () => setMobileQuickAddOpen(true));
+mobileSheetOverlay?.addEventListener('click', () => setMobileQuickAddOpen(false));
+closeMobileSheetButton?.addEventListener('click', () => setMobileQuickAddOpen(false));
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') setMobileQuickAddOpen(false);
 });
 
 historyList?.addEventListener('click', (e) => {
@@ -3410,9 +3499,20 @@ urgencySelect?.addEventListener('click', (event) => {
 });
 
 descriptionInput?.addEventListener('input', (event) => {
-    const predicted = predictCategoryFromDescription(event.target.value);
-    if (!predicted || categorySelect?.value) return;
-    setActiveCategory(predicted);
+    const parsed = parseNaturalLanguageEntry(event.target.value);
+    if (parsed && !amountInput?.value) {
+        amountInput.value = parsed.amount;
+        if (descriptionInput) descriptionInput.value = parsed.description;
+    }
+    const sourceText = parsed?.description || event.target.value;
+    const predicted = predictCategoryFromDescription(sourceText);
+    const similar = findSimilarTransaction(sourceText);
+    if (!categorySelect?.value && predicted) {
+        setActiveCategory(predicted);
+    } else if (!amountInput?.value && similar) {
+        amountInput.value = Math.abs(similar.amount);
+    }
+    updateQuickAddSuggestion(event.target.value);
 });
 
 financeTabButtons.forEach((button) => {
@@ -3667,9 +3767,16 @@ document.addEventListener('DOMContentLoaded', () => {
     displayTransactions();
     setFinanceSubTab('history');
     applyQuickDefaults();
-    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
-        quickAddShell?.classList.add('mobile-sheet');
-    }
+    const syncQuickAddLayout = () => {
+        const mobile = isMobileViewport();
+        quickAddShell?.classList.toggle('mobile-sheet', mobile);
+        if (!mobile) {
+            setMobileQuickAddOpen(false);
+            mobileSheetOverlay && (mobileSheetOverlay.hidden = true);
+        }
+    };
+    syncQuickAddLayout();
+    window.addEventListener('resize', syncQuickAddLayout);
     setCommunicationFormMode();
     setInputSectionVisibility(true);
     const savedCommunicationFormState = safeStorage.get(COMMUNICATION_FORM_COLLAPSE_KEY);
