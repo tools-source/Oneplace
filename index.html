@@ -502,12 +502,6 @@
         .quick-add-main-grid .action-wrap,
         .quick-add-main-grid .save-wrap { grid-column: span 2; }
 
-        .quick-add-sticky {
-            position: sticky;
-            top: 0.75rem;
-            z-index: 8;
-        }
-
         .amount-description-stack {
             display: grid;
             gap: 0.5rem;
@@ -576,12 +570,6 @@
             margin-bottom: 1rem;
         }
 
-        .quick-add-fab,
-        .mobile-sheet-overlay,
-        .mobile-sheet-close {
-            display: none;
-        }
-
         @media (max-width: 768px) {
             .overview-grid {
                 grid-template-columns: 1fr;
@@ -592,65 +580,6 @@
             .history-filter-bar.compact {
                 grid-template-columns: 1fr;
             }
-            .quick-add-sticky {
-                position: static;
-            }
-
-            .quick-add-fab {
-                display: inline-flex;
-                position: fixed;
-                right: 16px;
-                bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
-                z-index: 1035;
-                height: 44px;
-                border-radius: 999px;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
-                padding: 0.35rem 0.85rem;
-                font-size: 0.9rem;
-                gap: 0.35rem;
-            }
-
-            .mobile-sheet-overlay {
-                display: block;
-                position: fixed;
-                inset: 0;
-                background: rgba(0, 0, 0, 0.45);
-                opacity: 0;
-                pointer-events: none;
-                transition: opacity 0.2s ease;
-                z-index: 1200;
-            }
-
-            .mobile-sheet-overlay.open {
-                opacity: 1;
-                pointer-events: auto;
-            }
-
-            .mobile-sheet {
-                position: fixed;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                transform: translateY(105%);
-                transition: transform 0.25s ease;
-                z-index: 1210;
-                margin: 0;
-                border-radius: 16px 16px 0 0;
-                max-height: calc(86vh - var(--bottom-safe-offset));
-                overflow-y: auto;
-                padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.75rem);
-            }
-
-            .mobile-sheet.open {
-                transform: translateY(0);
-            }
-
-            .mobile-sheet-close {
-                display: inline-flex;
-            }
-
             .quick-add-main-grid .amount-wrap,
             .quick-add-main-grid .description-wrap,
             .quick-add-main-grid .category-wrap,
@@ -1485,7 +1414,7 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4 quick-add-card quick-add-sticky" id="quick-add-shell" aria-label="Quick add transactions">
+        <div class="card shadow-sm mb-4 quick-add-card" id="quick-add-shell" aria-label="Quick add transactions">
             <div class="card-body">
                 <div class="section-header mb-3 history-header">
                     <div>
@@ -1494,9 +1423,6 @@
                     </div>
                     <button id="toggle-input" class="btn btn-outline-secondary btn-sm" aria-controls="input-section" aria-expanded="true">
                         <i class="bi bi-chevron-up" aria-hidden="true"></i><span class="ms-1">Hide</span>
-                    </button>
-                    <button id="close-mobile-sheet" class="btn btn-outline-secondary btn-sm mobile-sheet-close" type="button" aria-label="Close quick add sheet">
-                        <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div class="input-section" id="input-section">
@@ -1564,11 +1490,6 @@
                 </div>
             </div>
         </div>
-        <div id="mobile-sheet-overlay" class="mobile-sheet-overlay" hidden></div>
-        <button id="quick-add-fab" class="btn btn-primary quick-add-fab" type="button" aria-label="Add transaction">
-            <i class="bi bi-plus-lg" aria-hidden="true"></i><span>+ Add</span>
-        </button>
-
         <ul class="nav nav-pills finance-content-tabs mb-3" id="finance-content-tabs" role="tablist">
             <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-finance-tab="history" role="tab" aria-selected="true">History</button></li>
             <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-finance-tab="insights" role="tab" aria-selected="false">Insights</button></li>
