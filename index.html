@@ -557,6 +557,10 @@
         .finance-subpanel { display: none; }
         .finance-subpanel.active { display: block; }
 
+        .finance-scroll-wrap {
+            padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+        }
+
         .category-color-dot {
             width: 8px;
             height: 8px;
@@ -594,8 +598,8 @@
             .quick-add-fab {
                 display: inline-flex;
                 position: fixed;
-                right: 1rem;
-                bottom: calc(var(--bottom-nav-height) + var(--bottom-safe-offset) + 0.75rem);
+                right: 16px;
+                bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
                 z-index: 30;
                 height: 44px;
                 border-radius: 999px;
@@ -661,7 +665,14 @@
             .history-section {
                 max-height: 60vh;
                 overflow-y: auto;
+                padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem);
+                scroll-padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem);
             }
+
+            #history-list {
+                padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.5rem);
+            }
+
             .list-group-item {
                 padding: 12px;
             }
@@ -1356,7 +1367,7 @@
             .tab-nav .btn i { margin-right: 0 !important; }
             .sticky-save-wrap { position: sticky; bottom: calc(var(--bottom-nav-height) + var(--bottom-safe-offset) + 0.35rem); }
             .split-summary-strip { grid-template-columns: 1fr; }
-            .history-section { padding-bottom: calc(var(--bottom-nav-height) + var(--bottom-safe-offset) + 1rem); }
+            .history-section { padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem); }
         }
 
     </style>
@@ -1425,6 +1436,7 @@
 
         <main id="main-content">
         <div class="tab-panel active" data-tab-panel="finance" role="tabpanel" aria-labelledby="tab-finance" id="panel-finance">
+        <div class="finance-scroll-wrap">
         <div class="section-header mb-3">
             <div>
                 <p class="section-heading">Finance</p>
@@ -1574,6 +1586,7 @@
                     </div>
                 </div>
             </div>
+        </div>
         </div>
         </div> <!-- end finance panel -->
 
