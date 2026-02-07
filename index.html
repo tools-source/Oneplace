@@ -41,8 +41,6 @@
             --panel-bg: var(--surface-2);
             --surface-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
             --surface-shadow-hover: 0 10px 24px rgba(15, 23, 42, 0.12);
-            --bottom-nav-height: 0px;
-            --bottom-safe-offset: env(safe-area-inset-bottom, 0px);
             --quickadd-actions-height: 72px;
         }
         
@@ -408,7 +406,7 @@
         .form-select:focus-visible,
         .category-pill:focus-visible,
         .communication-card:focus-visible,
-        .tab-nav .btn:focus-visible {
+        .nav-menu-toggle:focus-visible {
             outline: 3px solid var(--accent-color);
             outline-offset: 2px;
         }
@@ -585,7 +583,7 @@
         .finance-subpanel.active { display: block; }
 
         .finance-scroll-wrap {
-            padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
+            padding-bottom: 12px;
         }
 
         .category-color-dot {
@@ -627,12 +625,12 @@
             .history-section {
                 max-height: 60vh;
                 overflow-y: auto;
-                padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem);
-                scroll-padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem);
+                padding-bottom: 1rem;
+                scroll-padding-bottom: 1rem;
             }
 
             #history-list {
-                padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.5rem);
+                padding-bottom: 0.5rem;
             }
 
             .list-group-item {
@@ -1022,44 +1020,44 @@
             min-width: 200px;
         }
 
-        .tab-nav .btn {
-            border-radius: 999px;
-            transition: all 0.2s ease;
+        .nav-menu-wrap {
+            position: relative;
+        }
+
+        .nav-menu-toggle {
+            width: 40px;
+            height: 40px;
+            padding: 0;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            flex: 0 1 170px;
-            min-width: 0;
-            max-width: 100%;
-            font-weight: 600;
-            background: color-mix(in srgb, var(--surface) 85%, transparent);
-            border-color: color-mix(in srgb, var(--primary-color) 25%, var(--border));
-            color: var(--primary-color);
+            border-radius: 999px;
+            font-size: 1.15rem;
         }
 
-        .tab-nav .btn.active {
-            color: var(--primary-contrast);
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            box-shadow: 0 8px 18px color-mix(in srgb, var(--primary-color) 35%, transparent);
+        .nav-menu-toggle:hover {
+            background: var(--surface-2);
         }
 
-        .tab-nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            border-radius: 1.25rem;
-            background: color-mix(in srgb, var(--primary-color) 6%, var(--surface));
-            border: 1px solid color-mix(in srgb, var(--primary-color) 15%, var(--border));
-            width: 100%;
-            justify-content: center;
-            position: relative;
-            z-index: 2;
-            pointer-events: auto;
+        .nav-menu-panel {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            min-width: 220px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: var(--surface-shadow);
+            padding: 0.35rem 0;
+            display: none;
+            z-index: 1200;
         }
 
-        .quick-menu-list {
+        .nav-menu-panel.open {
+            display: block;
+        }
+
+        .nav-menu-list {
             list-style: none;
             padding: 0;
             margin: 0;
@@ -1067,15 +1065,15 @@
             grid-template-columns: 1fr;
         }
 
-        .quick-menu-list li {
+        .nav-menu-list li {
             border-bottom: 1px solid var(--card-border);
         }
 
-        .quick-menu-list li:last-child {
+        .nav-menu-list li:last-child {
             border-bottom: none;
         }
 
-        .quick-menu-item {
+        .nav-menu-item {
             width: 100%;
             min-height: 48px;
             border: 1px solid transparent;
@@ -1087,32 +1085,32 @@
             padding: 0.75rem 1rem;
             font-weight: 600;
             text-align: left;
-            border-radius: 12px;
+            border-radius: 10px;
             transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .quick-menu-icon {
+        .nav-menu-icon {
             font-size: 1.1rem;
             color: var(--text-muted);
         }
 
-        .quick-menu-item:hover {
+        .nav-menu-item:hover {
             background: var(--surface-2);
         }
 
-        .quick-menu-item.active {
+        .nav-menu-item:focus-visible {
+            outline: 3px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+
+        .nav-menu-item.active {
             background: var(--accent-color-soft);
             border-color: color-mix(in srgb, var(--accent-color) 35%, var(--card-border));
         }
 
-        .quick-menu-item.active .quick-menu-icon {
+        .nav-menu-item.active .nav-menu-icon {
             color: var(--accent-color);
         }
-        
-        body.dark-mode .tab-nav .btn.active {
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
-        }
-
         .tab-panel {
             display: none;
         }
@@ -1315,28 +1313,8 @@
             .accent-options {
                 justify-content: space-between;
             }
-            .tab-nav .btn {
-                flex: 1 1 calc(50% - 0.5rem);
-            }
             .organizer-header .badge {
                 align-self: flex-start;
-            }
-        }
-
-        @media (min-width: 992px) {
-            .quick-menu-list {
-                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-                gap: 0.75rem;
-            }
-
-            .quick-menu-list li {
-                border-bottom: none;
-            }
-
-            .quick-menu-item {
-                border-color: var(--card-border);
-                background: var(--surface);
-                box-shadow: var(--surface-shadow);
             }
         }
     
@@ -1375,6 +1353,12 @@
             min-width: 0;
         }
 
+        .header-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
         .settings-dropdown .btn {
             width: 40px;
             height: 40px;
@@ -1385,20 +1369,10 @@
             border-radius: 999px;
         }
 
-        .tab-nav {
-            position: sticky;
-            top: calc(var(--app-header-height) + 0.75rem);
-            z-index: 1020;
-            background: color-mix(in srgb, var(--card-bg) 95%, transparent);
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius-md);
-            padding: var(--space-2);
-        }
-
         .onboarding-card { border-radius: var(--radius-lg); box-shadow: var(--surface-shadow); }
         .card, .insight-card, .help-card { border-radius: var(--radius-md) !important; box-shadow: var(--surface-shadow); }
         .form-control, .form-select, .btn { border-radius: var(--radius-sm); }
-        .btn:focus-visible, .form-control:focus-visible, .form-select:focus-visible, .tab-nav .btn:focus-visible, .filter-chip:focus-visible, .quick-menu-item:focus-visible { box-shadow: var(--focus-ring) !important; outline: none; }
+        .btn:focus-visible, .form-control:focus-visible, .form-select:focus-visible, .filter-chip:focus-visible, .nav-menu-toggle:focus-visible { box-shadow: var(--focus-ring) !important; outline: none; }
 
         .form-step { padding: var(--space-3); border: 1px solid var(--card-border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel-bg) 70%, transparent); }
         .step-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700; }
@@ -1444,40 +1418,11 @@
 
             .container.app-shell {
                 padding-top: 0.4rem;
-                padding-bottom: calc(var(--bottom-nav-height) + var(--bottom-safe-offset) + 5.5rem);
+                padding-bottom: 2rem;
             }
-
-            .tab-nav { position: fixed; left: 0; right: 0; bottom: 0; top: auto; border-radius: 14px 14px 0 0; padding: 0.4rem 0.35rem; display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.25rem; }
-            .tab-nav .btn {
-                font-size: 0.72rem;
-                padding: 0.4rem 0.2rem;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                gap: 0.2rem;
-                height: 58px;
-            }
-            .tab-nav .btn i { margin-right: 0 !important; }
-            .tab-nav .tab-label {
-                font-size: 0.72rem;
-                line-height: 0.9rem;
-                max-width: 100%;
-                text-align: center;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            .tab-nav .tab-label-full { display: none; }
-            .tab-nav .tab-label-short { display: inline; }
             .split-summary-strip { grid-template-columns: 1fr; }
-            .history-section { padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem); }
             .cashflow-summary-grid { grid-template-columns: 1fr; }
             .cashflow-actions-bar { justify-content: stretch; }
-        }
-
-        .tab-label-short {
-            display: none;
         }
 
     </style>
@@ -1489,59 +1434,55 @@
             <div class="brand-wrap">
                 <h1 class="mb-0 app-title">One Place</h1>
             </div>
-            <div class="dropdown settings-dropdown ms-auto">
-                <button class="btn btn-outline-secondary btn-sm" type="button" id="settings-menu-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open appearance settings">
-                    <i class="bi bi-sliders" aria-hidden="true"></i>
-                </button>
-                <div class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="settings-menu-toggle">
-                    <div class="theme-controls mb-3">
-                        <span class="form-label text-muted small mb-1">Theme</span>
-                        <div id="theme-toggle" class="theme-toggle segmented" role="tablist" aria-label="Theme">
-                            <button type="button" class="seg" data-value="system" data-theme-mode="auto" role="tab" aria-selected="false">
-                                <i class="bi bi-circle-half" aria-hidden="true"></i> System
-                            </button>
-                            <button type="button" class="seg" data-value="light" data-theme-mode="light" role="tab" aria-selected="false">
-                                <i class="bi bi-sun" aria-hidden="true"></i> Light
-                            </button>
-                            <button type="button" class="seg" data-value="dark" data-theme-mode="dark" role="tab" aria-selected="false">
-                                <i class="bi bi-moon-stars" aria-hidden="true"></i> Dark
-                            </button>
-                            <div class="segThumb" aria-hidden="true"></div>
+            <div class="header-actions ms-auto">
+                <div class="dropdown settings-dropdown">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="settings-menu-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open appearance settings">
+                        <i class="bi bi-sliders" aria-hidden="true"></i>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="settings-menu-toggle">
+                        <div class="theme-controls mb-3">
+                            <span class="form-label text-muted small mb-1">Theme</span>
+                            <div id="theme-toggle" class="theme-toggle segmented" role="tablist" aria-label="Theme">
+                                <button type="button" class="seg" data-value="system" data-theme-mode="auto" role="tab" aria-selected="false">
+                                    <i class="bi bi-circle-half" aria-hidden="true"></i> System
+                                </button>
+                                <button type="button" class="seg" data-value="light" data-theme-mode="light" role="tab" aria-selected="false">
+                                    <i class="bi bi-sun" aria-hidden="true"></i> Light
+                                </button>
+                                <button type="button" class="seg" data-value="dark" data-theme-mode="dark" role="tab" aria-selected="false">
+                                    <i class="bi bi-moon-stars" aria-hidden="true"></i> Dark
+                                </button>
+                                <div class="segThumb" aria-hidden="true"></div>
+                            </div>
+                        </div>
+                        <div class="accent-controls">
+                            <span class="form-label text-muted small mb-1">Accent</span>
+                            <div id="accent-options" class="accent-options">
+                                <button type="button" class="accent-swatch active" data-accent="#0d6efd" aria-label="Blue accent" style="background-color: #0d6efd; color: #0d6efd;"></button>
+                                <button type="button" class="accent-swatch" data-accent="#20c997" aria-label="Teal accent" style="background-color: #20c997; color: #20c997;"></button>
+                                <button type="button" class="accent-swatch" data-accent="#6f42c1" aria-label="Purple accent" style="background-color: #6f42c1; color: #6f42c1;"></button>
+                                <button type="button" class="accent-swatch" data-accent="#fd7e14" aria-label="Orange accent" style="background-color: #fd7e14; color: #fd7e14;"></button>
+                            </div>
                         </div>
                     </div>
-                    <div class="accent-controls">
-                        <span class="form-label text-muted small mb-1">Accent</span>
-                        <div id="accent-options" class="accent-options">
-                            <button type="button" class="accent-swatch active" data-accent="#0d6efd" aria-label="Blue accent" style="background-color: #0d6efd; color: #0d6efd;"></button>
-                            <button type="button" class="accent-swatch" data-accent="#20c997" aria-label="Teal accent" style="background-color: #20c997; color: #20c997;"></button>
-                            <button type="button" class="accent-swatch" data-accent="#6f42c1" aria-label="Purple accent" style="background-color: #6f42c1; color: #6f42c1;"></button>
-                            <button type="button" class="accent-swatch" data-accent="#fd7e14" aria-label="Orange accent" style="background-color: #fd7e14; color: #fd7e14;"></button>
-                        </div>
+                </div>
+                <div class="nav-menu-wrap">
+                    <button class="btn btn-outline-secondary btn-sm nav-menu-toggle" type="button" id="nav-menu-toggle" aria-expanded="false" aria-controls="primary-nav-menu" aria-label="Open menu">
+                        <span aria-hidden="true">☰</span>
+                    </button>
+                    <div class="nav-menu-panel" id="primary-nav-menu" role="menu" aria-label="Primary navigation">
+                        <ul class="nav-menu-list" id="nav-menu-list"></ul>
                     </div>
                 </div>
             </div>
         </header>
 
-        <section class="card shadow-sm mb-4 quick-menu-card" aria-labelledby="quick-menu-title">
-            <div class="card-body">
-                <div class="section-header mb-3">
-                    <div>
-                        <p class="section-heading">Quick Menu</p>
-                        <h2 class="section-title" id="quick-menu-title">Quick Menu</h2>
-                    </div>
-                </div>
-                <ul class="quick-menu-list" id="quick-menu-list" aria-label="Quick Menu navigation"></ul>
-            </div>
-        </section>
-
         <div class="d-flex justify-content-end mb-3">
             <button class="btn btn-link btn-sm text-decoration-none p-0" type="button" id="open-help">Help & privacy</button>
         </div>
 
-        <div class="mb-4 tab-nav" role="tablist" aria-label="Primary sections"></div>
-
         <main id="main-content">
-        <div class="tab-panel active" data-tab-panel="finance" role="tabpanel" aria-labelledby="tab-finance" id="panel-finance">
+        <div class="tab-panel active" data-tab-panel="finance" role="tabpanel" aria-labelledby="menu-item-finance" id="panel-finance">
         <div class="finance-scroll-wrap">
         <div class="section-header mb-3">
             <div>
@@ -1686,7 +1627,7 @@
         </div>
         </div> <!-- end finance panel -->
 
-        <div class="tab-panel" data-tab-panel="cashflow" role="tabpanel" aria-labelledby="tab-cashflow" id="panel-cashflow">
+        <div class="tab-panel" data-tab-panel="flow" role="tabpanel" aria-labelledby="menu-item-flow" id="panel-flow">
             <div class="section-header mb-3">
                 <div>
                     <p class="section-heading">Cash Flow</p>
@@ -1805,7 +1746,7 @@
             </div>
         </div>
 
-        <div class="tab-panel" data-tab-panel="organizer" role="tabpanel" aria-labelledby="tab-organizer" id="panel-organizer">
+        <div class="tab-panel" data-tab-panel="organizer" role="tabpanel" aria-labelledby="menu-item-organizer" id="panel-organizer">
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
                     <div class="organizer-header justify-content-between mb-3">
@@ -1850,7 +1791,7 @@
             </div>
         </div> <!-- end organizer panel -->
 
-        <div class="tab-panel" data-tab-panel="shared" role="tabpanel" aria-labelledby="tab-shared" id="panel-shared">
+        <div class="tab-panel" data-tab-panel="split" role="tabpanel" aria-labelledby="menu-item-split" id="panel-split">
             <div class="shared-grid mb-4">
                 <div class="card shadow-sm">
                     <div class="card-body">
@@ -1925,7 +1866,7 @@
             </div>
         </div> <!-- end shared panel -->
 
-        <div class="tab-panel" data-tab-panel="communication" role="tabpanel" aria-labelledby="tab-communication" id="panel-communication">
+        <div class="tab-panel" data-tab-panel="communication" role="tabpanel" aria-labelledby="menu-item-communication" id="panel-communication">
             <div class="d-flex justify-content-between align-items-center mb-3 communication-header">
                 <div>
                     <p class="section-heading mb-0">Communication</p>
@@ -2021,7 +1962,7 @@
             </div>
         </div> <!-- end communication panel -->
 
-        <div class="tab-panel" data-tab-panel="help" role="tabpanel" aria-labelledby="tab-help" id="panel-help">
+        <div class="tab-panel" data-tab-panel="help" role="tabpanel" aria-labelledby="menu-item-help" id="panel-help">
             <div class="row g-3">
                 <div class="col-12 col-lg-6">
                     <div class="help-card p-4 h-100">
