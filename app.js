@@ -2098,12 +2098,12 @@ const updateThemeButtons = (mode) => {
     themeModeButtons.forEach((button) => {
         const isActive = button.dataset.themeMode === mode;
         button.classList.toggle('active', isActive);
-        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
     if (themeToggle) {
         const buttons = Array.from(themeModeButtons);
         const activeIndex = Math.max(buttons.findIndex((button) => button.dataset.themeMode === mode), 0);
-        themeToggle.style.setProperty('--indicator-index', String(activeIndex));
+        themeToggle.style.setProperty('--seg-index', String(activeIndex));
     }
 };
 
