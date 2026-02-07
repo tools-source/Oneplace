@@ -27,9 +27,9 @@ const importDataInput = document.getElementById('import-data');
 const clearDataButton = document.getElementById('clear-data');
 const loadDemoDataButton = document.getElementById('load-demo-data');
 const openHelpButton = document.getElementById('open-help');
-const tabButtons = document.querySelectorAll('[data-tab-target]');
 const tabPanels = document.querySelectorAll('[data-tab-panel]');
 const tabNav = document.querySelector('.tab-nav');
+const quickMenuList = document.getElementById('quick-menu-list');
 const categoryPillGroup = document.getElementById('category-pill-group');
 const categoryHint = document.getElementById('category-hint');
 const categoryGuidance = document.getElementById('category-guidance');
@@ -143,6 +143,15 @@ const PUSH_SUBSCRIPTION_KEY = 'pushSubscription';
 const FINANCE_DEFAULTS_KEY = 'financeQuickDefaults';
 const FLOW_PLANNER_STORAGE_KEY = 'flowPlannerData';
 const VAPID_PUBLIC_KEY = '';
+
+const navigationItems = [
+    { id: 'finance', label: 'Finance', menuLabel: 'Finance', icon: 'bi-wallet2' },
+    { id: 'cashflow', label: 'Cash Flow', menuLabel: 'Flow', shortLabel: 'Flow', icon: 'bi-cash-stack' },
+    { id: 'organizer', label: 'Organizer', menuLabel: 'Organizer', icon: 'bi-check2-square' },
+    { id: 'shared', label: 'Split', menuLabel: 'Split', icon: 'bi-people' },
+    { id: 'communication', label: 'Communication', menuLabel: 'Communication', shortLabel: 'Comms', icon: 'bi-chat-dots' },
+    { id: 'help', label: 'Help', menuLabel: 'Help', icon: 'bi-life-preserver' }
+];
 
 const safeStorage = {
     get(key) {
@@ -646,12 +655,58 @@ if (!sharedParticipants.length) {
     safeStorage.set(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
 }
 
+const buildTabLabel = (item) => {
+    if (!item.shortLabel) {
+        return `<span class="tab-label">${item.label}</span>`;
+    }
+    return `
+        <span class="tab-label">
+            <span class="tab-label-full">${item.label}</span>
+            <span class="tab-label-short" aria-hidden="true">${item.shortLabel}</span>
+        </span>
+    `;
+};
+
+const renderTabNav = () => {
+    if (!tabNav) return;
+    tabNav.innerHTML = navigationItems.map((item) => `
+        <button class="btn btn-outline-primary" type="button" data-nav-role="tab" data-tab-target="${item.id}" role="tab" aria-selected="false" aria-controls="panel-${item.id}" id="tab-${item.id}" aria-label="${item.label}">
+            <i class="bi ${item.icon} me-1" aria-hidden="true"></i>
+            ${buildTabLabel(item)}
+        </button>
+    `).join('');
+};
+
+const renderQuickMenu = () => {
+    if (!quickMenuList) return;
+    quickMenuList.innerHTML = navigationItems.map((item) => `
+        <li>
+            <button class="quick-menu-item" type="button" data-nav-role="quick" data-tab-target="${item.id}" aria-label="${item.menuLabel || item.label}">
+                <i class="bi ${item.icon} quick-menu-icon" aria-hidden="true"></i>
+                <span class="quick-menu-label">${item.menuLabel || item.label}</span>
+            </button>
+        </li>
+    `).join('');
+};
+
+const getTabButtons = () => Array.from(document.querySelectorAll('[data-nav-role="tab"]'));
+const getQuickMenuButtons = () => Array.from(document.querySelectorAll('[data-nav-role="quick"]'));
+
 const setActiveTab = (target) => {
-    tabButtons.forEach(button => {
+    getTabButtons().forEach(button => {
         const isActive = button.dataset.tabTarget === target;
         button.classList.toggle('active', isActive);
         button.setAttribute('aria-selected', isActive ? 'true' : 'false');
         button.tabIndex = isActive ? 0 : -1;
+    });
+    getQuickMenuButtons().forEach(button => {
+        const isActive = button.dataset.tabTarget === target;
+        button.classList.toggle('active', isActive);
+        if (isActive) {
+            button.setAttribute('aria-current', 'page');
+        } else {
+            button.removeAttribute('aria-current');
+        }
     });
     tabPanels.forEach(panel => {
         const isActive = panel.dataset.tabPanel === target;
@@ -670,11 +725,14 @@ const setupTabs = () => {
             if (!button) return;
             setActiveTab(button.dataset.tabTarget);
         });
-        return;
     }
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => setActiveTab(button.dataset.tabTarget));
-    });
+    if (quickMenuList) {
+        quickMenuList.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-tab-target]');
+            if (!button) return;
+            setActiveTab(button.dataset.tabTarget);
+        });
+    }
 };
 
 const updateCommunicationFormToggle = (isExpanded) => {
@@ -4317,9 +4375,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeThemeControls();
     transactionSearchQuery = transactionSearchInput?.value.trim().toLowerCase() || '';
     todoSearchQuery = todoSearchInput?.value.trim().toLowerCase() || '';
+    renderTabNav();
+    renderQuickMenu();
     setupTabs();
     const savedTab = safeStorage.get(ACTIVE_TAB_STORAGE_KEY);
-    const validTab = savedTab && Array.from(tabButtons).some((button) => button.dataset.tabTarget === savedTab);
+    const validTab = savedTab && navigationItems.some((item) => item.id === savedTab);
     setActiveTab(validTab ? savedTab : 'finance');
     renderTodos();
     renderShortcuts();
