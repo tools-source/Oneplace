@@ -1349,7 +1349,7 @@
         .communication-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
         .communication-card { min-height: 220px; }
         .recording-badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; font-weight: 600; }
-        .cashflow-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+        .cashflow-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
         .cashflow-summary-card { border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 1rem; background: var(--card-bg); box-shadow: var(--surface-shadow); display: flex; flex-direction: column; gap: 0.4rem; min-height: 120px; }
         .cashflow-card-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; }
         .cashflow-card-value { font-size: 1.4rem; font-weight: 700; }
@@ -1361,6 +1361,7 @@
         .cashflow-item-meta { font-size: 0.85rem; color: var(--text-muted); display: flex; gap: 0.4rem; flex-wrap: wrap; }
         .cashflow-item-amount { font-weight: 700; font-size: 1.05rem; }
         .cashflow-item-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .cashflow-item-notes { font-size: 0.85rem; color: var(--text-muted); }
         .cashflow-tag { border: 1px solid var(--card-border); border-radius: 999px; padding: 0.2rem 0.6rem; font-size: 0.72rem; background: var(--panel-bg); color: var(--text); }
         .cashflow-tag.overdue { color: var(--expense-color); border-color: color-mix(in srgb, var(--expense-color) 50%, var(--card-border)); }
         .cashflow-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
@@ -1642,25 +1643,30 @@
                 <div>
                     <p class="section-heading">Cash Flow</p>
                     <h2 class="section-title">Bills planner</h2>
-                    <p class="section-subtitle">Track upcoming bills, income, and projected balances.</p>
+                    <p class="section-subtitle">Track upcoming bills, income, and financial obligations.</p>
                 </div>
             </div>
 
-            <div class="cashflow-summary-grid mb-4" aria-label="Projected balance summary">
+            <div class="cashflow-summary-grid mb-4" aria-label="Planner summary">
                 <div class="cashflow-summary-card">
-                    <span class="cashflow-card-label">Current balance</span>
-                    <div id="cashflow-current-balance" class="cashflow-card-value positive">$0.00</div>
-                    <div id="cashflow-current-meta" class="cashflow-card-meta">From Finance history</div>
+                    <span class="cashflow-card-label">Upcoming bills</span>
+                    <div id="cashflow-bills-count" class="cashflow-card-value">0</div>
+                    <div class="cashflow-card-meta">Bills scheduled</div>
                 </div>
                 <div class="cashflow-summary-card">
-                    <span class="cashflow-card-label">After next bill</span>
-                    <div id="cashflow-next-bill-balance" class="cashflow-card-value">$0.00</div>
-                    <div id="cashflow-next-bill-meta" class="cashflow-card-meta">No bills scheduled</div>
+                    <span class="cashflow-card-label">Upcoming income</span>
+                    <div id="cashflow-income-count" class="cashflow-card-value">0</div>
+                    <div class="cashflow-card-meta">Income events</div>
                 </div>
                 <div class="cashflow-summary-card">
-                    <span class="cashflow-card-label">After next income</span>
-                    <div id="cashflow-next-income-balance" class="cashflow-card-value">$0.00</div>
-                    <div id="cashflow-next-income-meta" class="cashflow-card-meta">No income scheduled</div>
+                    <span class="cashflow-card-label">Next due item</span>
+                    <div id="cashflow-next-due" class="cashflow-card-value">None</div>
+                    <div id="cashflow-next-due-meta" class="cashflow-card-meta">Add a bill or income</div>
+                </div>
+                <div class="cashflow-summary-card">
+                    <span class="cashflow-card-label">Due within 7 days</span>
+                    <div id="cashflow-upcoming-week" class="cashflow-card-value">0</div>
+                    <div class="cashflow-card-meta">Upcoming soon</div>
                 </div>
             </div>
 
@@ -1669,17 +1675,16 @@
                     <div class="section-header mb-3">
                         <div>
                             <p class="section-heading">Timeline</p>
-                            <h3 class="section-title mb-0">Upcoming money</h3>
+                            <h3 class="section-title mb-0">Upcoming items</h3>
                         </div>
                     </div>
-                    <div id="cashflow-suggestion-shell" class="cashflow-suggestion-list" aria-live="polite"></div>
                     <ul id="cashflow-timeline" class="cashflow-timeline" role="list"></ul>
                 </div>
             </div>
 
             <div class="cashflow-actions-bar">
                 <button class="btn btn-primary" id="cashflow-add-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#cashflow-add-panel" aria-expanded="false" aria-controls="cashflow-add-panel">
-                    <i class="bi bi-plus-circle" aria-hidden="true"></i> Add recurring item
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i> Add planner item
                 </button>
             </div>
 
@@ -1705,7 +1710,7 @@
                                 <div class="col-12 col-md-3">
                                     <label class="form-label small mb-1" for="cashflow-type">Type</label>
                                     <select id="cashflow-type" class="form-select">
-                                        <option value="expense">Bill (Owe)</option>
+                                        <option value="bill">Bill (Owe)</option>
                                         <option value="income">Income (Gain)</option>
                                     </select>
                                 </div>
@@ -1720,23 +1725,28 @@
                                         <option value="weekly">Weekly</option>
                                         <option value="yearly">Yearly</option>
                                         <option value="one-time">One-time</option>
+                                        <option value="custom">Custom</option>
                                     </select>
                                 </div>
                                 <div class="col-12 col-md-4">
-                                    <label class="form-label small mb-1" for="cashflow-category">Category link (optional)</label>
-                                    <select id="cashflow-category" class="form-select">
-                                        <option value="">No category</option>
+                                    <label class="form-label small mb-1" for="cashflow-status">Status</label>
+                                    <select id="cashflow-status" class="form-select">
+                                        <option value="upcoming">Upcoming</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="skipped">Skipped</option>
                                     </select>
                                 </div>
+                                <div class="col-12 col-md-4" id="cashflow-custom-interval-group" style="display:none;">
+                                    <label class="form-label small mb-1" for="cashflow-custom-interval">Custom interval (days)</label>
+                                    <input id="cashflow-custom-interval" class="form-control" type="number" inputmode="numeric" min="1" placeholder="e.g. 45">
+                                </div>
                                 <div class="col-12">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="cashflow-recurring" checked>
-                                        <label class="form-check-label" for="cashflow-recurring">Recurring item</label>
-                                    </div>
+                                    <label class="form-label small mb-1" for="cashflow-notes">Notes (optional)</label>
+                                    <textarea id="cashflow-notes" class="form-control" rows="2" placeholder="Add reminders or details"></textarea>
                                 </div>
                             </div>
                             <div class="mt-3 d-flex gap-2 flex-wrap">
-                                <button class="btn btn-success" type="submit">
+                                <button class="btn btn-success" type="submit" id="cashflow-submit">
                                     <i class="bi bi-plus-circle" aria-hidden="true"></i> Save item
                                 </button>
                                 <button class="btn btn-outline-secondary" type="button" id="cashflow-form-reset">Clear</button>
