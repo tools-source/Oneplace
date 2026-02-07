@@ -43,6 +43,7 @@
             --surface-shadow-hover: 0 10px 24px rgba(15, 23, 42, 0.12);
             --bottom-nav-height: 0px;
             --bottom-safe-offset: env(safe-area-inset-bottom, 0px);
+            --quickadd-actions-height: 72px;
         }
         
         body {
@@ -518,6 +519,28 @@
         .quick-add-btn {
             white-space: nowrap;
             align-self: stretch;
+        }
+
+        .quick-add-body {
+            padding-bottom: calc(var(--quickadd-actions-height) + 12px);
+        }
+
+        .quick-add-actions {
+            position: sticky;
+            bottom: 0;
+            z-index: 5;
+            display: grid;
+            gap: 0.5rem;
+            background: var(--card-bg);
+            border-top: 1px solid var(--card-border);
+            box-shadow: 0 -8px 18px rgba(15, 23, 42, 0.08);
+            padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+            margin: 0 -1rem -1rem;
+            min-height: var(--quickadd-actions-height);
+        }
+
+        .quick-add-actions .quick-add-btn {
+            height: calc(var(--quickadd-actions-height) - 1.5rem);
         }
 
         .urgency-chip-group,
@@ -1294,7 +1317,7 @@
 
         .form-step { padding: var(--space-3); border: 1px solid var(--card-border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel-bg) 70%, transparent); }
         .step-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700; }
-        .sticky-save-wrap { position: sticky; bottom: var(--space-2); background: linear-gradient(to top, var(--card-bg) 70%, transparent); padding-top: var(--space-2); }
+        .quick-add-card .card-body { position: relative; }
 
         .filter-chip-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .filter-chip { border: 1px solid var(--card-border); background: var(--card-bg); border-radius: 999px; padding: 0.35rem 0.8rem; font-size: 0.85rem; }
@@ -1343,7 +1366,6 @@
             }
             .tab-nav .tab-label-full { display: none; }
             .tab-nav .tab-label-short { display: inline; }
-            .sticky-save-wrap { position: sticky; bottom: calc(var(--bottom-nav-height) + var(--bottom-safe-offset) + 0.35rem); }
             .split-summary-strip { grid-template-columns: 1fr; }
             .history-section { padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem); }
         }
@@ -1462,66 +1484,66 @@
                     </button>
                 </div>
                 <div class="input-section" id="input-section">
-                    <div class="quick-add-main-grid" role="group" aria-label="Quick add form">
-                        <div class="amount-wrap">
-                            <label class="form-label small mb-1" for="amount">Amount</label>
-                            <input type="number" id="amount" class="form-control amount-field" placeholder="0.00" required step="0.01" inputmode="decimal" pattern="[0-9]*" aria-label="Amount" autocomplete="off">
-                        </div>
-                        <div class="description-wrap">
-                            <label class="form-label small mb-1" for="description">Description</label>
-                            <input type="text" id="description" class="form-control" placeholder="e.g. Uber 18" required aria-label="Description" autocomplete="off" aria-describedby="quick-add-suggestion">
-                            <div id="quick-add-suggestion" class="small text-muted mt-1" aria-live="polite"></div>
-                        </div>
-                        <div class="category-wrap">
-                            <label class="form-label small mb-1" for="category">Category</label>
-                            <select id="category" class="form-select" required aria-label="Category"><option value="">Choose category</option></select>
-                        </div>
-                        <div class="category-pill-wrap">
-                            <label class="form-label small mb-1">Category pills</label>
-                            <div id="category-pill-group" class="category-pill-group" role="group" aria-label="Category pills"></div>
-                        </div>
-                        <div class="type-wrap">
-                            <label class="form-label small mb-1">Gain / Owe</label>
-                            <div class="btn-group w-100" role="group" aria-label="Transaction type">
-                                <input class="btn-check" type="radio" name="transactionType" id="incomeRadio" value="income" checked>
-                                <label class="btn btn-outline-success" for="incomeRadio">Gain</label>
-                                <input class="btn-check" type="radio" name="transactionType" id="expenseRadio" value="expense">
-                                <label class="btn btn-outline-danger" for="expenseRadio">Owe</label>
+                    <div class="quick-add-body">
+                        <div class="quick-add-main-grid" role="group" aria-label="Quick add form">
+                            <div class="amount-wrap">
+                                <label class="form-label small mb-1" for="amount">Amount</label>
+                                <input type="number" id="amount" class="form-control amount-field" placeholder="0.00" required step="0.01" inputmode="decimal" pattern="[0-9]*" aria-label="Amount" autocomplete="off">
                             </div>
-                        </div>
-                        <div class="action-wrap sticky-save-wrap">
-                            <button id="add-transaction" class="btn btn-success quick-add-btn w-100" type="button"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add</button>
-                        </div>
-                        <div class="save-wrap sticky-save-wrap">
-                            <button id="save-transaction" class="btn btn-primary quick-add-btn w-100" style="display:none;" type="button"><i class="bi bi-save" aria-hidden="true"></i> Save</button>
-                        </div>
-                    </div>
-                    <button class="btn btn-link btn-sm ps-0 text-decoration-none mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#quick-add-details" aria-expanded="false" aria-controls="quick-add-details">Add details</button>
-                    <div class="collapse" id="quick-add-details">
-                        <div class="row g-2">
-                            <div class="col-12 col-md-4">
-                                <label class="form-label small" for="date">Date</label>
-                                <input type="date" id="date" class="form-control">
+                            <div class="description-wrap">
+                                <label class="form-label small mb-1" for="description">Description</label>
+                                <input type="text" id="description" class="form-control" placeholder="e.g. Uber 18" required aria-label="Description" autocomplete="off" aria-describedby="quick-add-suggestion">
+                                <div id="quick-add-suggestion" class="small text-muted mt-1" aria-live="polite"></div>
                             </div>
-                            <div class="col-12 col-md-4">
-                                <span class="form-label small d-block">Urgency</span>
-                                <div id="urgency" class="urgency-chip-group" role="radiogroup" aria-label="Urgency">
-                                    <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="not-urgent" aria-pressed="true" title="Standard priority">Normal</button>
-                                    <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="urgent" aria-pressed="false" title="Needs action soon">Urgent</button>
-                                    <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="later" aria-pressed="false" title="Can wait">Later</button>
+                            <div class="category-wrap">
+                                <label class="form-label small mb-1" for="category">Category</label>
+                                <select id="category" class="form-select" required aria-label="Category"><option value="">Choose category</option></select>
+                            </div>
+                            <div class="category-pill-wrap">
+                                <label class="form-label small mb-1">Category pills</label>
+                                <div id="category-pill-group" class="category-pill-group" role="group" aria-label="Category pills"></div>
+                            </div>
+                            <div class="type-wrap">
+                                <label class="form-label small mb-1">Gain / Owe</label>
+                                <div class="btn-group w-100" role="group" aria-label="Transaction type">
+                                    <input class="btn-check" type="radio" name="transactionType" id="incomeRadio" value="income" checked>
+                                    <label class="btn btn-outline-success" for="incomeRadio">Gain</label>
+                                    <input class="btn-check" type="radio" name="transactionType" id="expenseRadio" value="expense">
+                                    <label class="btn btn-outline-danger" for="expenseRadio">Owe</label>
                                 </div>
                             </div>
-                            <div class="col-12">
-                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#custom-category-panel" aria-expanded="false" aria-controls="custom-category-panel"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Add category</button>
+                        </div>
+                        <button class="btn btn-link btn-sm ps-0 text-decoration-none mt-2" type="button" data-bs-toggle="collapse" data-bs-target="#quick-add-details" aria-expanded="false" aria-controls="quick-add-details">Add details</button>
+                        <div class="collapse" id="quick-add-details">
+                            <div class="row g-2">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small" for="date">Date</label>
+                                    <input type="date" id="date" class="form-control">
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <span class="form-label small d-block">Urgency</span>
+                                    <div id="urgency" class="urgency-chip-group" role="radiogroup" aria-label="Urgency">
+                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="not-urgent" aria-pressed="true" title="Standard priority">Normal</button>
+                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="urgent" aria-pressed="false" title="Needs action soon">Urgent</button>
+                                        <button type="button" class="btn btn-sm urgency-chip" data-urgency-value="later" aria-pressed="false" title="Can wait">Later</button>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#custom-category-panel" aria-expanded="false" aria-controls="custom-category-panel"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Add category</button>
+                                </div>
+                            </div>
+                            <div class="collapse mt-2" id="custom-category-panel">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-12 col-md-5"><input type="text" id="custom-category-name" class="form-control" placeholder="Custom category name"></div>
+                                    <div class="col-12 col-md-3"><select id="custom-category-type" class="form-select"><option value="income">Gain</option><option value="expense">Owe</option></select></div>
+                                    <div class="col-12 col-md-4"><button id="add-category" class="btn btn-outline-primary w-100" type="button"><i class="bi bi-tags me-1" aria-hidden="true"></i> Save category</button></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="collapse mt-2" id="custom-category-panel">
-                            <div class="row g-2 align-items-end">
-                                <div class="col-12 col-md-5"><input type="text" id="custom-category-name" class="form-control" placeholder="Custom category name"></div>
-                                <div class="col-12 col-md-3"><select id="custom-category-type" class="form-select"><option value="income">Gain</option><option value="expense">Owe</option></select></div>
-                                <div class="col-12 col-md-4"><button id="add-category" class="btn btn-outline-primary w-100" type="button"><i class="bi bi-tags me-1" aria-hidden="true"></i> Save category</button></div>
-                            </div>
-                        </div>
+                    </div>
+                    <div class="quick-add-actions" role="group" aria-label="Quick add actions">
+                        <button id="add-transaction" class="btn btn-success quick-add-btn w-100" type="button"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add</button>
+                        <button id="save-transaction" class="btn btn-primary quick-add-btn w-100" style="display:none;" type="button"><i class="bi bi-save" aria-hidden="true"></i> Save</button>
                     </div>
                 </div>
             </div>
