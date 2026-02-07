@@ -1794,8 +1794,7 @@ const renderCategoryPills = () => {
         pill.title = category.label;
         pill.setAttribute('aria-pressed', 'false');
         pill.setAttribute('aria-label', `${category.label} category`);
-        pill.style.backgroundColor = hexToRgba(category.color, 0.08);
-        pill.style.color = category.color;
+        pill.style.setProperty('--pill-color', category.color);
         const icon = document.createElement('span');
         icon.className = 'pill-icon bi bi-check2-circle';
         icon.setAttribute('aria-hidden', 'true');
@@ -1902,15 +1901,6 @@ const setActiveCategory = (categoryValue) => {
     categoryPillGroup?.querySelectorAll('.category-pill').forEach(pill => {
         const isActive = pill.dataset.value === categoryValue;
         pill.classList.toggle('active', isActive);
-        pill.style.backgroundColor = isActive 
-            ? pill.dataset.color 
-            : hexToRgba(pill.dataset.color, 0.08);
-        pill.style.color = isActive ? '#ffffff' : pill.dataset.color;
-        if (isActive) {
-            pill.style.borderColor = pill.dataset.color;
-        } else {
-            pill.style.borderColor = 'transparent';
-        }
         pill.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         const status = pill.querySelector('.pill-status');
         if (status) status.textContent = isActive ? 'Selected' : '';
@@ -2059,6 +2049,11 @@ const updateThemeButtons = (mode) => {
         button.classList.toggle('active', isActive);
         button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
+    if (themeToggle) {
+        const buttons = Array.from(themeModeButtons);
+        const activeIndex = Math.max(buttons.findIndex((button) => button.dataset.themeMode === mode), 0);
+        themeToggle.style.setProperty('--indicator-index', String(activeIndex));
+    }
 };
 
 const setThemeMode = (mode) => {
