@@ -109,6 +109,23 @@ const pushStatus = document.getElementById('push-status');
 const requestNotificationPermissionButton = document.getElementById('request-notification-permission');
 const copyPushSubscriptionButton = document.getElementById('copy-push-subscription');
 const clearPushSubscriptionButton = document.getElementById('clear-push-subscription');
+const cashflowCurrentBalance = document.getElementById('cashflow-current-balance');
+const cashflowCurrentMeta = document.getElementById('cashflow-current-meta');
+const cashflowNextBillBalance = document.getElementById('cashflow-next-bill-balance');
+const cashflowNextBillMeta = document.getElementById('cashflow-next-bill-meta');
+const cashflowNextIncomeBalance = document.getElementById('cashflow-next-income-balance');
+const cashflowNextIncomeMeta = document.getElementById('cashflow-next-income-meta');
+const cashflowTimeline = document.getElementById('cashflow-timeline');
+const cashflowSuggestionShell = document.getElementById('cashflow-suggestion-shell');
+const cashflowForm = document.getElementById('cashflow-form');
+const cashflowTitleInput = document.getElementById('cashflow-title');
+const cashflowAmountInput = document.getElementById('cashflow-amount');
+const cashflowTypeSelect = document.getElementById('cashflow-type');
+const cashflowDateInput = document.getElementById('cashflow-date');
+const cashflowFrequencySelect = document.getElementById('cashflow-frequency');
+const cashflowCategorySelect = document.getElementById('cashflow-category');
+const cashflowRecurringToggle = document.getElementById('cashflow-recurring');
+const cashflowFormResetButton = document.getElementById('cashflow-form-reset');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const CUSTOM_CATEGORIES_KEY = 'customCategories';
@@ -122,6 +139,8 @@ const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
 const COMMUNICATION_FORM_COLLAPSE_KEY = 'communicationFormCollapsed';
 const PUSH_SUBSCRIPTION_KEY = 'pushSubscription';
 const FINANCE_DEFAULTS_KEY = 'financeQuickDefaults';
+const CASHFLOW_ITEMS_KEY = 'cashFlowItems';
+const CASHFLOW_SUGGESTIONS_KEY = 'cashFlowSuggestions';
 const VAPID_PUBLIC_KEY = '';
 
 const safeStorage = {
@@ -167,6 +186,8 @@ let sharedExpenses = safeJsonParse(SHARED_EXPENSES_KEY, []);
 let communicationItems = safeJsonParse(COMMUNICATION_ITEMS_KEY, []);
 let shortcuts = safeJsonParse(SHORTCUTS_STORAGE_KEY, []);
 let reminders = safeJsonParse(REMINDER_STORAGE_KEY, []);
+let cashFlowItems = safeJsonParse(CASHFLOW_ITEMS_KEY, []);
+let cashFlowSuggestions = safeJsonParse(CASHFLOW_SUGGESTIONS_KEY, []);
 let editingCommunicationId = null;
 let communicationAudioData = '';
 let recordingChunks = [];
@@ -1812,21 +1833,37 @@ const renderCategoryPills = () => {
 };
 
 const renderCategoryOptions = () => {
-    if (!categorySelect) return;
-    categorySelect.innerHTML = '';
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Choose a category';
-    categorySelect.appendChild(placeholder);
-
     const categories = getSortedCategories();
-    categories.forEach(category => {
-        const option = document.createElement('option');
-        option.value = category.value;
-        option.textContent = category.label;
-        categorySelect.appendChild(option);
-    });
+    if (categorySelect) {
+        categorySelect.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Choose a category';
+        categorySelect.appendChild(placeholder);
+
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.value;
+            option.textContent = category.label;
+            categorySelect.appendChild(option);
+        });
+    }
+
+    if (cashflowCategorySelect) {
+        cashflowCategorySelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'No category';
+        cashflowCategorySelect.appendChild(placeholder);
+
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.value;
+            option.textContent = category.label;
+            cashflowCategorySelect.appendChild(option);
+        });
+    }
 };
 
 const renderCategoryFilters = () => {
@@ -2178,6 +2215,7 @@ function addTransaction(e) {
     financeQuickDefaults = { category, type, urgency };
     saveFinanceDefaults();
     saveTransactions();
+    addCashFlowSuggestion(detectRecurringSuggestion(transaction));
 
     descriptionInput.value = '';
     amountInput.value = '';
@@ -2504,6 +2542,7 @@ function updateBalance() {
     
     updateCategoryBalanceIndicator(filteredList);
     updateInsights();
+    updateCashFlowSummary();
 }
 
 function updateCategoryBalanceIndicator(list = []) {
@@ -2515,6 +2554,378 @@ function updateCategoryBalanceIndicator(list = []) {
     categoryBalanceIndicator.classList.toggle('text-success', net >= 0);
     categoryBalanceIndicator.classList.toggle('text-danger', net < 0);
 }
+
+const saveCashFlowItems = () => {
+    safeStorage.set(CASHFLOW_ITEMS_KEY, JSON.stringify(cashFlowItems));
+};
+
+const saveCashFlowSuggestions = () => {
+    safeStorage.set(CASHFLOW_SUGGESTIONS_KEY, JSON.stringify(cashFlowSuggestions));
+};
+
+const normalizeCashFlowItem = (item = {}, index = 0) => {
+    const amount = Number.parseFloat(item.amount);
+    const normalizedAmount = Number.isNaN(amount) ? 0 : Math.abs(amount);
+    const normalizedType = item.type === 'income' ? 'income' : 'expense';
+    const frequency = item.frequency || (item.recurring ? 'monthly' : 'one-time');
+    const recurring = item.recurring ?? frequency !== 'one-time';
+    const dueDate = item.dueDate || new Date().toISOString();
+    return {
+        id: item.id || Date.now() + index,
+        title: item.title || item.name || (normalizedType === 'income' ? 'Income' : 'Bill'),
+        amount: normalizedAmount,
+        type: normalizedType,
+        dueDate,
+        category: item.category || '',
+        recurring,
+        frequency,
+        createdAt: item.createdAt || new Date().toISOString()
+    };
+};
+
+const normalizeCashFlowItems = () => {
+    cashFlowItems = Array.isArray(cashFlowItems)
+        ? cashFlowItems.map(normalizeCashFlowItem)
+        : [];
+    saveCashFlowItems();
+};
+
+const normalizeCashFlowSuggestions = () => {
+    cashFlowSuggestions = Array.isArray(cashFlowSuggestions)
+        ? cashFlowSuggestions.map(normalizeCashFlowItem)
+        : [];
+    saveCashFlowSuggestions();
+};
+
+const getCashFlowFrequencyLabel = (frequency) => {
+    switch (frequency) {
+        case 'weekly':
+            return 'Weekly';
+        case 'yearly':
+            return 'Yearly';
+        case 'one-time':
+            return 'One-time';
+        default:
+            return 'Monthly';
+    }
+};
+
+const addCashFlowInterval = (date, frequency) => {
+    const next = new Date(date);
+    if (Number.isNaN(next.getTime())) return null;
+    switch (frequency) {
+        case 'weekly':
+            next.setDate(next.getDate() + 7);
+            return next;
+        case 'yearly':
+            next.setFullYear(next.getFullYear() + 1);
+            return next;
+        case 'monthly':
+            next.setMonth(next.getMonth() + 1);
+            return next;
+        default:
+            return next;
+    }
+};
+
+const getCashFlowNextDate = (item, referenceDate = new Date()) => {
+    const dueDate = new Date(item.dueDate);
+    if (Number.isNaN(dueDate.getTime())) return null;
+    if (!item.recurring || item.frequency === 'one-time') return dueDate;
+    const normalizedReference = new Date(referenceDate);
+    normalizedReference.setHours(0, 0, 0, 0);
+    let nextDate = new Date(dueDate);
+    let guard = 0;
+    while (nextDate < normalizedReference && guard < 36) {
+        const updated = addCashFlowInterval(nextDate, item.frequency);
+        if (!updated) break;
+        nextDate = updated;
+        guard += 1;
+    }
+    return nextDate;
+};
+
+const getCashFlowTimelineItems = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return cashFlowItems
+        .map((item) => {
+            const nextDate = getCashFlowNextDate(item, today);
+            if (!nextDate) return null;
+            const dueDate = new Date(item.dueDate);
+            const isOverdue = !item.recurring && dueDate < today;
+            return {
+                ...item,
+                nextDate,
+                isOverdue
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.nextDate - b.nextDate);
+};
+
+const updateCashFlowSummary = () => {
+    if (!cashflowCurrentBalance && !cashflowNextBillBalance && !cashflowNextIncomeBalance) return;
+    const currentBalance = calculateNet(transactions);
+    if (cashflowCurrentBalance) {
+        cashflowCurrentBalance.textContent = formatCurrency(currentBalance);
+        cashflowCurrentBalance.classList.toggle('positive', currentBalance >= 0);
+        cashflowCurrentBalance.classList.toggle('negative', currentBalance < 0);
+    }
+    if (cashflowCurrentMeta) {
+        cashflowCurrentMeta.textContent = 'From Finance history';
+    }
+
+    const timeline = getCashFlowTimelineItems();
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const nextBill = timeline.find((item) => item.type === 'expense' && item.nextDate >= now);
+    const nextIncome = timeline.find((item) => item.type === 'income' && item.nextDate >= now);
+
+    if (cashflowNextBillBalance) {
+        if (nextBill) {
+            const balanceAfterBill = currentBalance - nextBill.amount;
+            cashflowNextBillBalance.textContent = formatCurrency(balanceAfterBill);
+            cashflowNextBillBalance.classList.toggle('positive', balanceAfterBill >= 0);
+            cashflowNextBillBalance.classList.toggle('negative', balanceAfterBill < 0);
+            if (cashflowNextBillMeta) {
+                cashflowNextBillMeta.textContent = `${nextBill.title} · due ${nextBill.nextDate.toLocaleDateString()}`;
+            }
+        } else {
+            cashflowNextBillBalance.textContent = formatCurrency(currentBalance);
+            cashflowNextBillBalance.classList.toggle('positive', currentBalance >= 0);
+            cashflowNextBillBalance.classList.toggle('negative', currentBalance < 0);
+            if (cashflowNextBillMeta) {
+                cashflowNextBillMeta.textContent = 'No bills scheduled';
+            }
+        }
+    }
+
+    if (cashflowNextIncomeBalance) {
+        if (nextIncome) {
+            const balanceAfterIncome = currentBalance + nextIncome.amount;
+            cashflowNextIncomeBalance.textContent = formatCurrency(balanceAfterIncome);
+            cashflowNextIncomeBalance.classList.toggle('positive', balanceAfterIncome >= 0);
+            cashflowNextIncomeBalance.classList.toggle('negative', balanceAfterIncome < 0);
+            if (cashflowNextIncomeMeta) {
+                cashflowNextIncomeMeta.textContent = `${nextIncome.title} · due ${nextIncome.nextDate.toLocaleDateString()}`;
+            }
+        } else {
+            cashflowNextIncomeBalance.textContent = formatCurrency(currentBalance);
+            cashflowNextIncomeBalance.classList.toggle('positive', currentBalance >= 0);
+            cashflowNextIncomeBalance.classList.toggle('negative', currentBalance < 0);
+            if (cashflowNextIncomeMeta) {
+                cashflowNextIncomeMeta.textContent = 'No income scheduled';
+            }
+        }
+    }
+};
+
+const renderCashFlowTimeline = () => {
+    if (!cashflowTimeline) return;
+    const items = getCashFlowTimelineItems();
+    cashflowTimeline.innerHTML = '';
+
+    if (!items.length) {
+        cashflowTimeline.innerHTML = '<li class="cashflow-empty">No upcoming bills or income yet.</li>';
+        return;
+    }
+
+    items.forEach((item) => {
+        const li = document.createElement('li');
+        li.className = 'cashflow-item';
+        li.dataset.cashflowId = item.id;
+        const signedAmount = item.type === 'income' ? item.amount : -item.amount;
+        const categoryName = item.category ? getCategoryName(item.category) : 'Uncategorized';
+        const categoryColor = item.category ? getCategoryColor(item.category) : 'transparent';
+        const dateLabel = item.nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        li.innerHTML = `
+            <div class="cashflow-item-main">
+                <div>
+                    <div class="cashflow-item-title">
+                        <span class="category-color-dot" style="background-color: ${categoryColor}" aria-hidden="true"></span>
+                        ${escapeHtml(item.title)}
+                    </div>
+                    <div class="cashflow-item-meta">
+                        <span>Due ${dateLabel}</span>
+                        ${item.category ? `<span aria-hidden="true">•</span><span>${escapeHtml(categoryName)}</span>` : ''}
+                    </div>
+                </div>
+                <div class="cashflow-item-amount ${item.type === 'income' ? 'positive' : 'negative'}">${formatCurrency(signedAmount, { includePlus: true })}</div>
+            </div>
+            <div class="cashflow-item-tags">
+                <span class="cashflow-tag">${item.type === 'income' ? 'Income' : 'Bill'}</span>
+                <span class="cashflow-tag">${item.recurring ? `Recurring · ${getCashFlowFrequencyLabel(item.frequency)}` : 'One-time'}</span>
+                ${item.isOverdue ? '<span class="cashflow-tag overdue">Overdue</span>' : ''}
+            </div>
+            <div class="cashflow-actions">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-action="mark-paid">Mark paid</button>
+                <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete">Remove</button>
+            </div>
+        `;
+        cashflowTimeline.appendChild(li);
+    });
+};
+
+const renderCashFlowSuggestions = () => {
+    if (!cashflowSuggestionShell) return;
+    cashflowSuggestionShell.innerHTML = '';
+    if (!cashFlowSuggestions.length) {
+        cashflowSuggestionShell.innerHTML = '<div class="text-muted small">No recurring bill suggestions yet.</div>';
+        return;
+    }
+    cashFlowSuggestions.forEach((suggestion) => {
+        const card = document.createElement('div');
+        const date = new Date(suggestion.dueDate);
+        const dateLabel = Number.isNaN(date.getTime()) ? 'Next due date needed' : date.toLocaleDateString();
+        card.className = 'cashflow-suggestion';
+        card.dataset.suggestionId = suggestion.id;
+        card.innerHTML = `
+            <strong>${escapeHtml(suggestion.title)}</strong>
+            <div class="cashflow-item-meta">
+                <span>${formatCurrency(-Math.abs(suggestion.amount))} · ${getCashFlowFrequencyLabel(suggestion.frequency)}</span>
+                <span aria-hidden="true">•</span>
+                <span>${dateLabel}</span>
+            </div>
+            <div class="cashflow-actions">
+                <button class="btn btn-sm btn-primary" type="button" data-action="accept-suggestion">Add to cash flow</button>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-action="dismiss-suggestion">Dismiss</button>
+            </div>
+        `;
+        cashflowSuggestionShell.appendChild(card);
+    });
+};
+
+const addCashFlowItem = (item) => {
+    cashFlowItems.unshift(normalizeCashFlowItem(item));
+    saveCashFlowItems();
+    renderCashFlowTimeline();
+    updateCashFlowSummary();
+};
+
+const deleteCashFlowItem = (id) => {
+    cashFlowItems = cashFlowItems.filter(item => String(item.id) !== String(id));
+    saveCashFlowItems();
+    renderCashFlowTimeline();
+    updateCashFlowSummary();
+};
+
+const markCashFlowPaid = (id) => {
+    const index = cashFlowItems.findIndex(item => String(item.id) === String(id));
+    if (index === -1) return;
+    const item = cashFlowItems[index];
+    if (item.recurring && item.frequency !== 'one-time') {
+        const referenceDate = new Date();
+        referenceDate.setDate(referenceDate.getDate() + 1);
+        const nextDate = getCashFlowNextDate(item, referenceDate);
+        if (nextDate) {
+            cashFlowItems[index] = { ...item, dueDate: nextDate.toISOString() };
+        }
+    } else {
+        cashFlowItems.splice(index, 1);
+    }
+    saveCashFlowItems();
+    renderCashFlowTimeline();
+    updateCashFlowSummary();
+};
+
+const normalizeMatchText = (value = '') => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+const detectRecurringSuggestion = (transaction) => {
+    if (!transaction || transaction.type !== 'expense') return null;
+    const normalizedDescription = normalizeMatchText(transaction.description || '');
+    const amount = Math.abs(transaction.amount || 0);
+    if (!amount) return null;
+
+    const matches = transactions.filter((item) => {
+        if (item.type !== 'expense') return false;
+        const amountDiff = Math.abs(Math.abs(item.amount) - amount) / amount;
+        if (amountDiff > 0.1) return false;
+        const sameCategory = transaction.category && item.category === transaction.category;
+        const descriptionMatch = normalizedDescription
+            && normalizeMatchText(item.description || '').includes(normalizedDescription);
+        return sameCategory || descriptionMatch;
+    });
+
+    if (matches.length < 2) return null;
+    const sorted = [...matches].sort((a, b) => parseTransactionDate(a) - parseTransactionDate(b));
+    const lastTwo = sorted.slice(-2);
+    const firstDate = parseTransactionDate(lastTwo[0]);
+    const secondDate = parseTransactionDate(lastTwo[1]);
+    const diffDays = Math.round((secondDate - firstDate) / (1000 * 60 * 60 * 24));
+
+    let frequency = null;
+    if (diffDays >= 6 && diffDays <= 8) frequency = 'weekly';
+    if (diffDays >= 26 && diffDays <= 35) frequency = 'monthly';
+    if (diffDays >= 350 && diffDays <= 380) frequency = 'yearly';
+    if (!frequency) return null;
+
+    const suggestedTitle = transaction.description || getCategoryName(transaction.category) || 'Recurring bill';
+    const nextDueDate = addCashFlowInterval(secondDate, frequency);
+    if (!nextDueDate) return null;
+
+    return normalizeCashFlowItem({
+        id: Date.now(),
+        title: suggestedTitle,
+        amount,
+        type: 'expense',
+        dueDate: nextDueDate.toISOString(),
+        category: transaction.category || '',
+        recurring: true,
+        frequency
+    });
+};
+
+const addCashFlowSuggestion = (suggestion) => {
+    if (!suggestion) return;
+    const exists = cashFlowSuggestions.some((item) => (
+        item.title === suggestion.title
+        && item.amount === suggestion.amount
+        && item.frequency === suggestion.frequency
+    ));
+    const existsInItems = cashFlowItems.some((item) => (
+        item.title === suggestion.title
+        && item.amount === suggestion.amount
+        && item.frequency === suggestion.frequency
+    ));
+    if (exists || existsInItems) return;
+    cashFlowSuggestions.unshift(suggestion);
+    saveCashFlowSuggestions();
+    renderCashFlowSuggestions();
+    showAlert('Recurring bill detected. Review it in Cash Flow → Upcoming money.', 'info');
+};
+
+const removeCashFlowSuggestion = (id) => {
+    cashFlowSuggestions = cashFlowSuggestions.filter((item) => String(item.id) !== String(id));
+    saveCashFlowSuggestions();
+    renderCashFlowSuggestions();
+};
+
+const updateCashFlowRecurringState = () => {
+    if (!cashflowRecurringToggle || !cashflowFrequencySelect) return;
+    if (cashflowRecurringToggle.checked) {
+        cashflowFrequencySelect.disabled = false;
+        if (cashflowFrequencySelect.value === 'one-time') {
+            cashflowFrequencySelect.value = 'monthly';
+        }
+    } else {
+        cashflowFrequencySelect.value = 'one-time';
+        cashflowFrequencySelect.disabled = true;
+    }
+};
+
+const resetCashFlowForm = () => {
+    if (!cashflowForm) return;
+    cashflowForm.reset();
+    if (cashflowDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        cashflowDateInput.value = today;
+    }
+    if (cashflowRecurringToggle) {
+        cashflowRecurringToggle.checked = true;
+    }
+    updateCashFlowRecurringState();
+};
 
 const getWeekStartDate = (date) => {
     const start = new Date(date);
@@ -2753,7 +3164,9 @@ const exportFullBackup = () => {
         sharedParticipants,
         sharedExpenses,
         communicationItems,
-        customCategories
+        customCategories,
+        cashFlowItems,
+        cashFlowSuggestions
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
@@ -2795,6 +3208,14 @@ const importBackupData = (data) => {
             communicationItems = data.communicationItems;
             saveCommunicationItems();
         }
+        if (Array.isArray(data.cashFlowItems)) {
+            cashFlowItems = data.cashFlowItems.map(normalizeCashFlowItem);
+            saveCashFlowItems();
+        }
+        if (Array.isArray(data.cashFlowSuggestions)) {
+            cashFlowSuggestions = data.cashFlowSuggestions.map(normalizeCashFlowItem);
+            saveCashFlowSuggestions();
+        }
     }
     renderCategoryOptions();
     renderCategoryPills();
@@ -2804,6 +3225,8 @@ const importBackupData = (data) => {
     renderSharedExpenseHistory();
     normalizeCommunicationItems();
     renderCommunicationItems();
+    renderCashFlowTimeline();
+    renderCashFlowSuggestions();
     updateBalance();
     displayTransactions();
 };
@@ -3216,6 +3639,8 @@ const resetWorkspaceData = () => {
     sharedParticipants = createDefaultSharedParticipants();
     sharedExpenses = [];
     communicationItems = DEFAULT_COMMUNICATION_ITEMS.map(item => ({ ...item }));
+    cashFlowItems = [];
+    cashFlowSuggestions = [];
 
     saveTransactions();
     saveCustomCategories();
@@ -3223,6 +3648,8 @@ const resetWorkspaceData = () => {
     saveSharedParticipants();
     saveSharedExpenses();
     saveCommunicationItems();
+    saveCashFlowItems();
+    saveCashFlowSuggestions();
 
     activeCategoryFilter = '';
     if (categoryFilter) {
@@ -3454,7 +3881,7 @@ addTransactionButton?.addEventListener('click', addTransaction);
 saveTransactionButton?.addEventListener('click', saveEdit);
 addCategoryButton?.addEventListener('click', addCustomCategory);
 clearDataButton?.addEventListener('click', () => {
-    if (confirm('Reset your workspace? This clears transactions, todos, shared balances, and communication cards.')) {
+    if (confirm('Reset your workspace? This clears transactions, cash flow items, todos, shared balances, and communication cards.')) {
         resetWorkspaceData();
     }
 });
@@ -3475,6 +3902,89 @@ toggleHistoryButton?.addEventListener('click', () => {
     }
     toggleHistoryButton.innerHTML = `<i class="bi bi-chevron-${isHidden ? 'up' : 'down'}"></i> ${isHidden ? 'Hide' : 'Show'}`;
     toggleHistoryButton.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+});
+
+cashflowRecurringToggle?.addEventListener('change', updateCashFlowRecurringState);
+
+cashflowForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const title = cashflowTitleInput?.value.trim() || '';
+    const amount = Number.parseFloat(cashflowAmountInput?.value || '');
+    const type = cashflowTypeSelect?.value === 'income' ? 'income' : 'expense';
+    const category = cashflowCategorySelect?.value || '';
+    const recurring = cashflowRecurringToggle?.checked ?? true;
+    const frequency = recurring ? (cashflowFrequencySelect?.value || 'monthly') : 'one-time';
+    const dueDateValue = cashflowDateInput?.value;
+
+    if (!title) {
+        showAlert('Please add a title for the cash flow item.', 'warning');
+        return;
+    }
+    if (Number.isNaN(amount) || amount <= 0) {
+        showAlert('Please enter a valid amount greater than 0.', 'warning');
+        return;
+    }
+    if (!dueDateValue) {
+        showAlert('Please select a due date.', 'warning');
+        return;
+    }
+
+    const dueDate = new Date(`${dueDateValue}T12:00:00`);
+    if (Number.isNaN(dueDate.getTime())) {
+        showAlert('Please provide a valid due date.', 'warning');
+        return;
+    }
+
+    addCashFlowItem({
+        id: Date.now(),
+        title,
+        amount,
+        type,
+        category,
+        recurring,
+        frequency,
+        dueDate: dueDate.toISOString()
+    });
+
+    resetCashFlowForm();
+});
+
+cashflowFormResetButton?.addEventListener('click', resetCashFlowForm);
+
+cashflowTimeline?.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const item = button.closest('[data-cashflow-id]');
+    if (!item) return;
+    const action = button.dataset.action;
+    if (action === 'delete') {
+        deleteCashFlowItem(item.dataset.cashflowId);
+    }
+    if (action === 'mark-paid') {
+        markCashFlowPaid(item.dataset.cashflowId);
+    }
+});
+
+cashflowSuggestionShell?.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const card = button.closest('[data-suggestion-id]');
+    if (!card) return;
+    const suggestionId = card.dataset.suggestionId;
+    const action = button.dataset.action;
+    if (action === 'dismiss-suggestion') {
+        removeCashFlowSuggestion(suggestionId);
+        return;
+    }
+    if (action === 'accept-suggestion') {
+        const suggestion = cashFlowSuggestions.find(item => String(item.id) === String(suggestionId));
+        if (!suggestion) return;
+        addCashFlowItem({
+            ...suggestion,
+            id: Date.now()
+        });
+        removeCashFlowSuggestion(suggestionId);
+    }
 });
 
 const isMobileViewport = () => window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
@@ -3871,6 +4381,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCategoryOptions();
     renderCategoryPills();
     renderCategoryFilters();
+    normalizeCashFlowItems();
+    normalizeCashFlowSuggestions();
+    renderCashFlowTimeline();
+    renderCashFlowSuggestions();
+    resetCashFlowForm();
     initializeThemeControls();
     transactionSearchQuery = transactionSearchInput?.value.trim().toLowerCase() || '';
     todoSearchQuery = todoSearchInput?.value.trim().toLowerCase() || '';
@@ -3883,6 +4398,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSharedParticipants();
     updateSharedExpenseControls();
     renderSharedExpenseHistory();
+    renderCashFlowTimeline();
+    renderCashFlowSuggestions();
+    updateCashFlowSummary();
     syncBottomNavMetrics();
     normalizeCommunicationItems();
     renderCommunicationItems();
