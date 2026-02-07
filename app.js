@@ -1957,20 +1957,53 @@ const applyQuickDefaults = () => {
     setUrgencyChipState(financeQuickDefaults.urgency);
 };
 
+const normalizeDescriptionText = (value) => (value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, ' ');
+
+const parseAmountValue = (raw) => {
+    const sanitized = raw.replace(/,/g, '');
+    const amount = parseFloat(sanitized);
+    if (Number.isNaN(amount) || amount <= 0) return null;
+    return amount;
+};
+
 const parseNaturalLanguageEntry = (rawText) => {
     const text = (rawText || '').trim();
     if (!text) return null;
-    const match = text.match(/^(.*?)(?:\s+|^)(\d+(?:\.\d{1,2})?)$/);
+    const amountLastMatch = text.match(/^(.*?)(?:\s+|^)\$?(\d{1,}(?:[.,]\d{1,2})?)$/);
+    const amountFirstMatch = text.match(/^\$?(\d{1,}(?:[.,]\d{1,2})?)\s+(.+)$/);
+    const match = amountLastMatch || amountFirstMatch;
     if (!match) return null;
-    const description = match[1].trim();
-    const amount = parseFloat(match[2]);
-    if (!description || Number.isNaN(amount) || amount <= 0) return null;
+    const description = (amountLastMatch ? match[1] : match[2]).trim();
+    const amount = parseAmountValue(amountLastMatch ? match[2] : match[1]);
+    if (!description || amount === null) return null;
     return { description, amount };
 };
 
+const getRecentCategoryMatch = (text) => {
+    const normalized = normalizeDescriptionText(text);
+    if (!normalized) return '';
+    const exactMatch = [...transactions]
+        .reverse()
+        .find(item => normalizeDescriptionText(item.description) === normalized);
+    if (exactMatch?.category) return exactMatch.category;
+    const partialMatch = [...transactions]
+        .reverse()
+        .find(item => {
+            const description = normalizeDescriptionText(item.description);
+            return description && (description.includes(normalized) || normalized.includes(description));
+        });
+    return partialMatch?.category || '';
+};
+
 const predictCategoryFromDescription = (text) => {
-    const value = (text || '').trim().toLowerCase();
+    const value = normalizeDescriptionText(text);
     if (!value) return '';
+    const recentMatch = getRecentCategoryMatch(value);
+    if (recentMatch) return recentMatch;
     const rules = [
         { keys: ['salary', 'paycheck', 'bonus', 'income'], category: 'salary' },
         { keys: ['uber', 'lyft', 'bus', 'train', 'fuel', 'gas', 'taxi'], category: 'transport' },
@@ -1984,26 +2017,44 @@ const predictCategoryFromDescription = (text) => {
 };
 
 const findSimilarTransaction = (descriptionText) => {
-    const query = (descriptionText || '').trim().toLowerCase();
+    const query = normalizeDescriptionText(descriptionText);
     if (!query) return null;
     return [...transactions]
         .reverse()
-        .find((item) => (item.description || '').toLowerCase().includes(query) || query.includes((item.description || '').toLowerCase()));
+        .find((item) => {
+            const description = normalizeDescriptionText(item.description);
+            return description.includes(query) || query.includes(description);
+        });
 };
 
 const detectRecurringHint = (descriptionText) => {
-    const query = (descriptionText || '').trim().toLowerCase();
+    const query = normalizeDescriptionText(descriptionText);
     if (!query) return '';
-    const similar = transactions.filter((item) => (item.description || '').trim().toLowerCase() === query);
-    return similar.length >= 2 ? 'Looks recurring. Consider setting this on a regular schedule.' : '';
+    const similar = transactions
+        .filter((item) => normalizeDescriptionText(item.description) === query)
+        .map(item => parseTransactionDate(item))
+        .sort((a, b) => a - b);
+    if (similar.length < 3) return '';
+    const intervals = similar.slice(1).map((date, index) => {
+        const prev = similar[index];
+        return (date - prev) / (1000 * 60 * 60 * 24);
+    });
+    const recentIntervals = intervals.slice(-3);
+    const looksWeekly = recentIntervals.some(days => days >= 5 && days <= 9);
+    const looksMonthly = recentIntervals.some(days => days >= 26 && days <= 35);
+    if (looksWeekly || looksMonthly) {
+        return 'This looks recurring — mark as recurring?';
+    }
+    return '';
 };
 
 const updateQuickAddSuggestion = (text) => {
     if (!quickAddSuggestion) return;
     const parsed = parseNaturalLanguageEntry(text);
-    const prediction = predictCategoryFromDescription(parsed?.description || text);
-    const similar = findSimilarTransaction(parsed?.description || text);
-    const recurring = detectRecurringHint(parsed?.description || text);
+    const hintSource = parsed?.description || text;
+    const prediction = predictCategoryFromDescription(hintSource);
+    const similar = findSimilarTransaction(hintSource);
+    const recurring = detectRecurringHint(hintSource);
     const hints = [];
     if (parsed) hints.push(`Parsed amount ${formatCurrency(parsed.amount)} from input.`);
     if (prediction) hints.push(`Suggested category: ${getCategoryName(prediction)}.`);
