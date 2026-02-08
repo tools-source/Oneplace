@@ -19,14 +19,7 @@ final class AppDataController: ObservableObject {
     }()
 
     init() {
-        let schema = Schema([
-            FinanceEntry.self,
-            TaskItem.self,
-            SplitPerson.self,
-            SplitExpense.self,
-            CommsCard.self,
-            FlowItem.self
-        ])
+        let schema = AppSchema.shared
 
         let localConfiguration = ModelConfiguration(schema: schema)
         let cloudConfiguration: ModelConfiguration? = {
@@ -115,10 +108,8 @@ final class AppDataController: ObservableObject {
             return inMemoryContainer
         }
 
-        print("Unable to create in-memory ModelContainer with schema. Returning empty in-memory container.")
-        let emptySchema = Schema([])
-        return (try? ModelContainer(for: emptySchema, configurations: [inMemoryConfiguration]))
-            ?? SampleData.makeFallbackContainer()
+        print("Unable to create in-memory ModelContainer with schema. Falling back to sample data container.")
+        return SampleData.makeFallbackContainer()
     }
 
     private static func hasAnyData(in container: ModelContainer) -> Bool {
