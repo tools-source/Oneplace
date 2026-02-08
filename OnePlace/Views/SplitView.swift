@@ -281,19 +281,19 @@ private struct AddExpenseSheet: View {
                     Button("Save") {
                         guard let amountValue = parsedAmount, amountValue > 0 else { return }
                         let participants = people.filter { selectedParticipants.contains($0.id) }
-                        let selectedParticipants = participants.isEmpty ? nil : participants
+                        let finalParticipants: [SplitPerson]? = participants.isEmpty ? nil : participants
                         if let expenseToEdit {
                             expenseToEdit.title = title
                             expenseToEdit.amount = amountValue
                             expenseToEdit.date = date
-                            expenseToEdit.participants = selectedParticipants
+                            expenseToEdit.participants = finalParticipants
                             expenseToEdit.paidBy = paidBy
                         } else {
                             let expense = SplitExpense(
                                 title: title,
                                 amount: amountValue,
                                 date: date,
-                                participants: selectedParticipants,
+                                participants: finalParticipants,
                                 paidBy: paidBy
                             )
                             onSave(expense)
