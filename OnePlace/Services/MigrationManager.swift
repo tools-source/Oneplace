@@ -311,7 +311,7 @@ final class MigrationManager: ObservableObject {
             : Set(try destinationContext.fetch(FetchDescriptor<SplitExpense>()).map { $0.id })
 
         for expense in sourceExpenses where !existingExpenseIds.contains(expense.id) {
-            let participants = expense.participants.compactMap { personMap[$0.id] }
+            let participants = expense.participants?.compactMap { personMap[$0.id] }
             let paidBy = expense.paidBy.flatMap { personMap[$0.id] }
             let copy = SplitExpense(
                 id: expense.id,
@@ -319,7 +319,11 @@ final class MigrationManager: ObservableObject {
                 amount: expense.amount,
                 date: expense.date
             )
-            copy.participants = participants
+            if let participants, !participants.isEmpty {
+                copy.participants = participants
+            } else {
+                copy.participants = nil
+            }
             copy.paidBy = paidBy
             destinationContext.insert(copy)
         }

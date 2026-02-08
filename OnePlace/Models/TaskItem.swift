@@ -9,19 +9,19 @@ enum TaskPriority: String, CaseIterable, Codable {
 
 @Model
 final class TaskItem {
-    var id: UUID
-    var title: String
+    var id: UUID = UUID()
+    var title: String = ""
     var notes: String?
-    var priority: TaskPriority
+    var priority: TaskPriority = .normal
     var dueDate: Date?
-    var completed: Bool
-    var reminderEnabled: Bool
+    var completed: Bool = false
+    var reminderEnabled: Bool = false
     var reminderDate: Date?
-    var notificationId: String
+    var notificationId: String = ""
 
     init(
         id: UUID = UUID(),
-        title: String,
+        title: String = "",
         notes: String? = nil,
         priority: TaskPriority = .normal,
         dueDate: Date? = nil,
