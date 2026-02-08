@@ -10,13 +10,8 @@ struct SplitView: View {
     @State private var showingAddPerson = false
     @State private var showingAddExpense = false
     @State private var showEditExpenseSheet = false
-    @State private var editMode: EditMode = .inactive
     @State private var showCopiedAlert = false
     @State private var selectedExpense: SplitExpense?
-
-    private var isEditing: Bool {
-        editMode == .active
-    }
 
     var body: some View {
         NavigationStack {
@@ -26,12 +21,10 @@ struct SplitView: View {
                 expensesSection
             }
             .listStyle(.insetGrouped)
-            .environment(\.editMode, $editMode)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Split")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
-                }
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button {
                         showingAddExpense = true
@@ -123,16 +116,22 @@ struct SplitView: View {
             } else {
                 ForEach(expenses) { expense in
                     ExpenseRow(
-                        expense: expense,
-                        isEditing: isEditing,
-                        onEdit: {
-                            selectedExpense = expense
-                            showEditExpenseSheet = true
-                        },
-                        onDelete: {
-                            modelContext.delete(expense)
-                        }
+                        expense: expense
                     )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button {
+                            editExpense(expense)
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(.blue)
+
+                        Button(role: .destructive) {
+                            deleteExpense(expense)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 }
             }
         }
@@ -169,6 +168,15 @@ struct SplitView: View {
         UIPasteboard.general.string = text
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         showCopiedAlert = true
+    }
+
+    private func editExpense(_ expense: SplitExpense) {
+        selectedExpense = expense
+        showEditExpenseSheet = true
+    }
+
+    private func deleteExpense(_ expense: SplitExpense) {
+        modelContext.delete(expense)
     }
 }
 
@@ -321,9 +329,6 @@ private struct AddExpenseSheet: View {
 
 private struct ExpenseRow: View {
     let expense: SplitExpense
-    let isEditing: Bool
-    let onEdit: () -> Void
-    let onDelete: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -340,32 +345,17 @@ private struct ExpenseRow: View {
                 .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            if isEditing {
-                HStack(spacing: 8) {
-                    Button(action: onEdit) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.blue)
-                            .frame(width: 28, height: 28)
-                            .background(Color.blue.opacity(0.15))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-
-                    Button(role: .destructive, action: onDelete) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.red)
-                            .frame(width: 28, height: 28)
-                            .background(Color.red.opacity(0.2))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                .transition(.opacity)
-            }
         }
-        .animation(.easeInOut, value: isEditing)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .contentShape(Rectangle())
+        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
     }
 }
 
