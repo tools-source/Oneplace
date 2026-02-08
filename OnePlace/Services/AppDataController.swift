@@ -3,111 +3,24 @@ import SwiftData
 
 @MainActor
 final class AppDataController: ObservableObject {
-    static let cloudKitContainerIdentifier = "iCloud.com.tools-source.oneplace"
-    private static let cloudSyncEnabledKey = "cloudSyncEnabled"
-
-    @Published private(set) var cloudContainer: ModelContainer?
-    let localContainer: ModelContainer
-    @Published var container: ModelContainer
-    @Published private(set) var isCloudSyncEnabled: Bool
-    lazy var migrationManager: MigrationManager = {
-        MigrationManager(
-            localContainer: localContainer,
-            cloudContainer: cloudContainer,
-            onSwitchToCloud: { [weak self] container in
-                self?.container = container
-            }
-        )
-    }()
+    let container: ModelContainer
 
     init() {
         let schema = AppSchema.schema
-        let cloudContainerLocal = Self.makeCloudContainer(schema: schema)
-        let localContainerLocal = Self.makeLocalContainer(schema: schema)
-        let storedPreference = UserDefaults.standard.object(forKey: Self.cloudSyncEnabledKey) as? Bool
-        let defaultPreference = storedPreference ?? (cloudContainerLocal != nil)
-
-        cloudContainer = cloudContainerLocal
-        localContainer = localContainerLocal
-        isCloudSyncEnabled = defaultPreference
-
-        if defaultPreference, let cloudContainerLocal {
-            container = cloudContainerLocal
-        } else {
-            container = localContainerLocal
-        }
-
-        migrationManager.updateCloudContainer(cloudContainerLocal)
-        if defaultPreference {
-            Task { await migrationManager.handleCloudSyncEnabled() }
-        }
-    }
-
-    func setCloudSyncEnabled(_ isEnabled: Bool) {
-        isCloudSyncEnabled = isEnabled
-        UserDefaults.standard.set(isEnabled, forKey: Self.cloudSyncEnabledKey)
-
-        if isEnabled {
-            Task {
-                await enableCloudSync()
-            }
-        } else {
-            container = localContainer
-        }
-    }
-
-    func retryCloudContainer() async {
-        cloudContainer = Self.makeCloudContainer(schema: AppSchema.schema)
-        migrationManager.updateCloudContainer(cloudContainer)
-        if isCloudSyncEnabled {
-            await enableCloudSync()
-        }
-    }
-
-    private func enableCloudSync() async {
-        if cloudContainer == nil {
-            cloudContainer = Self.makeCloudContainer(schema: AppSchema.schema)
-            migrationManager.updateCloudContainer(cloudContainer)
-        }
-
-        guard let cloudContainer else {
-            container = localContainer
-            return
-        }
-
-        container = cloudContainer
-        await migrationManager.handleCloudSyncEnabled()
-    }
-
-    private static func makeCloudContainer(schema: Schema) -> ModelContainer? {
-        let configuration = ModelConfiguration(
-            "CloudStore",
-            schema: schema,
-            cloudKitDatabase: .private(Self.cloudKitContainerIdentifier)
-        )
-        do {
-            return try ModelContainer(for: schema, configurations: [configuration])
-        } catch {
-            logContainerError(error, configuration: configuration)
-            return nil
-        }
+        container = Self.makeLocalContainer(schema: schema)
     }
 
     private static func makeLocalContainer(schema: Schema) -> ModelContainer {
-        let configuration = ModelConfiguration(schema: schema)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: false
+        )
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             logContainerError(error, configuration: configuration)
             return makeInMemoryContainer(schema: schema)
         }
-    }
-
-    private static func makeContainer(schema: Schema) -> ModelContainer {
-        if let cloudContainer = makeCloudContainer(schema: schema) {
-            return cloudContainer
-        }
-        return makeLocalContainer(schema: schema)
     }
 
     private static func logContainerError(_ error: Error, configuration: ModelConfiguration) {

@@ -13,9 +13,7 @@
 		0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */; };
 		0BF9F9842F38664500E14DC7 /* AudioPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */; };
 		0BF9F9862F38666C00E14DC7 /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9852F38666C00E14DC7 /* StatCard.swift */; };
-		0C5A1A242F4B200100AA0001 /* CloudSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A202F4B200100AA0001 /* CloudSyncManager.swift */; };
 		0C5A1A252F4B200100AA0001 /* AppDataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A212F4B200100AA0001 /* AppDataController.swift */; };
-		0C5A1A262F4B200100AA0001 /* MigrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A222F4B200100AA0001 /* MigrationManager.swift */; };
 		0C5A1A272F4B200100AA0001 /* AppSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A282F4B200100AA0001 /* AppSchema.swift */; };
 		5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */; };
 		5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B6E2B2C8A4E00A1A1A1 /* FinanceEntry.swift */; };
@@ -43,9 +41,7 @@
 		0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCategory.swift; sourceTree = "<group>"; };
 		0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerManager.swift; sourceTree = "<group>"; };
 		0BF9F9852F38666C00E14DC7 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
-		0C5A1A202F4B200100AA0001 /* CloudSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncManager.swift; sourceTree = "<group>"; };
 		0C5A1A212F4B200100AA0001 /* AppDataController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataController.swift; sourceTree = "<group>"; };
-		0C5A1A222F4B200100AA0001 /* MigrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationManager.swift; sourceTree = "<group>"; };
 		0C5A1A282F4B200100AA0001 /* AppSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchema.swift; sourceTree = "<group>"; };
 		0C5A1A232F4B200100AA0001 /* OnePlace.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePlace.entitlements; sourceTree = "<group>"; };
 		5F8A9B5F2B2C8A4E00A1A1A1 /* OnePlace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = OnePlace.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -146,8 +142,6 @@
 			children = (
 				0C5A1A282F4B200100AA0001 /* AppSchema.swift */,
 				0C5A1A212F4B200100AA0001 /* AppDataController.swift */,
-				0C5A1A202F4B200100AA0001 /* CloudSyncManager.swift */,
-				0C5A1A222F4B200100AA0001 /* MigrationManager.swift */,
 				5F8A9B782B2C8A4E00A1A1A1 /* SampleData.swift */,
 				5F8A9B7A2B2C8A4E00A1A1A1 /* AudioRecorder.swift */,
 				5F8A9B7C2B2C8A4E00A1A1A1 /* ImagePicker.swift */,
@@ -234,8 +228,6 @@
 				5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */,
 				5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */,
 				0C5A1A252F4B200100AA0001 /* AppDataController.swift in Sources */,
-				0C5A1A242F4B200100AA0001 /* CloudSyncManager.swift in Sources */,
-				0C5A1A262F4B200100AA0001 /* MigrationManager.swift in Sources */,
 				0C5A1A272F4B200100AA0001 /* AppSchema.swift in Sources */,
 				5F8A9B712B2C8A4E00A1A1A1 /* TaskItem.swift in Sources */,
 				5F8A9B732B2C8A4E00A1A1A1 /* SplitModels.swift in Sources */,
