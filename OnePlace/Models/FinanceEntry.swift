@@ -15,6 +15,7 @@ enum FinanceUrgency: String, CaseIterable, Codable {
 @Model
 final class FinanceEntry {
     var id: UUID = UUID()
+    var ownerUserId: String = ""
     var amount: Double = 0
     var type: FinanceType = FinanceType.gain
     var category: String = "Uncategorized"
@@ -24,6 +25,7 @@ final class FinanceEntry {
 
     init(
         id: UUID = UUID(),
+        ownerUserId: String,
         amount: Double = 0,
         type: FinanceType = FinanceType.gain,
         category: String = "Uncategorized",
@@ -32,6 +34,7 @@ final class FinanceEntry {
         urgency: FinanceUrgency = FinanceUrgency.medium
     ) {
         self.id = id
+        self.ownerUserId = ownerUserId
         self.amount = amount
         self.type = type
         self.category = category

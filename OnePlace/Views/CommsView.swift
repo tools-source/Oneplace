@@ -3,14 +3,24 @@ import SwiftUI
 import UIKit
 
 struct CommsView: View {
+    let ownerUserId: String
+
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \CommsCard.title) private var cards: [CommsCard]
+    @Query private var cards: [CommsCard]
 
     @State private var showingEditor = false
     @State private var editingCard: CommsCard?
     @StateObject private var audioPlayer = AudioPlayerManager.shared
 
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 16)]
+
+    init(ownerUserId: String) {
+        self.ownerUserId = ownerUserId
+        _cards = Query(
+            filter: #Predicate<CommsCard> { $0.ownerUserId == ownerUserId },
+            sort: [SortDescriptor(\.title)]
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -54,10 +64,10 @@ struct CommsView: View {
                 }
             }
             .sheet(item: $editingCard) { card in
-                CommsCardEditor(card: card)
+                CommsCardEditor(ownerUserId: ownerUserId, card: card)
             }
             .sheet(isPresented: $showingEditor) {
-                CommsCardEditor(card: nil) { newCard in
+                CommsCardEditor(ownerUserId: ownerUserId, card: nil) { newCard in
                     modelContext.insert(newCard)
                 }
             }
@@ -157,8 +167,10 @@ private struct CommsCardEditor: View {
 
     private let card: CommsCard?
     private let onSave: ((CommsCard) -> Void)?
+    private let ownerUserId: String
 
-    init(card: CommsCard?, onSave: ((CommsCard) -> Void)? = nil) {
+    init(ownerUserId: String, card: CommsCard?, onSave: ((CommsCard) -> Void)? = nil) {
+        self.ownerUserId = ownerUserId
         self.card = card
         self.onSave = onSave
         _title = State(initialValue: card?.title ?? "")
@@ -231,6 +243,7 @@ private struct CommsCardEditor: View {
                             card.audioData = audioData
                         } else {
                             let newCard = CommsCard(
+                                ownerUserId: ownerUserId,
                                 title: title,
                                 phrase: phrase,
                                 language: language,
@@ -253,6 +266,7 @@ private struct CommsCardEditor: View {
 }
 
 #Preview {
-    CommsView()
+    CommsView(ownerUserId: SampleData.previewUserId)
         .modelContainer(SampleData.makeContainer())
+        .environmentObject(AuthManager())
 }

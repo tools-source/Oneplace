@@ -3,12 +3,22 @@ import SwiftUI
 import UserNotifications
 
 struct FlowView: View {
+    let ownerUserId: String
+
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \FlowItem.nextDueDate) private var items: [FlowItem]
+    @Query private var items: [FlowItem]
 
     @State private var showingAdd = false
     @State private var editingItem: FlowItem?
     @State private var searchText = ""
+
+    init(ownerUserId: String) {
+        self.ownerUserId = ownerUserId
+        _items = Query(
+            filter: #Predicate<FlowItem> { $0.ownerUserId == ownerUserId },
+            sort: [SortDescriptor(\.nextDueDate)]
+        )
+    }
 
     private var filteredItems: [FlowItem] {
         guard !searchText.isEmpty else { return items }
@@ -33,13 +43,13 @@ struct FlowView: View {
                 }
             }
             .sheet(isPresented: $showingAdd) {
-                FlowItemEditor(item: nil) { item in
+                FlowItemEditor(ownerUserId: ownerUserId, item: nil) { item in
                     modelContext.insert(item)
                     scheduleReminder(for: item)
                 }
             }
             .sheet(item: $editingItem) { item in
-                FlowItemEditor(item: item) { updatedItem in
+                FlowItemEditor(ownerUserId: ownerUserId, item: item) { updatedItem in
                     scheduleReminder(for: updatedItem)
                 }
             }
@@ -257,6 +267,7 @@ private struct FlowItemEditor: View {
 
     private let item: FlowItem?
     private let onSave: (FlowItem) -> Void
+    private let ownerUserId: String
     private static let amountFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -266,7 +277,8 @@ private struct FlowItemEditor: View {
         return formatter
     }()
 
-    init(item: FlowItem?, onSave: @escaping (FlowItem) -> Void) {
+    init(ownerUserId: String, item: FlowItem?, onSave: @escaping (FlowItem) -> Void) {
+        self.ownerUserId = ownerUserId
         self.item = item
         self.onSave = onSave
         _title = State(initialValue: item?.title ?? "")
@@ -362,6 +374,7 @@ private struct FlowItemEditor: View {
                             onSave(item)
                         } else {
                             let newItem = FlowItem(
+                                ownerUserId: ownerUserId,
                                 title: title,
                                 amount: amountValue,
                                 type: type,
@@ -418,6 +431,7 @@ private struct FlowItemEditor: View {
 }
 
 #Preview {
-    FlowView()
+    FlowView(ownerUserId: SampleData.previewUserId)
         .modelContainer(SampleData.makeContainer())
+        .environmentObject(AuthManager())
 }

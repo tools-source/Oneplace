@@ -30,6 +30,7 @@ enum ReminderRepeatRule: String, CaseIterable, Codable {
 @Model
 final class FlowItem {
     var id: UUID = UUID()
+    var ownerUserId: String = ""
     var title: String = ""
     var amount: Double = 0
     var type: FlowType = FlowType.bill
@@ -58,6 +59,7 @@ final class FlowItem {
 
     init(
         id: UUID = UUID(),
+        ownerUserId: String,
         title: String = "",
         amount: Double = 0,
         type: FlowType = FlowType.bill,
@@ -73,6 +75,7 @@ final class FlowItem {
         notificationId: String? = nil
     ) {
         self.id = id
+        self.ownerUserId = ownerUserId
         self.title = title
         self.amount = amount
         self.type = type

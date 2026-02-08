@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct OnePlaceApp: App {
     @StateObject private var dataController: AppDataController
+    @StateObject private var authManager = AuthManager()
 
     init() {
         let controller = AppDataController()
@@ -11,7 +12,14 @@ struct OnePlaceApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            Group {
+                if authManager.isLoggedIn, let userId = authManager.currentUserId {
+                    RootTabView(ownerUserId: userId)
+                } else {
+                    LoginView()
+                }
+            }
+            .environmentObject(authManager)
         }
         .modelContainer(dataController.container)
     }

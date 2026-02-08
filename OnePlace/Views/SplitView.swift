@@ -3,15 +3,29 @@ import SwiftUI
 import UIKit
 
 struct SplitView: View {
+    let ownerUserId: String
+
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \SplitPerson.name) private var people: [SplitPerson]
-    @Query(sort: \SplitExpense.date, order: .reverse) private var expenses: [SplitExpense]
+    @Query private var people: [SplitPerson]
+    @Query private var expenses: [SplitExpense]
 
     @State private var showingAddPerson = false
     @State private var showingAddExpense = false
     @State private var showEditExpenseSheet = false
     @State private var showCopiedAlert = false
     @State private var selectedExpense: SplitExpense?
+
+    init(ownerUserId: String) {
+        self.ownerUserId = ownerUserId
+        _people = Query(
+            filter: #Predicate<SplitPerson> { $0.ownerUserId == ownerUserId },
+            sort: [SortDescriptor(\.name)]
+        )
+        _expenses = Query(
+            filter: #Predicate<SplitExpense> { $0.ownerUserId == ownerUserId },
+            sort: [SortDescriptor(\.date, order: .reverse)]
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -44,17 +58,17 @@ struct SplitView: View {
                 Text("Balances copied to clipboard.")
             }
             .sheet(isPresented: $showingAddPerson) {
-                AddPersonSheet { person in
+                AddPersonSheet(ownerUserId: ownerUserId) { person in
                     modelContext.insert(person)
                 }
             }
             .sheet(isPresented: $showingAddExpense) {
-                AddExpenseSheet(people: people) { expense in
+                AddExpenseSheet(ownerUserId: ownerUserId, people: people) { expense in
                     modelContext.insert(expense)
                 }
             }
             .sheet(isPresented: $showEditExpenseSheet, onDismiss: { selectedExpense = nil }) {
-                AddExpenseSheet(people: people, expenseToEdit: selectedExpense) { expense in
+                AddExpenseSheet(ownerUserId: ownerUserId, people: people, expenseToEdit: selectedExpense) { expense in
                     modelContext.insert(expense)
                 }
             }
@@ -185,6 +199,7 @@ private struct AddPersonSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
 
+    let ownerUserId: String
     let onSave: (SplitPerson) -> Void
 
     var body: some View {
@@ -199,7 +214,7 @@ private struct AddPersonSheet: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        onSave(SplitPerson(name: name))
+                        onSave(SplitPerson(ownerUserId: ownerUserId, name: name))
                         dismiss()
                     }
                     .disabled(name.isEmpty)
@@ -212,6 +227,7 @@ private struct AddPersonSheet: View {
 private struct AddExpenseSheet: View {
     @Environment(\.dismiss) private var dismiss
 
+    let ownerUserId: String
     let people: [SplitPerson]
     let expenseToEdit: SplitExpense?
     let onSave: (SplitExpense) -> Void
@@ -224,10 +240,12 @@ private struct AddExpenseSheet: View {
     @State private var hasLoaded = false
 
     init(
+        ownerUserId: String,
         people: [SplitPerson],
         expenseToEdit: SplitExpense? = nil,
         onSave: @escaping (SplitExpense) -> Void
     ) {
+        self.ownerUserId = ownerUserId
         self.people = people
         self.expenseToEdit = expenseToEdit
         self.onSave = onSave
@@ -290,6 +308,7 @@ private struct AddExpenseSheet: View {
                             expenseToEdit.participants = participants
                         } else {
                             let expense = SplitExpense(
+                                ownerUserId: ownerUserId,
                                 title: title,
                                 amount: amountValue,
                                 date: date
@@ -363,7 +382,7 @@ private struct ExpenseRow: View {
 }
 
 #Preview {
-    SplitView()
+    SplitView(ownerUserId: SampleData.previewUserId)
         .modelContainer(SampleData.makeContainer())
+        .environmentObject(AuthManager())
 }
-

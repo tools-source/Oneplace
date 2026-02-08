@@ -4,6 +4,7 @@ import SwiftData
 @Model
 final class CommsCard {
     var id: UUID = UUID()
+    var ownerUserId: String = ""
     var title: String = ""
     var phrase: String = ""
     var language: String = ""
@@ -13,6 +14,7 @@ final class CommsCard {
 
     init(
         id: UUID = UUID(),
+        ownerUserId: String,
         title: String = "",
         phrase: String = "",
         language: String = "",
@@ -21,6 +23,7 @@ final class CommsCard {
         audioData: Data? = nil
     ) {
         self.id = id
+        self.ownerUserId = ownerUserId
         self.title = title
         self.phrase = phrase
         self.language = language
