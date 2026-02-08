@@ -138,10 +138,10 @@ struct SplitView: View {
     }
 
     private func balanceForPerson(_ person: SplitPerson) -> Double {
-        let related = expenses.filter { ($0.participants ?? []).contains(where: { $0.id == person.id }) }
+        let related = expenses.filter { $0.participants.contains(where: { $0.id == person.id }) }
         let totalPaid = expenses.filter { $0.paidBy?.id == person.id }.map(\.amount).reduce(0, +)
         let share = related.reduce(0) { partial, expense in
-            let participantCount = expense.participants?.count ?? 0
+            let participantCount = expense.participants.count
             let count = Double(max(participantCount, 1))
             return partial + expense.amount / count
         }
@@ -281,21 +281,20 @@ private struct AddExpenseSheet: View {
                     Button("Save") {
                         guard let amountValue = parsedAmount, amountValue > 0 else { return }
                         let participants = people.filter { selectedParticipants.contains($0.id) }
-                        let finalParticipants: [SplitPerson]? = participants.isEmpty ? nil : participants
                         if let expenseToEdit {
                             expenseToEdit.title = title
                             expenseToEdit.amount = amountValue
                             expenseToEdit.date = date
-                            expenseToEdit.participants = finalParticipants
+                            expenseToEdit.participants = participants
                             expenseToEdit.paidBy = paidBy
                         } else {
                             let expense = SplitExpense(
                                 title: title,
                                 amount: amountValue,
-                                date: date,
-                                participants: finalParticipants,
-                                paidBy: paidBy
+                                date: date
                             )
+                            expense.participants = participants
+                            expense.paidBy = paidBy
                             onSave(expense)
                         }
                         dismiss()
@@ -311,7 +310,7 @@ private struct AddExpenseSheet: View {
             title = expenseToEdit.title
             amountText = String(format: "%.2f", expenseToEdit.amount)
             date = expenseToEdit.date
-            selectedParticipants = Set((expenseToEdit.participants ?? []).map(\.id))
+            selectedParticipants = Set(expenseToEdit.participants.map(\.id))
             paidBy = expenseToEdit.paidBy
         }
     }

@@ -5,8 +5,8 @@ import SwiftData
 final class SplitPerson {
     var id: UUID
     var name: String
-    @Relationship(deleteRule: .nullify, inverse: \SplitExpense.participants) var expenses: [SplitExpense]
-    @Relationship(deleteRule: .nullify, inverse: \SplitExpense.paidBy) var expensesPaid: [SplitExpense]
+    @Relationship(deleteRule: .nullify, inverse: \SplitExpense.participants) var expenses: [SplitExpense] = []
+    @Relationship(deleteRule: .nullify, inverse: \SplitExpense.paidBy) var expensesPaid: [SplitExpense] = []
 
     init(
         id: UUID = UUID(),
@@ -23,8 +23,8 @@ final class SplitExpense {
     var title: String
     var amount: Double
     var date: Date
-    @Relationship(deleteRule: .nullify, inverse: \SplitPerson.expenses) var participants: [SplitPerson]
-    @Relationship(deleteRule: .nullify, inverse: \SplitPerson.expensesPaid) var paidBy: SplitPerson?
+    @Relationship(deleteRule: .nullify, inverse: \SplitPerson.expenses) var participants: [SplitPerson] = []
+    @Relationship(deleteRule: .nullify, inverse: \SplitPerson.expensesPaid) var paidBy: SplitPerson? = nil
 
     init(
         id: UUID = UUID(),
