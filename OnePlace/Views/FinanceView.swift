@@ -60,26 +60,24 @@ struct FinanceView: View {
             LazyVGrid(columns: columns, spacing: 12) {
                 StatCard(
                     title: "Net",
-                    value: netTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
-                    subtitle: "",
+                    value: StatCard.currencyString(for: netTotal),
                     icon: "chart.line.uptrend.xyaxis",
                     tint: netTotal >= 0 ? .green : .red
                 )
                 StatCard(
                     title: "Gain",
-                    value: gainTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
-                    subtitle: "",
+                    value: StatCard.currencyString(for: gainTotal),
                     icon: "arrow.up.right.circle.fill",
                     tint: .green
                 )
                 StatCard(
                     title: "Owe",
-                    value: oweTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
-                    subtitle: "",
+                    value: StatCard.currencyString(for: oweTotal),
                     icon: "arrow.down.right.circle.fill",
                     tint: .orange
                 )
             }
+            .padding(.horizontal, 16)
         }
         .listRowBackground(Color(.systemBackground))
     }
@@ -405,4 +403,3 @@ private struct FinanceEntryEditor: View {
     FinanceView()
         .modelContainer(SampleData.makeContainer())
 }
-
