@@ -14,9 +14,9 @@
 		0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */; };
 		0BF9F9842F38664500E14DC7 /* AudioPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */; };
 		0BF9F9862F38666C00E14DC7 /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9852F38666C00E14DC7 /* StatCard.swift */; };
-		0C5A1A1B2F4B100100AA0001 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A1A2F4B100100AA0001 /* KeychainService.swift */; };
-		0C5A1A1D2F4B101200AA0001 /* KeychainKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A1C2F4B101200AA0001 /* KeychainKeys.swift */; };
-		0C5A1A1F2F4B102300AA0001 /* IdentityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A1E2F4B102300AA0001 /* IdentityManager.swift */; };
+		0C5A1A242F4B200100AA0001 /* CloudSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A202F4B200100AA0001 /* CloudSyncManager.swift */; };
+		0C5A1A252F4B200100AA0001 /* AppDataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A212F4B200100AA0001 /* AppDataController.swift */; };
+		0C5A1A262F4B200100AA0001 /* MigrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5A1A222F4B200100AA0001 /* MigrationManager.swift */; };
 		5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */; };
 		5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B6E2B2C8A4E00A1A1A1 /* FinanceEntry.swift */; };
 		5F8A9B712B2C8A4E00A1A1A1 /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B702B2C8A4E00A1A1A1 /* TaskItem.swift */; };
@@ -44,9 +44,10 @@
 		0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCategory.swift; sourceTree = "<group>"; };
 		0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerManager.swift; sourceTree = "<group>"; };
 		0BF9F9852F38666C00E14DC7 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
-		0C5A1A1A2F4B100100AA0001 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
-		0C5A1A1C2F4B101200AA0001 /* KeychainKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainKeys.swift; sourceTree = "<group>"; };
-		0C5A1A1E2F4B102300AA0001 /* IdentityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityManager.swift; sourceTree = "<group>"; };
+		0C5A1A202F4B200100AA0001 /* CloudSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncManager.swift; sourceTree = "<group>"; };
+		0C5A1A212F4B200100AA0001 /* AppDataController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataController.swift; sourceTree = "<group>"; };
+		0C5A1A222F4B200100AA0001 /* MigrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationManager.swift; sourceTree = "<group>"; };
+		0C5A1A232F4B200100AA0001 /* OnePlace.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePlace.entitlements; sourceTree = "<group>"; };
 		5F8A9B5F2B2C8A4E00A1A1A1 /* OnePlace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = OnePlace.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceApp.swift; sourceTree = "<group>"; };
 		5F8A9B6E2B2C8A4E00A1A1A1 /* FinanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceEntry.swift; sourceTree = "<group>"; };
@@ -98,6 +99,7 @@
 			isa = PBXGroup;
 			children = (
 				5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */,
+				0C5A1A232F4B200100AA0001 /* OnePlace.entitlements */,
 				5F8A9B8E2B2C8A4E00A1A1A1 /* Info.plist */,
 				5F8A9B622B2C8A4E00A1A1A1 /* Models */,
 				5F8A9B632B2C8A4E00A1A1A1 /* Views */,
@@ -143,9 +145,9 @@
 		5F8A9B642B2C8A4E00A1A1A1 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				0C5A1A1C2F4B101200AA0001 /* KeychainKeys.swift */,
-				0C5A1A1A2F4B100100AA0001 /* KeychainService.swift */,
-				0C5A1A1E2F4B102300AA0001 /* IdentityManager.swift */,
+				0C5A1A212F4B200100AA0001 /* AppDataController.swift */,
+				0C5A1A202F4B200100AA0001 /* CloudSyncManager.swift */,
+				0C5A1A222F4B200100AA0001 /* MigrationManager.swift */,
 				5F8A9B782B2C8A4E00A1A1A1 /* SampleData.swift */,
 				5F8A9B7A2B2C8A4E00A1A1A1 /* AudioRecorder.swift */,
 				5F8A9B7C2B2C8A4E00A1A1A1 /* ImagePicker.swift */,
@@ -232,9 +234,9 @@
 				5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */,
 				5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */,
 				0BF9F9802F383BA800E14DC7 /* NotificationManager.swift in Sources */,
-				0C5A1A1F2F4B102300AA0001 /* IdentityManager.swift in Sources */,
-				0C5A1A1D2F4B101200AA0001 /* KeychainKeys.swift in Sources */,
-				0C5A1A1B2F4B100100AA0001 /* KeychainService.swift in Sources */,
+				0C5A1A252F4B200100AA0001 /* AppDataController.swift in Sources */,
+				0C5A1A242F4B200100AA0001 /* CloudSyncManager.swift in Sources */,
+				0C5A1A262F4B200100AA0001 /* MigrationManager.swift in Sources */,
 				5F8A9B712B2C8A4E00A1A1A1 /* TaskItem.swift in Sources */,
 				5F8A9B732B2C8A4E00A1A1A1 /* SplitModels.swift in Sources */,
 				5F8A9B752B2C8A4E00A1A1A1 /* CommsCard.swift in Sources */,
@@ -267,6 +269,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = OnePlace/OnePlace.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
@@ -292,6 +295,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = OnePlace/OnePlace.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
