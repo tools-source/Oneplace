@@ -49,21 +49,21 @@ struct OrganizerView: View {
     private var summarySection: some View {
         Section {
             LazyVGrid(columns: organizerSummaryColumns, alignment: .leading, spacing: 12) {
-                StatCard(
+                OrganizerStatCard(
                     title: "Today",
                     value: todayTasks.count.formatted(),
                     subtitle: "Tasks",
                     icon: "checkmark.circle",
                     tint: .blue
                 )
-                StatCard(
+                OrganizerStatCard(
                     title: "Upcoming",
                     value: upcomingTasks.count.formatted(),
                     subtitle: "Tasks",
                     icon: "clock",
                     tint: .purple
                 )
-                StatCard(
+                OrganizerStatCard(
                     title: "Done",
                     value: completedTasks.count.formatted(),
                     subtitle: "Tasks",
@@ -274,6 +274,43 @@ private struct TaskEditor: View {
                 }
             }
         }
+    }
+}
+
+private struct OrganizerStatCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let icon: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.headline)
+                    .foregroundStyle(tint)
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            Text(value)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.primary)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(tint.opacity(0.2))
+        )
     }
 }
 

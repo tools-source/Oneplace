@@ -12,6 +12,8 @@
 		0BF9F97E2F383BA400E14DC7 /* AppCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F97D2F383BA400E14DC7 /* AppCard.swift */; };
 		0BF9F9802F383BA800E14DC7 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F97F2F383BA800E14DC7 /* NotificationManager.swift */; };
 		0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */; };
+		0BF9F9842F38664500E14DC7 /* AudioPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */; };
+		0BF9F9862F38666C00E14DC7 /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9852F38666C00E14DC7 /* StatCard.swift */; };
 		5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */; };
 		5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B6E2B2C8A4E00A1A1A1 /* FinanceEntry.swift */; };
 		5F8A9B712B2C8A4E00A1A1A1 /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B702B2C8A4E00A1A1A1 /* TaskItem.swift */; };
@@ -37,6 +39,8 @@
 		0BF9F97D2F383BA400E14DC7 /* AppCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCard.swift; sourceTree = "<group>"; };
 		0BF9F97F2F383BA800E14DC7 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCategory.swift; sourceTree = "<group>"; };
+		0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerManager.swift; sourceTree = "<group>"; };
+		0BF9F9852F38666C00E14DC7 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
 		5F8A9B5F2B2C8A4E00A1A1A1 /* OnePlace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = OnePlace.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceApp.swift; sourceTree = "<group>"; };
 		5F8A9B6E2B2C8A4E00A1A1A1 /* FinanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceEntry.swift; sourceTree = "<group>"; };
@@ -124,6 +128,8 @@
 				0BF9F97D2F383BA400E14DC7 /* AppCard.swift */,
 				0BF9F97F2F383BA800E14DC7 /* NotificationManager.swift */,
 				0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */,
+				0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */,
+				0BF9F9852F38666C00E14DC7 /* StatCard.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -221,6 +227,7 @@
 				5F8A9B732B2C8A4E00A1A1A1 /* SplitModels.swift in Sources */,
 				5F8A9B752B2C8A4E00A1A1A1 /* CommsCard.swift in Sources */,
 				0BF9F97A2F383B3900E14DC7 /* SettingsView 2.swift in Sources */,
+				0BF9F9842F38664500E14DC7 /* AudioPlayerManager.swift in Sources */,
 				0BF9F97E2F383BA400E14DC7 /* AppCard.swift in Sources */,
 				5F8A9B772B2C8A4E00A1A1A1 /* FlowItem.swift in Sources */,
 				5F8A9B792B2C8A4E00A1A1A1 /* SampleData.swift in Sources */,
@@ -230,6 +237,7 @@
 				5F8A9B812B2C8A4E00A1A1A1 /* FinanceView.swift in Sources */,
 				5F8A9B832B2C8A4E00A1A1A1 /* FlowView.swift in Sources */,
 				5F8A9B852B2C8A4E00A1A1A1 /* OrganizerView.swift in Sources */,
+				0BF9F9862F38666C00E14DC7 /* StatCard.swift in Sources */,
 				0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */,
 				5F8A9B872B2C8A4E00A1A1A1 /* SplitView.swift in Sources */,
 				0BF9F97C2F383B6400E14DC7 /* EmptyState.swift in Sources */,

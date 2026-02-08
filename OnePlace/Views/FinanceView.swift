@@ -61,21 +61,21 @@ struct FinanceView: View {
                 StatCard(
                     title: "Net",
                     value: netTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
-                    subtitle: nil,
+                    subtitle: "",
                     icon: "chart.line.uptrend.xyaxis",
                     tint: netTotal >= 0 ? .green : .red
                 )
                 StatCard(
                     title: "Gain",
                     value: gainTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
-                    subtitle: nil,
+                    subtitle: "",
                     icon: "arrow.up.right.circle.fill",
                     tint: .green
                 )
                 StatCard(
                     title: "Owe",
                     value: oweTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
-                    subtitle: nil,
+                    subtitle: "",
                     icon: "arrow.down.right.circle.fill",
                     tint: .orange
                 )
@@ -405,3 +405,4 @@ private struct FinanceEntryEditor: View {
     FinanceView()
         .modelContainer(SampleData.makeContainer())
 }
+
