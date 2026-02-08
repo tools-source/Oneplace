@@ -26,6 +26,10 @@
 	<string>Record short audio clips for communication cards.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select an image for communication cards.</string>
+	<key>NSServices</key>
+	<array>
+		<dict/>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UILaunchStoryboardName</key>

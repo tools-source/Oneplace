@@ -138,10 +138,10 @@ struct SplitView: View {
     }
 
     private func balanceForPerson(_ person: SplitPerson) -> Double {
-        let related = expenses.filter { $0.participants?.contains(where: { $0.id == person.id }) ?? false }
+        let related = expenses.filter { $0.participants.contains(where: { $0.id == person.id }) }
         let totalPaid = expenses.filter { $0.paidBy?.id == person.id }.map(\.amount).reduce(0, +)
         let share = related.reduce(0) { partial, expense in
-            let participantCount = expense.participants?.count ?? 0
+            let participantCount = expense.participants.count
             let count = Double(max(participantCount, 1))
             return partial + expense.amount / count
         }
@@ -281,21 +281,22 @@ private struct AddExpenseSheet: View {
                     Button("Save") {
                         guard let amountValue = parsedAmount, amountValue > 0 else { return }
                         let participants = people.filter { selectedParticipants.contains($0.id) }
-                        let participantAssignment = participants.isEmpty ? nil : participants
                         if let expenseToEdit {
                             expenseToEdit.title = title
                             expenseToEdit.amount = amountValue
                             expenseToEdit.date = date
-                            expenseToEdit.participants = participantAssignment
                             expenseToEdit.paidBy = paidBy
+                            // Always assign an array; empty means no participants
+                            expenseToEdit.participants = participants
                         } else {
                             let expense = SplitExpense(
                                 title: title,
                                 amount: amountValue,
                                 date: date
                             )
-                            expense.participants = participantAssignment
                             expense.paidBy = paidBy
+                            // Always assign an array; empty means no participants
+                            expense.participants = participants
                             onSave(expense)
                         }
                         dismiss()
@@ -311,7 +312,7 @@ private struct AddExpenseSheet: View {
             title = expenseToEdit.title
             amountText = String(format: "%.2f", expenseToEdit.amount)
             date = expenseToEdit.date
-            selectedParticipants = Set(expenseToEdit.participants?.map(\.id) ?? [])
+            selectedParticipants = Set(expenseToEdit.participants.map(\.id))
             paidBy = expenseToEdit.paidBy
         }
     }
@@ -365,3 +366,4 @@ private struct ExpenseRow: View {
     SplitView()
         .modelContainer(SampleData.makeContainer())
 }
+
