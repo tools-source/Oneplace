@@ -25,12 +25,7 @@ struct RootTabView: View {
 
             CommsView()
                 .tabItem {
-                    Label("Comms", systemImage: "quote.bubble")
-                }
-
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape")
+                    Label("Comms", systemImage: "bubble.left.and.bubble.right")
                 }
         }
     }
