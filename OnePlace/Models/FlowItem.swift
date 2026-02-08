@@ -20,6 +20,13 @@ enum FlowStatus: String, CaseIterable, Codable {
     case skipped
 }
 
+enum ReminderRepeatRule: String, CaseIterable, Codable {
+    case none
+    case daily
+    case weekly
+    case monthly
+}
+
 @Model
 final class FlowItem {
     var id: UUID
@@ -30,6 +37,12 @@ final class FlowItem {
     var nextDueDate: Date
     var status: FlowStatus
     var notes: String?
+    var reminderEnabled: Bool
+    var reminderDate: Date?
+    var reminderTime: DateComponents?
+    var reminderRepeat: ReminderRepeatRule
+    var reminderOffsetDays: Int
+    var notificationId: String
 
     init(
         id: UUID = UUID(),
@@ -39,7 +52,13 @@ final class FlowItem {
         frequency: FlowFrequency,
         nextDueDate: Date = Date(),
         status: FlowStatus = .upcoming,
-        notes: String? = nil
+        notes: String? = nil,
+        reminderEnabled: Bool = false,
+        reminderDate: Date? = nil,
+        reminderTime: DateComponents? = nil,
+        reminderRepeat: ReminderRepeatRule = .none,
+        reminderOffsetDays: Int = 0,
+        notificationId: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -49,5 +68,11 @@ final class FlowItem {
         self.nextDueDate = nextDueDate
         self.status = status
         self.notes = notes
+        self.reminderEnabled = reminderEnabled
+        self.reminderDate = reminderDate
+        self.reminderTime = reminderTime
+        self.reminderRepeat = reminderRepeat
+        self.reminderOffsetDays = reminderOffsetDays
+        self.notificationId = notificationId ?? id.uuidString
     }
 }

@@ -28,9 +28,9 @@ struct RootTabView: View {
                     Label("Comms", systemImage: "quote.bubble")
                 }
 
-            HelpView()
+            SettingsView()
                 .tabItem {
-                    Label("Help", systemImage: "questionmark.circle")
+                    Label("Settings", systemImage: "gearshape")
                 }
         }
     }
