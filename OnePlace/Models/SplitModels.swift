@@ -20,8 +20,8 @@ final class SplitExpense {
     var title: String
     var amount: Double
     var date: Date
-    @Relationship(deleteRule: .nullify) var participants: [SplitPerson]?
-    @Relationship(deleteRule: .nullify) var paidBy: SplitPerson?
+    @Relationship(deleteRule: .nullify, inverse: \SplitPerson.expenses) var participants: [SplitPerson]?
+    @Relationship(deleteRule: .nullify, inverse: \SplitPerson.expensesPaid) var paidBy: SplitPerson?
 
     init(
         id: UUID = UUID(),

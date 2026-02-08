@@ -2,8 +2,8 @@ import SwiftUI
 import UserNotifications
 
 struct SettingsView: View {
-    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var cloudSyncManager: CloudSyncManager
+    @EnvironmentObject private var dataController: AppDataController
 
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var pendingRequests: [UNNotificationRequest] = []
@@ -40,10 +40,17 @@ struct SettingsView: View {
 
     private var iCloudSyncSection: some View {
         Section("iCloud Sync") {
+            Toggle("Sync with iCloud", isOn: Binding(
+                get: { dataController.isCloudSyncEnabled },
+                set: { isEnabled in
+                    dataController.setCloudSyncEnabled(isEnabled)
+                }
+            ))
+
             HStack {
-                Text("iCloud Sync")
+                Text("Status")
                 Spacer()
-                Text(cloudSyncManager.isICloudAvailable ? "On" : "Off")
+                Text(iCloudAvailabilityLabel)
                     .foregroundStyle(.secondary)
             }
 
@@ -69,8 +76,11 @@ struct SettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            Button("Retry Sync") {
-                Task { await cloudSyncManager.forceSync(modelContext: modelContext) }
+            Button("Retry") {
+                Task {
+                    await dataController.retryCloudContainer()
+                    await cloudSyncManager.refreshStatus()
+                }
             }
             .buttonStyle(.bordered)
         }
@@ -175,6 +185,19 @@ struct SettingsView: View {
         }
     }
 
+    private var iCloudAvailabilityLabel: String {
+        switch cloudSyncManager.accountStatus {
+        case .available:
+            return cloudSyncManager.isICloudAvailable ? "Available" : "Denied"
+        case .noAccount, .restricted:
+            return "Denied"
+        case .couldNotDetermine:
+            return "Not Set"
+        @unknown default:
+            return "Not Set"
+        }
+    }
+
     private func refreshStatus() async {
         if isRefreshing { return }
         isRefreshing = true
@@ -238,5 +261,6 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .modelContainer(SampleData.makeContainer())
+        .environmentObject(AppDataController())
         .environmentObject(CloudSyncManager(containerIdentifier: AppDataController.cloudKitContainerIdentifier))
 }

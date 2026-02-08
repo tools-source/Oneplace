@@ -4,10 +4,12 @@ import SwiftData
 @MainActor
 final class AppDataController: ObservableObject {
     static let cloudKitContainerIdentifier = "iCloud.com.tools-source.oneplace"
+    private static let cloudSyncEnabledKey = "cloudSyncEnabled"
 
-    let cloudContainer: ModelContainer
+    @Published private(set) var cloudContainer: ModelContainer?
     let localContainer: ModelContainer
     @Published var container: ModelContainer
+    @Published private(set) var isCloudSyncEnabled: Bool
     lazy var migrationManager: MigrationManager = {
         MigrationManager(
             localContainer: localContainer,
@@ -21,66 +23,85 @@ final class AppDataController: ObservableObject {
     init() {
         let schema = AppSchema.shared
 
-        let localConfiguration = ModelConfiguration(schema: schema)
-        let cloudConfiguration: ModelConfiguration? = {
-            guard FileManager.default.ubiquityIdentityToken != nil else {
-                return nil
-            }
-            return ModelConfiguration(
-                "CloudStore",
-                schema: schema,
-                cloudKitDatabase: .private(Self.cloudKitContainerIdentifier)
-            )
-        }()
+        cloudContainer = Self.makeCloudContainer(schema: schema)
+        localContainer = Self.makeLocalContainer(schema: schema)
 
-        localContainer = Self.makeContainer(schema: schema, configuration: localConfiguration)
-        if let cloudConfiguration {
-            cloudContainer = Self.makeContainer(
-                schema: schema,
-                configuration: cloudConfiguration,
-                fallback: localContainer
-            )
+        let storedPreference = UserDefaults.standard.object(forKey: Self.cloudSyncEnabledKey) as? Bool
+        let defaultPreference = storedPreference ?? (cloudContainer != nil)
+        isCloudSyncEnabled = defaultPreference
+
+        if isCloudSyncEnabled, let cloudContainer {
+            container = cloudContainer
         } else {
-            cloudContainer = localContainer
+            container = localContainer
+        }
+
+        migrationManager.updateCloudContainer(cloudContainer)
+        if isCloudSyncEnabled {
+            Task { await migrationManager.handleCloudSyncEnabled() }
+        }
+    }
+
+    func setCloudSyncEnabled(_ isEnabled: Bool) {
+        isCloudSyncEnabled = isEnabled
+        UserDefaults.standard.set(isEnabled, forKey: Self.cloudSyncEnabledKey)
+
+        if isEnabled {
+            Task {
+                await enableCloudSync()
+            }
+        } else {
+            container = localContainer
+        }
+    }
+
+    func retryCloudContainer() async {
+        cloudContainer = Self.makeCloudContainer(schema: AppSchema.shared)
+        migrationManager.updateCloudContainer(cloudContainer)
+        if isCloudSyncEnabled {
+            await enableCloudSync()
+        }
+    }
+
+    private func enableCloudSync() async {
+        if cloudContainer == nil {
+            cloudContainer = Self.makeCloudContainer(schema: AppSchema.shared)
+            migrationManager.updateCloudContainer(cloudContainer)
+        }
+
+        guard let cloudContainer else {
+            container = localContainer
+            return
         }
 
         container = cloudContainer
-        let decision = MigrationManager.loadDecision()
-        let localHasData = Self.hasAnyData(in: localContainer)
-        let cloudHasData = Self.hasAnyData(in: cloudContainer)
+        await migrationManager.handleCloudSyncEnabled()
+    }
 
-        switch decision {
-        case .keepLocal:
-            container = localContainer
-        case .migrated:
-            container = cloudContainer
-        case .undecided:
-            if localHasData && !cloudHasData {
-                container = localContainer
-                migrationManager.shouldShowPrompt = true
-            } else {
-                container = cloudContainer
-            }
-        }
+    private static func makeCloudContainer(schema: Schema) -> ModelContainer? {
+        let configuration = ModelConfiguration(
+            "CloudStore",
+            schema: schema,
+            cloudKitDatabase: .private(Self.cloudKitContainerIdentifier)
+        )
+        return makeContainer(schema: schema, configuration: configuration)
+    }
+
+    private static func makeLocalContainer(schema: Schema) -> ModelContainer {
+        let configuration = ModelConfiguration(schema: schema)
+        return makeContainer(schema: schema, configuration: configuration) ?? makeInMemoryContainer(schema: schema)
     }
 
     private static func makeContainer(
         schema: Schema,
-        configuration: ModelConfiguration,
-        fallback: ModelContainer? = nil
-    ) -> ModelContainer {
+        configuration: ModelConfiguration
+    ) -> ModelContainer? {
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             logContainerError(error, configuration: configuration)
         }
-
-        if let fallback {
-            return fallback
-        }
-
-        print("Falling back to in-memory ModelContainer after persistent store failure.")
-        return makeInMemoryContainer(schema: schema)
+        return nil
     }
 
     private static func logContainerError(_ error: Error, configuration: ModelConfiguration) {
@@ -110,19 +131,5 @@ final class AppDataController: ObservableObject {
 
         print("Unable to create in-memory ModelContainer with schema. Falling back to sample data container.")
         return SampleData.makeFallbackContainer()
-    }
-
-    private static func hasAnyData(in container: ModelContainer) -> Bool {
-        let context = ModelContext(container)
-        do {
-            return try context.fetchCount(FetchDescriptor<FinanceEntry>()) > 0
-                || context.fetchCount(FetchDescriptor<TaskItem>()) > 0
-                || context.fetchCount(FetchDescriptor<SplitPerson>()) > 0
-                || context.fetchCount(FetchDescriptor<SplitExpense>()) > 0
-                || context.fetchCount(FetchDescriptor<CommsCard>()) > 0
-                || context.fetchCount(FetchDescriptor<FlowItem>()) > 0
-        } catch {
-            return false
-        }
     }
 }

@@ -5,8 +5,9 @@ import SwiftData
 final class MigrationManager: ObservableObject {
     enum Decision: String {
         case undecided
-        case migrated
         case keepLocal
+        case keepCloud
+        case migrated
     }
 
     @Published var shouldShowPrompt = false
@@ -14,14 +15,14 @@ final class MigrationManager: ObservableObject {
     @Published var migrationError: String?
 
     private let localContainer: ModelContainer
-    private let cloudContainer: ModelContainer
+    private var cloudContainer: ModelContainer?
     private let onSwitchToCloud: (ModelContainer) -> Void
 
     private static let decisionKey = "cloudMigrationDecision"
 
     init(
         localContainer: ModelContainer,
-        cloudContainer: ModelContainer,
+        cloudContainer: ModelContainer?,
         onSwitchToCloud: @escaping (ModelContainer) -> Void = { _ in }
     ) {
         self.localContainer = localContainer
@@ -41,27 +42,101 @@ final class MigrationManager: ObservableObject {
         shouldShowPrompt = false
     }
 
-    func migrateToCloud() async {
+    func chooseKeepLocalData() async {
+        await migrateToCloud(overwriteDestination: true)
+    }
+
+    func chooseKeepCloudData() async {
+        await migrateToLocal(overwriteDestination: true)
+    }
+
+    func updateCloudContainer(_ container: ModelContainer?) {
+        cloudContainer = container
+    }
+
+    func handleCloudSyncEnabled() async {
+        guard !isMigrating else { return }
+        guard let cloudContainer else { return }
+
+        let localHasData = Self.hasAnyData(in: localContainer)
+        let cloudHasData = Self.hasAnyData(in: cloudContainer)
+        let decision = Self.loadDecision()
+
+        if localHasData && !cloudHasData {
+            await migrateToCloud(overwriteDestination: false)
+            saveDecision(.keepLocal)
+        } else if cloudHasData && !localHasData {
+            await migrateToLocal(overwriteDestination: false)
+            saveDecision(.keepCloud)
+        } else if localHasData && cloudHasData {
+            switch decision {
+            case .keepLocal:
+                await migrateToCloud(overwriteDestination: true)
+            case .keepCloud, .migrated:
+                await migrateToLocal(overwriteDestination: true)
+            case .undecided:
+                shouldShowPrompt = true
+            }
+        } else {
+            onSwitchToCloud(cloudContainer)
+        }
+    }
+
+    func migrateToCloud(overwriteDestination: Bool) async {
         isMigrating = true
         defer { isMigrating = false }
+        migrationError = nil
+
+        guard let cloudContainer else {
+            migrationError = "iCloud container is unavailable."
+            return
+        }
 
         let localContext = ModelContext(localContainer)
         let cloudContext = ModelContext(cloudContainer)
 
         do {
-            try migrateFinance(from: localContext, to: cloudContext)
-            try migrateTasks(from: localContext, to: cloudContext)
-            try migrateFlows(from: localContext, to: cloudContext)
-            try migrateComms(from: localContext, to: cloudContext)
-            try migrateSplitModels(from: localContext, to: cloudContext)
+            try migrateFinance(from: localContext, to: cloudContext, overwriteDestination: overwriteDestination)
+            try migrateTasks(from: localContext, to: cloudContext, overwriteDestination: overwriteDestination)
+            try migrateFlows(from: localContext, to: cloudContext, overwriteDestination: overwriteDestination)
+            try migrateComms(from: localContext, to: cloudContext, overwriteDestination: overwriteDestination)
+            try migrateSplitModels(from: localContext, to: cloudContext, overwriteDestination: overwriteDestination)
             try cloudContext.save()
 
-            saveDecision(.migrated)
+            saveDecision(.keepLocal)
             shouldShowPrompt = false
             onSwitchToCloud(cloudContainer)
-            cleanupLocalStore()
         } catch {
-            migrationError = "Failed to move local data to iCloud."
+            migrationError = "Failed to move local data to iCloud. \(error.localizedDescription)"
+        }
+    }
+
+    func migrateToLocal(overwriteDestination: Bool) async {
+        isMigrating = true
+        defer { isMigrating = false }
+        migrationError = nil
+
+        guard let cloudContainer else {
+            migrationError = "iCloud container is unavailable."
+            return
+        }
+
+        let localContext = ModelContext(localContainer)
+        let cloudContext = ModelContext(cloudContainer)
+
+        do {
+            try migrateFinance(from: cloudContext, to: localContext, overwriteDestination: overwriteDestination)
+            try migrateTasks(from: cloudContext, to: localContext, overwriteDestination: overwriteDestination)
+            try migrateFlows(from: cloudContext, to: localContext, overwriteDestination: overwriteDestination)
+            try migrateComms(from: cloudContext, to: localContext, overwriteDestination: overwriteDestination)
+            try migrateSplitModels(from: cloudContext, to: localContext, overwriteDestination: overwriteDestination)
+            try localContext.save()
+
+            saveDecision(.keepCloud)
+            shouldShowPrompt = false
+            onSwitchToCloud(cloudContainer)
+        } catch {
+            migrationError = "Failed to move iCloud data to local storage. \(error.localizedDescription)"
         }
     }
 
@@ -73,11 +148,21 @@ final class MigrationManager: ObservableObject {
         UserDefaults.standard.set(decision.rawValue, forKey: Self.decisionKey)
     }
 
-    private func migrateFinance(from localContext: ModelContext, to cloudContext: ModelContext) throws {
-        let localItems = try localContext.fetch(FetchDescriptor<FinanceEntry>())
-        let existingIds = Set(try cloudContext.fetch(FetchDescriptor<FinanceEntry>()).map { $0.id })
+    private func migrateFinance(
+        from sourceContext: ModelContext,
+        to destinationContext: ModelContext,
+        overwriteDestination: Bool
+    ) throws {
+        if overwriteDestination {
+            try deleteAll(FetchDescriptor<FinanceEntry>(), in: destinationContext)
+        }
 
-        for entry in localItems where !existingIds.contains(entry.id) {
+        let sourceItems = try sourceContext.fetch(FetchDescriptor<FinanceEntry>())
+        let existingIds = overwriteDestination
+            ? []
+            : Set(try destinationContext.fetch(FetchDescriptor<FinanceEntry>()).map { $0.id })
+
+        for entry in sourceItems where !existingIds.contains(entry.id) {
             let copy = FinanceEntry(
                 id: entry.id,
                 amount: entry.amount,
@@ -87,15 +172,25 @@ final class MigrationManager: ObservableObject {
                 date: entry.date,
                 urgency: entry.urgency
             )
-            cloudContext.insert(copy)
+            destinationContext.insert(copy)
         }
     }
 
-    private func migrateTasks(from localContext: ModelContext, to cloudContext: ModelContext) throws {
-        let localItems = try localContext.fetch(FetchDescriptor<TaskItem>())
-        let existingIds = Set(try cloudContext.fetch(FetchDescriptor<TaskItem>()).map { $0.id })
+    private func migrateTasks(
+        from sourceContext: ModelContext,
+        to destinationContext: ModelContext,
+        overwriteDestination: Bool
+    ) throws {
+        if overwriteDestination {
+            try deleteAll(FetchDescriptor<TaskItem>(), in: destinationContext)
+        }
 
-        for item in localItems where !existingIds.contains(item.id) {
+        let sourceItems = try sourceContext.fetch(FetchDescriptor<TaskItem>())
+        let existingIds = overwriteDestination
+            ? []
+            : Set(try destinationContext.fetch(FetchDescriptor<TaskItem>()).map { $0.id })
+
+        for item in sourceItems where !existingIds.contains(item.id) {
             let copy = TaskItem(
                 id: item.id,
                 title: item.title,
@@ -107,15 +202,25 @@ final class MigrationManager: ObservableObject {
                 reminderDate: item.reminderDate,
                 notificationId: item.notificationId
             )
-            cloudContext.insert(copy)
+            destinationContext.insert(copy)
         }
     }
 
-    private func migrateFlows(from localContext: ModelContext, to cloudContext: ModelContext) throws {
-        let localItems = try localContext.fetch(FetchDescriptor<FlowItem>())
-        let existingIds = Set(try cloudContext.fetch(FetchDescriptor<FlowItem>()).map { $0.id })
+    private func migrateFlows(
+        from sourceContext: ModelContext,
+        to destinationContext: ModelContext,
+        overwriteDestination: Bool
+    ) throws {
+        if overwriteDestination {
+            try deleteAll(FetchDescriptor<FlowItem>(), in: destinationContext)
+        }
 
-        for item in localItems where !existingIds.contains(item.id) {
+        let sourceItems = try sourceContext.fetch(FetchDescriptor<FlowItem>())
+        let existingIds = overwriteDestination
+            ? []
+            : Set(try destinationContext.fetch(FetchDescriptor<FlowItem>()).map { $0.id })
+
+        for item in sourceItems where !existingIds.contains(item.id) {
             let copy = FlowItem(
                 id: item.id,
                 title: item.title,
@@ -132,15 +237,25 @@ final class MigrationManager: ObservableObject {
                 reminderOffsetDays: item.reminderOffsetDays,
                 notificationId: item.notificationId
             )
-            cloudContext.insert(copy)
+            destinationContext.insert(copy)
         }
     }
 
-    private func migrateComms(from localContext: ModelContext, to cloudContext: ModelContext) throws {
-        let localItems = try localContext.fetch(FetchDescriptor<CommsCard>())
-        let existingIds = Set(try cloudContext.fetch(FetchDescriptor<CommsCard>()).map { $0.id })
+    private func migrateComms(
+        from sourceContext: ModelContext,
+        to destinationContext: ModelContext,
+        overwriteDestination: Bool
+    ) throws {
+        if overwriteDestination {
+            try deleteAll(FetchDescriptor<CommsCard>(), in: destinationContext)
+        }
 
-        for card in localItems where !existingIds.contains(card.id) {
+        let sourceItems = try sourceContext.fetch(FetchDescriptor<CommsCard>())
+        let existingIds = overwriteDestination
+            ? []
+            : Set(try destinationContext.fetch(FetchDescriptor<CommsCard>()).map { $0.id })
+
+        for card in sourceItems where !existingIds.contains(card.id) {
             let copy = CommsCard(
                 id: card.id,
                 title: card.title,
@@ -150,25 +265,36 @@ final class MigrationManager: ObservableObject {
                 imageData: card.imageData,
                 audioData: card.audioData
             )
-            cloudContext.insert(copy)
+            destinationContext.insert(copy)
         }
     }
 
-    private func migrateSplitModels(from localContext: ModelContext, to cloudContext: ModelContext) throws {
-        let localPeople = try localContext.fetch(FetchDescriptor<SplitPerson>())
-        let cloudPeople = try cloudContext.fetch(FetchDescriptor<SplitPerson>())
-        var personMap = Dictionary(uniqueKeysWithValues: cloudPeople.map { ($0.id, $0) })
+    private func migrateSplitModels(
+        from sourceContext: ModelContext,
+        to destinationContext: ModelContext,
+        overwriteDestination: Bool
+    ) throws {
+        if overwriteDestination {
+            try deleteAll(FetchDescriptor<SplitExpense>(), in: destinationContext)
+            try deleteAll(FetchDescriptor<SplitPerson>(), in: destinationContext)
+        }
 
-        for person in localPeople where personMap[person.id] == nil {
+        let sourcePeople = try sourceContext.fetch(FetchDescriptor<SplitPerson>())
+        let destinationPeople = try destinationContext.fetch(FetchDescriptor<SplitPerson>())
+        var personMap = Dictionary(uniqueKeysWithValues: destinationPeople.map { ($0.id, $0) })
+
+        for person in sourcePeople where personMap[person.id] == nil {
             let copy = SplitPerson(id: person.id, name: person.name)
-            cloudContext.insert(copy)
+            destinationContext.insert(copy)
             personMap[person.id] = copy
         }
 
-        let localExpenses = try localContext.fetch(FetchDescriptor<SplitExpense>())
-        let existingExpenseIds = Set(try cloudContext.fetch(FetchDescriptor<SplitExpense>()).map { $0.id })
+        let sourceExpenses = try sourceContext.fetch(FetchDescriptor<SplitExpense>())
+        let existingExpenseIds = overwriteDestination
+            ? []
+            : Set(try destinationContext.fetch(FetchDescriptor<SplitExpense>()).map { $0.id })
 
-        for expense in localExpenses where !existingExpenseIds.contains(expense.id) {
+        for expense in sourceExpenses where !existingExpenseIds.contains(expense.id) {
             let participants = (expense.participants ?? []).compactMap { personMap[$0.id] }
             let paidBy = expense.paidBy.flatMap { personMap[$0.id] }
             let copy = SplitExpense(
@@ -179,20 +305,14 @@ final class MigrationManager: ObservableObject {
                 participants: participants,
                 paidBy: paidBy
             )
-            cloudContext.insert(copy)
+            destinationContext.insert(copy)
         }
     }
 
-    private func cleanupLocalStore() {
-        guard let storeURL = localContainer.configurations.first?.url else { return }
-        let fileManager = FileManager.default
-        let relatedFiles = [
-            storeURL,
-            URL(fileURLWithPath: storeURL.path + "-shm"),
-            URL(fileURLWithPath: storeURL.path + "-wal")
-        ]
-        for url in relatedFiles where fileManager.fileExists(atPath: url.path) {
-            try? fileManager.removeItem(at: url)
+    private func deleteAll<T: PersistentModel>(_ descriptor: FetchDescriptor<T>, in context: ModelContext) throws {
+        let items = try context.fetch(descriptor)
+        for item in items {
+            context.delete(item)
         }
     }
 }
@@ -204,5 +324,21 @@ extension MigrationManager {
         let container = (try? ModelContainer(for: schema, configurations: [configuration]))
             ?? SampleData.makeFallbackContainer()
         return MigrationManager(localContainer: container, cloudContainer: container)
+    }
+}
+
+private extension MigrationManager {
+    static func hasAnyData(in container: ModelContainer) -> Bool {
+        let context = ModelContext(container)
+        do {
+            return try context.fetchCount(FetchDescriptor<FinanceEntry>()) > 0
+                || context.fetchCount(FetchDescriptor<TaskItem>()) > 0
+                || context.fetchCount(FetchDescriptor<SplitPerson>()) > 0
+                || context.fetchCount(FetchDescriptor<SplitExpense>()) > 0
+                || context.fetchCount(FetchDescriptor<CommsCard>()) > 0
+                || context.fetchCount(FetchDescriptor<FlowItem>()) > 0
+        } catch {
+            return false
+        }
     }
 }

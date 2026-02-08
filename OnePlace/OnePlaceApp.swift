@@ -16,6 +16,7 @@ struct OnePlaceApp: App {
     var body: some Scene {
         WindowGroup {
             RootTabView()
+                .environmentObject(dataController)
                 .environmentObject(dataController.migrationManager)
                 .environmentObject(cloudSyncManager)
         }
