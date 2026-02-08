@@ -9,8 +9,14 @@ struct SplitView: View {
 
     @State private var showingAddPerson = false
     @State private var showingAddExpense = false
+    @State private var showEditExpenseSheet = false
     @State private var editMode: EditMode = .inactive
     @State private var showCopiedAlert = false
+    @State private var selectedExpense: SplitExpense?
+
+    private var isEditing: Bool {
+        editMode == .active
+    }
 
     var body: some View {
         NavigationStack {
@@ -51,6 +57,11 @@ struct SplitView: View {
             }
             .sheet(isPresented: $showingAddExpense) {
                 AddExpenseSheet(people: people) { expense in
+                    modelContext.insert(expense)
+                }
+            }
+            .sheet(isPresented: $showEditExpenseSheet, onDismiss: { selectedExpense = nil }) {
+                AddExpenseSheet(people: people, expenseToEdit: selectedExpense) { expense in
                     modelContext.insert(expense)
                 }
             }
@@ -111,21 +122,17 @@ struct SplitView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(expenses) { expense in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(expense.title)
-                        HStack {
-                            Text(expense.amount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                            Text("• \(expense.date.formatted(date: .abbreviated, time: .omitted))")
-                            if let paidBy = expense.paidBy {
-                                Text("• Paid by \(paidBy.name)")
-                            }
+                    ExpenseRow(
+                        expense: expense,
+                        isEditing: isEditing,
+                        onEdit: {
+                            selectedExpense = expense
+                            showEditExpenseSheet = true
+                        },
+                        onDelete: {
+                            modelContext.delete(expense)
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
-                }
-                .onDelete { indexSet in
-                    indexSet.map { expenses[$0] }.forEach(modelContext.delete)
+                    )
                 }
             }
         }
@@ -197,6 +204,7 @@ private struct AddExpenseSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let people: [SplitPerson]
+    let expenseToEdit: SplitExpense?
     let onSave: (SplitExpense) -> Void
 
     @State private var title = ""
@@ -204,6 +212,17 @@ private struct AddExpenseSheet: View {
     @State private var date = Date()
     @State private var selectedParticipants: Set<UUID> = []
     @State private var paidBy: SplitPerson?
+    @State private var hasLoaded = false
+
+    init(
+        people: [SplitPerson],
+        expenseToEdit: SplitExpense? = nil,
+        onSave: @escaping (SplitExpense) -> Void
+    ) {
+        self.people = people
+        self.expenseToEdit = expenseToEdit
+        self.onSave = onSave
+    }
 
     var body: some View {
         NavigationStack {
@@ -244,7 +263,7 @@ private struct AddExpenseSheet: View {
                     }
                 }
             }
-            .navigationTitle("New Expense")
+            .navigationTitle(expenseToEdit == nil ? "New Expense" : "Edit Expense")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
@@ -253,13 +272,37 @@ private struct AddExpenseSheet: View {
                     Button("Save") {
                         guard let amountValue = parsedAmount, amountValue > 0 else { return }
                         let participants = people.filter { selectedParticipants.contains($0.id) }
-                        let expense = SplitExpense(title: title, amount: amountValue, date: date, participants: participants, paidBy: paidBy)
-                        onSave(expense)
+                        if let expenseToEdit {
+                            expenseToEdit.title = title
+                            expenseToEdit.amount = amountValue
+                            expenseToEdit.date = date
+                            expenseToEdit.participants = participants
+                            expenseToEdit.paidBy = paidBy
+                        } else {
+                            let expense = SplitExpense(
+                                title: title,
+                                amount: amountValue,
+                                date: date,
+                                participants: participants,
+                                paidBy: paidBy
+                            )
+                            onSave(expense)
+                        }
                         dismiss()
                     }
                     .disabled(isSaveDisabled)
                 }
             }
+        }
+        .onAppear {
+            guard !hasLoaded else { return }
+            hasLoaded = true
+            guard let expenseToEdit else { return }
+            title = expenseToEdit.title
+            amountText = String(format: "%.2f", expenseToEdit.amount)
+            date = expenseToEdit.date
+            selectedParticipants = Set(expenseToEdit.participants.map(\.id))
+            paidBy = expenseToEdit.paidBy
         }
     }
 
@@ -273,6 +316,56 @@ private struct AddExpenseSheet: View {
     private var isSaveDisabled: Bool {
         guard let amountValue = parsedAmount, amountValue > 0 else { return true }
         return title.isEmpty || people.isEmpty
+    }
+}
+
+private struct ExpenseRow: View {
+    let expense: SplitExpense
+    let isEditing: Bool
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(expense.title)
+                HStack {
+                    Text(expense.amount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                    Text("• \(expense.date.formatted(date: .abbreviated, time: .omitted))")
+                    if let paidBy = expense.paidBy {
+                        Text("• Paid by \(paidBy.name)")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            if isEditing {
+                HStack(spacing: 8) {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .frame(width: 28, height: 28)
+                            .background(Color.blue.opacity(0.15))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(role: .destructive, action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.red)
+                            .frame(width: 28, height: 28)
+                            .background(Color.red.opacity(0.2))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut, value: isEditing)
     }
 }
 
