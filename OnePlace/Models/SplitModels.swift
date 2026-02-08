@@ -10,14 +10,10 @@ final class SplitPerson {
 
     init(
         id: UUID = UUID(),
-        name: String,
-        expenses: [SplitExpense] = [],
-        expensesPaid: [SplitExpense] = []
+        name: String
     ) {
         self.id = id
         self.name = name
-        self.expenses = expenses
-        self.expensesPaid = expensesPaid
     }
 }
 
@@ -34,15 +30,11 @@ final class SplitExpense {
         id: UUID = UUID(),
         title: String,
         amount: Double,
-        date: Date = Date(),
-        participants: [SplitPerson] = [],
-        paidBy: SplitPerson? = nil
+        date: Date = Date()
     ) {
         self.id = id
         self.title = title
         self.amount = amount
         self.date = date
-        self.participants = participants
-        self.paidBy = paidBy
     }
 }
