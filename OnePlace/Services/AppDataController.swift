@@ -21,7 +21,7 @@ final class AppDataController: ObservableObject {
     }()
 
     init() {
-        let schema = AppSchema.shared
+        let schema = AppSchema.schema
 
         cloudContainer = Self.makeCloudContainer(schema: schema)
         localContainer = Self.makeLocalContainer(schema: schema)
@@ -56,7 +56,7 @@ final class AppDataController: ObservableObject {
     }
 
     func retryCloudContainer() async {
-        cloudContainer = Self.makeCloudContainer(schema: AppSchema.shared)
+        cloudContainer = Self.makeCloudContainer(schema: AppSchema.schema)
         migrationManager.updateCloudContainer(cloudContainer)
         if isCloudSyncEnabled {
             await enableCloudSync()
@@ -65,7 +65,7 @@ final class AppDataController: ObservableObject {
 
     private func enableCloudSync() async {
         if cloudContainer == nil {
-            cloudContainer = Self.makeCloudContainer(schema: AppSchema.shared)
+            cloudContainer = Self.makeCloudContainer(schema: AppSchema.schema)
             migrationManager.updateCloudContainer(cloudContainer)
         }
 
@@ -84,24 +84,29 @@ final class AppDataController: ObservableObject {
             schema: schema,
             cloudKitDatabase: .private(Self.cloudKitContainerIdentifier)
         )
-        return makeContainer(schema: schema, configuration: configuration)
-    }
-
-    private static func makeLocalContainer(schema: Schema) -> ModelContainer {
-        let configuration = ModelConfiguration(schema: schema)
-        return makeContainer(schema: schema, configuration: configuration) ?? makeInMemoryContainer(schema: schema)
-    }
-
-    private static func makeContainer(
-        schema: Schema,
-        configuration: ModelConfiguration
-    ) -> ModelContainer? {
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             logContainerError(error, configuration: configuration)
+            return nil
         }
-        return nil
+    }
+
+    private static func makeLocalContainer(schema: Schema) -> ModelContainer {
+        let configuration = ModelConfiguration(schema: schema)
+        do {
+            return try ModelContainer(for: schema, configurations: [configuration])
+        } catch {
+            logContainerError(error, configuration: configuration)
+            return makeInMemoryContainer(schema: schema)
+        }
+    }
+
+    private static func makeContainer(schema: Schema) -> ModelContainer {
+        if let cloudContainer = makeCloudContainer(schema: schema) {
+            return cloudContainer
+        }
+        return makeLocalContainer(schema: schema)
     }
 
     private static func logContainerError(_ error: Error, configuration: ModelConfiguration) {

@@ -3,7 +3,7 @@ import SwiftData
 
 enum SampleData {
     @MainActor static func makeContainer(inMemory: Bool = true) -> ModelContainer {
-        let schema = AppSchema.shared
+        let schema = AppSchema.schema
         let configuration = ModelConfiguration(isStoredInMemoryOnly: inMemory)
         guard let container = try? ModelContainer(for: schema, configurations: [configuration]) else {
             print("Failed to create sample data ModelContainer. Returning fallback container.")
@@ -37,12 +37,12 @@ enum SampleData {
 
     static func makeFallbackContainer() -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        if let container = try? ModelContainer(for: AppSchema.shared, configurations: [configuration]) {
+        if let container = try? ModelContainer(for: AppSchema.schema, configurations: [configuration]) {
             return container
         }
 
         print("Failed to create fallback ModelContainer with shared schema. Retrying in-memory creation.")
-        return (try? ModelContainer(for: AppSchema.shared, configurations: [configuration]))
+        return (try? ModelContainer(for: AppSchema.schema, configurations: [configuration]))
             ?? SampleData.makeContainer(inMemory: true)
     }
 }
