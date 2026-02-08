@@ -8,6 +8,7 @@ struct OrganizerView: View {
     @State private var showingAdd = false
     @State private var editingTask: TaskItem?
     @State private var searchText = ""
+    @State private var summaryWidth: CGFloat = 0
 
     private var filteredTasks: [TaskItem] {
         guard !searchText.isEmpty else { return tasks }
@@ -48,22 +49,22 @@ struct OrganizerView: View {
 
     private var summarySection: some View {
         Section {
-            LazyVGrid(columns: organizerSummaryColumns, alignment: .leading, spacing: 12) {
-                OrganizerStatCard(
+            LazyVGrid(columns: organizerSummaryColumns(for: summaryWidth), alignment: .leading, spacing: 12) {
+                StatCard(
                     title: "Today",
                     value: todayTasks.count.formatted(),
                     subtitle: "Tasks",
                     icon: "checkmark.circle",
                     tint: .blue
                 )
-                OrganizerStatCard(
+                StatCard(
                     title: "Upcoming",
                     value: upcomingTasks.count.formatted(),
                     subtitle: "Tasks",
                     icon: "clock",
                     tint: .purple
                 )
-                OrganizerStatCard(
+                StatCard(
                     title: "Done",
                     value: completedTasks.count.formatted(),
                     subtitle: "Tasks",
@@ -71,8 +72,13 @@ struct OrganizerView: View {
                     tint: .green
                 )
             }
+            .padding(.horizontal, 16)
+            .background(WidthReader())
         }
         .listRowBackground(Color(.systemBackground))
+        .onPreferenceChange(WidthPreferenceKey.self) { newWidth in
+            summaryWidth = newWidth
+        }
     }
 
     private func taskSection(title: String, tasks: [TaskItem]) -> some View {
@@ -110,8 +116,10 @@ struct OrganizerView: View {
         }
     }
 
-    private var organizerSummaryColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private func organizerSummaryColumns(for width: CGFloat) -> [GridItem] {
+        let useTwoColumns = width > 0 && width < 360
+        let columnCount = useTwoColumns ? 2 : 3
+        return Array(repeating: GridItem(.flexible(), spacing: 12), count: columnCount)
     }
 
     private var todayTasks: [TaskItem] {
@@ -153,6 +161,22 @@ struct OrganizerView: View {
                 repeats: false,
                 calendarComponents: nil
             )
+        }
+    }
+}
+
+private struct WidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct WidthReader: View {
+    var body: some View {
+        GeometryReader { proxy in
+            Color.clear.preference(key: WidthPreferenceKey.self, value: proxy.size.width)
         }
     }
 }
@@ -274,43 +298,6 @@ private struct TaskEditor: View {
                 }
             }
         }
-    }
-}
-
-private struct OrganizerStatCard: View {
-    let title: String
-    let value: String
-    let subtitle: String
-    let icon: String
-    let tint: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.headline)
-                    .foregroundStyle(tint)
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-            Text(value)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.primary)
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(tint.opacity(0.2))
-        )
     }
 }
 

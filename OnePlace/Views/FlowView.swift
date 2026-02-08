@@ -57,7 +57,7 @@ struct FlowView: View {
                 )
                 StatCard(
                     title: "Due Soon",
-                    value: upcomingAmount.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
+                    value: StatCard.currencyString(for: upcomingAmount),
                     subtitle: "Total",
                     icon: "exclamationmark.circle",
                     tint: .orange
