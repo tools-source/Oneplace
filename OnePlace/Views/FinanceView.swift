@@ -201,6 +201,8 @@ private struct FinanceEntryEditor: View {
     @State private var urgency: FinanceUrgency
     @State private var userSelectedCategory: Bool
     @State private var isAutoSelectingCategory = false
+    @State private var typeWasManuallySet = false
+    @State private var isAutoSettingType = false
 
     private let entry: FinanceEntry?
     private let onSave: ((FinanceEntry) -> Void)?
@@ -293,6 +295,11 @@ private struct FinanceEntryEditor: View {
                 applyInitialCategorySelection()
             }
             .onChange(of: type) { _, _ in
+                if isAutoSettingType {
+                    isAutoSettingType = false
+                    return
+                }
+                typeWasManuallySet = true
                 guard !userSelectedCategory else { return }
                 applyInitialCategorySelection()
             }
@@ -300,12 +307,14 @@ private struct FinanceEntryEditor: View {
                 guard !userSelectedCategory else { return }
                 applySuggestedCategory(for: newValue)
             }
-            .onChange(of: selectedCategory) { _, _ in
+            .onChange(of: selectedCategory) { _, newValue in
                 if isAutoSelectingCategory {
                     isAutoSelectingCategory = false
                 } else {
                     userSelectedCategory = true
+                    typeWasManuallySet = false
                 }
+                applyAutoTypeSelection(for: newValue)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -372,6 +381,21 @@ private struct FinanceEntryEditor: View {
         guard allCategories.contains(suggestion) else { return }
         isAutoSelectingCategory = true
         selectedCategory = suggestion
+    }
+
+    private func applyAutoTypeSelection(for category: String) {
+        guard !typeWasManuallySet else { return }
+        if expenseCategories.contains(category) {
+            setTypeIfNeeded(.owe)
+        } else if incomeCategories.contains(category) {
+            setTypeIfNeeded(.gain)
+        }
+    }
+
+    private func setTypeIfNeeded(_ newType: FinanceType) {
+        guard type != newType else { return }
+        isAutoSettingType = true
+        type = newType
     }
 }
 
