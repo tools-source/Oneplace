@@ -7,7 +7,7 @@ struct KeychainService {
     private let logger = Logger(subsystem: "OnePlace", category: "KeychainService")
     private let service: String
 
-    init(service: String = Bundle.main.bundleIdentifier ?? "OnePlace") {
+    init(service: String = "com.tools-source.oneplace") {
         self.service = service
     }
 

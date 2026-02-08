@@ -25,7 +25,8 @@ struct OnePlaceApp: App {
           }
 
         // Ensure the anonymous ID is created early and persists across reinstalls via Keychain.
-        _ = IdentityManager.shared.getOrCreateAnonymousId()
+        let anonymousId = IdentityManager.shared.getOrCreateAnonymousId()
+        print("AnonID:", anonymousId)
       }
 
     var body: some Scene {
