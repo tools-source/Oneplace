@@ -29,21 +29,21 @@ enum ReminderRepeatRule: String, CaseIterable, Codable {
 
 @Model
 final class FlowItem {
-    var id: UUID
-    var title: String
-    var amount: Double
-    var type: FlowType
-    var frequency: FlowFrequency
-    var nextDueDate: Date
-    var status: FlowStatus
+    var id: UUID = UUID()
+    var title: String = ""
+    var amount: Double = 0
+    var type: FlowType = .bill
+    var frequency: FlowFrequency = .monthly
+    var nextDueDate: Date = Date()
+    var status: FlowStatus = .upcoming
     var notes: String?
-    var reminderEnabled: Bool
+    var reminderEnabled: Bool = false
     var reminderDate: Date?
     var reminderHour: Int?
     var reminderMinute: Int?
-    var reminderRepeat: ReminderRepeatRule
-    var reminderOffsetDays: Int
-    var notificationId: String
+    var reminderRepeat: ReminderRepeatRule = .none
+    var reminderOffsetDays: Int = 0
+    var notificationId: String = ""
 
     var reminderTime: DateComponents? {
         get {
@@ -58,10 +58,10 @@ final class FlowItem {
 
     init(
         id: UUID = UUID(),
-        title: String,
-        amount: Double,
-        type: FlowType,
-        frequency: FlowFrequency,
+        title: String = "",
+        amount: Double = 0,
+        type: FlowType = .bill,
+        frequency: FlowFrequency = .monthly,
         nextDueDate: Date = Date(),
         status: FlowStatus = .upcoming,
         notes: String? = nil,

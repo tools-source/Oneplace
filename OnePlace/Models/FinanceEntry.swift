@@ -14,20 +14,20 @@ enum FinanceUrgency: String, CaseIterable, Codable {
 
 @Model
 final class FinanceEntry {
-    var id: UUID
-    var amount: Double
-    var type: FinanceType
-    var category: String
-    var entryDescription: String
-    var date: Date
-    var urgency: FinanceUrgency
+    var id: UUID = UUID()
+    var amount: Double = 0
+    var type: FinanceType = .gain
+    var category: String = "Uncategorized"
+    var entryDescription: String = ""
+    var date: Date = Date()
+    var urgency: FinanceUrgency = .medium
 
     init(
         id: UUID = UUID(),
-        amount: Double,
-        type: FinanceType,
-        category: String,
-        entryDescription: String,
+        amount: Double = 0,
+        type: FinanceType = .gain,
+        category: String = "Uncategorized",
+        entryDescription: String = "",
         date: Date = Date(),
         urgency: FinanceUrgency = .medium
     ) {
