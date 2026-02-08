@@ -88,7 +88,12 @@ struct SettingsView: View {
             if authorizationStatus != .authorized {
                 Button("Enable Notifications") {
                     Task {
-                        _ = await NotificationManager.shared.requestAuthorization()
+                        do {
+                            _ = try await UNUserNotificationCenter.current()
+                                .requestAuthorization(options: [.alert, .sound, .badge])
+                        } catch {
+                            return
+                        }
                         await refreshStatus()
                     }
                 }
@@ -124,7 +129,8 @@ struct SettingsView: View {
                     }
                     .swipeActions {
                         Button(role: .destructive) {
-                            NotificationManager.shared.cancelReminder(id: request.identifier)
+                            UNUserNotificationCenter.current()
+                                .removePendingNotificationRequests(withIdentifiers: [request.identifier])
                             Task { await refreshStatus() }
                         } label: {
                             Label("Cancel", systemImage: "bell.slash")
@@ -141,7 +147,7 @@ struct SettingsView: View {
             Button("Test notification in 10 seconds") {
                 Task {
                     let testDate = Date().addingTimeInterval(10)
-                    await NotificationManager.shared.scheduleReminder(
+                    await scheduleReminder(
                         id: "debug-test-notification",
                         title: "Oneplace Test",
                         body: "This is a test reminder from Settings.",
@@ -172,9 +178,10 @@ struct SettingsView: View {
     private func refreshStatus() async {
         if isRefreshing { return }
         isRefreshing = true
-        let settings = await NotificationManager.shared.notificationSettings()
+        let center = UNUserNotificationCenter.current()
+        let settings = await notificationSettings(from: center)
         authorizationStatus = settings.authorizationStatus
-        pendingRequests = await NotificationManager.shared.listPendingReminders()
+        pendingRequests = await pendingNotificationRequests(from: center)
         await cloudSyncManager.refreshStatus()
         isRefreshing = false
     }
@@ -184,6 +191,47 @@ struct SettingsView: View {
             return trigger.nextTriggerDate()
         }
         return nil
+    }
+
+    private func notificationSettings(from center: UNUserNotificationCenter) async -> UNNotificationSettings {
+        await withCheckedContinuation { continuation in
+            center.getNotificationSettings { settings in
+                continuation.resume(returning: settings)
+            }
+        }
+    }
+
+    private func pendingNotificationRequests(from center: UNUserNotificationCenter) async -> [UNNotificationRequest] {
+        await withCheckedContinuation { continuation in
+            center.getPendingNotificationRequests { requests in
+                continuation.resume(returning: requests)
+            }
+        }
+    }
+
+    private func scheduleReminder(
+        id: String,
+        title: String,
+        body: String,
+        date: Date,
+        repeats: Bool,
+        calendarComponents: DateComponents?
+    ) async {
+        let center = UNUserNotificationCenter.current()
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        let components = calendarComponents
+            ?? Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: repeats)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        do {
+            try await center.add(request)
+        } catch {
+            return
+        }
     }
 }
 
