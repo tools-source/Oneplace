@@ -58,9 +58,27 @@ struct FinanceView: View {
         Section {
             let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
             LazyVGrid(columns: columns, spacing: 12) {
-                SummaryCard(title: "Net", value: netTotal, color: netTotal >= 0 ? .green : .red)
-                SummaryCard(title: "Gain", value: gainTotal, color: .green)
-                SummaryCard(title: "Owe", value: oweTotal, color: .orange)
+                StatCard(
+                    title: "Net",
+                    value: netTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
+                    subtitle: nil,
+                    icon: "chart.line.uptrend.xyaxis",
+                    tint: netTotal >= 0 ? .green : .red
+                )
+                StatCard(
+                    title: "Gain",
+                    value: gainTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
+                    subtitle: nil,
+                    icon: "arrow.up.right.circle.fill",
+                    tint: .green
+                )
+                StatCard(
+                    title: "Owe",
+                    value: oweTotal.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
+                    subtitle: nil,
+                    icon: "arrow.down.right.circle.fill",
+                    tint: .orange
+                )
             }
         }
         .listRowBackground(Color(.systemBackground))
@@ -136,29 +154,6 @@ struct FinanceView: View {
         } label: {
             Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
         }
-    }
-}
-
-private struct SummaryCard: View {
-    let title: String
-    let value: Double
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                .font(.headline)
-                .foregroundStyle(color)
-        }
-        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
     }
 }
 

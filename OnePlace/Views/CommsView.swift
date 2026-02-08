@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct CommsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -7,6 +8,7 @@ struct CommsView: View {
 
     @State private var showingEditor = false
     @State private var editingCard: CommsCard?
+    @StateObject private var audioPlayer = AudioPlayerManager.shared
 
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 16)]
 
@@ -17,7 +19,26 @@ struct CommsView: View {
                     ForEach(cards) { card in
                         CommsCardView(card: card)
                             .onTapGesture {
-                                editingCard = card
+                                handleTap(for: card)
+                            }
+                            .contextMenu {
+                                Button {
+                                    editingCard = card
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                if card.audioData != nil {
+                                    Button {
+                                        audioPlayer.play(data: card.audioData, for: card.id)
+                                    } label: {
+                                        Label("Play", systemImage: "play.fill")
+                                    }
+                                }
+                                Button(role: .destructive) {
+                                    modelContext.delete(card)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                     }
                 }
@@ -42,6 +63,15 @@ struct CommsView: View {
             }
         }
     }
+
+    private func handleTap(for card: CommsCard) {
+        guard let audioData = card.audioData else {
+            let generator = UIImpactFeedbackGenerator(style: .soft)
+            generator.impactOccurred()
+            return
+        }
+        audioPlayer.play(data: audioData, for: card.id)
+    }
 }
 
 private struct CommsCardView: View {
@@ -49,42 +79,67 @@ private struct CommsCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let data = card.imageData, let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 100)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-            } else {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(.secondarySystemBackground))
-                    .frame(height: 100)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .foregroundStyle(.secondary)
-                    )
-            }
+            cardVisual
             HStack {
                 Text(card.title)
                     .font(.headline)
                 Spacer()
-                if let emoji = card.emoji {
+                if let emoji = trimmedEmoji {
                     Text(emoji)
                 }
             }
-            Text(card.phrase)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-            Text(card.language)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if !card.phrase.isEmpty {
+                Text(card.phrase)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            if !card.language.isEmpty {
+                Text(card.language)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private var cardVisual: some View {
+        if let emoji = trimmedEmoji {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.secondarySystemBackground))
+                .frame(height: 100)
+                .overlay(
+                    Text(emoji)
+                        .font(.system(size: 52))
+                )
+        } else if let data = card.imageData, let image = UIImage(data: data) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(height: 100)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        } else {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.secondarySystemBackground))
+                .frame(height: 100)
+                .overlay(
+                    Image(systemName: "photo")
+                        .foregroundStyle(.secondary)
+                )
+        }
+    }
+
+    private var trimmedEmoji: String? {
+        guard let emoji = card.emoji?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !emoji.isEmpty else {
+            return nil
+        }
+        return emoji
     }
 }
 
@@ -119,10 +174,10 @@ private struct CommsCardEditor: View {
             Form {
                 Section("Core") {
                     TextField("Title", text: $title)
-                    TextField("Phrase", text: $phrase, axis: .vertical)
+                    TextField("Phrase (optional)", text: $phrase, axis: .vertical)
                         .lineLimit(2...4)
-                    TextField("Language", text: $language)
-                    TextField("Emoji", text: $emoji)
+                    TextField("Language (optional)", text: $language)
+                    TextField("Emoji (optional)", text: $emoji)
                 }
 
                 Section("Image") {
@@ -166,20 +221,28 @@ private struct CommsCardEditor: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
+                        let trimmedEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
                         if let card {
                             card.title = title
                             card.phrase = phrase
                             card.language = language
-                            card.emoji = emoji.isEmpty ? nil : emoji
+                            card.emoji = trimmedEmoji.isEmpty ? nil : trimmedEmoji
                             card.imageData = imageData
                             card.audioData = audioData
                         } else {
-                            let newCard = CommsCard(title: title, phrase: phrase, language: language, emoji: emoji.isEmpty ? nil : emoji, imageData: imageData, audioData: audioData)
+                            let newCard = CommsCard(
+                                title: title,
+                                phrase: phrase,
+                                language: language,
+                                emoji: trimmedEmoji.isEmpty ? nil : trimmedEmoji,
+                                imageData: imageData,
+                                audioData: audioData
+                            )
                             onSave?(newCard)
                         }
                         dismiss()
                     }
-                    .disabled(title.isEmpty || phrase.isEmpty || language.isEmpty)
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .sheet(isPresented: $showingImagePicker) {
