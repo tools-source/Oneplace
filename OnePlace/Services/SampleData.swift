@@ -11,27 +11,27 @@ enum SampleData {
         }
         let context = container.mainContext
 
-        let rent = FinanceEntry(amount: 1200, type: .owe, category: "Bills & Utilities", entryDescription: "April Rent", urgency: .high)
-        let paycheck = FinanceEntry(amount: 3200, type: .gain, category: "Salary", entryDescription: "Monthly Pay", urgency: .low)
+        let rent = FinanceEntry(amount: 1200, type: FinanceType.owe, category: "Bills & Utilities", entryDescription: "April Rent", urgency: FinanceUrgency.high)
+        let paycheck = FinanceEntry(amount: 3200, type: FinanceType.gain, category: "Salary", entryDescription: "Monthly Pay", urgency: FinanceUrgency.low)
         context.insert(rent)
         context.insert(paycheck)
 
-        let task = TaskItem(title: "Renew insurance", notes: "Call agent", priority: .high, dueDate: Calendar.current.date(byAdding: .day, value: 2, to: Date()))
+        let task = TaskItem(title: "Renew insurance", notes: "Call agent", priority: TaskPriority.high, dueDate: Calendar.current.date(byAdding: .day, value: 2, to: Date()))
         context.insert(task)
 
         let alex = SplitPerson(name: "Alex")
         let jordan = SplitPerson(name: "Jordan")
         let dinner = SplitExpense(title: "Dinner", amount: 64)
-        dinner.participants = [alex, jordan]
-        dinner.paidBy = alex
         context.insert(alex)
         context.insert(jordan)
         context.insert(dinner)
+        dinner.participants = [alex, jordan]
+        dinner.paidBy = alex
 
         let card = CommsCard(title: "Check-in", phrase: "How are you feeling today?", language: "English", emoji: "💬")
         context.insert(card)
 
-        let bill = FlowItem(title: "Internet", amount: 80, type: .bill, frequency: .monthly, nextDueDate: Calendar.current.date(byAdding: .day, value: 5, to: Date()) ?? Date())
+        let bill = FlowItem(title: "Internet", amount: 80, type: FlowType.bill, frequency: FlowFrequency.monthly, nextDueDate: Calendar.current.date(byAdding: .day, value: 5, to: Date()) ?? Date())
         context.insert(bill)
 
         return container

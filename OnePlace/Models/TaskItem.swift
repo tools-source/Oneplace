@@ -12,7 +12,7 @@ final class TaskItem {
     var id: UUID = UUID()
     var title: String = ""
     var notes: String?
-    var priority: TaskPriority = .normal
+    var priority: TaskPriority = TaskPriority.normal
     var dueDate: Date?
     var completed: Bool = false
     var reminderEnabled: Bool = false
@@ -23,7 +23,7 @@ final class TaskItem {
         id: UUID = UUID(),
         title: String = "",
         notes: String? = nil,
-        priority: TaskPriority = .normal,
+        priority: TaskPriority = TaskPriority.normal,
         dueDate: Date? = nil,
         completed: Bool = false,
         reminderEnabled: Bool = false,
