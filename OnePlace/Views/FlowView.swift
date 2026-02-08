@@ -242,7 +242,7 @@ private struct FlowItemEditor: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String
-    @State private var amount: Double
+    @State private var amountText: String
     @State private var type: FlowType
     @State private var frequency: FlowFrequency
     @State private var nextDueDate: Date
@@ -255,12 +255,25 @@ private struct FlowItemEditor: View {
 
     private let item: FlowItem?
     private let onSave: (FlowItem) -> Void
+    private static let amountFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = .current
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 0
+        return formatter
+    }()
 
     init(item: FlowItem?, onSave: @escaping (FlowItem) -> Void) {
         self.item = item
         self.onSave = onSave
         _title = State(initialValue: item?.title ?? "")
-        _amount = State(initialValue: item?.amount ?? 0)
+        if let item {
+            let formattedAmount = Self.amountFormatter.string(from: NSNumber(value: item.amount)) ?? ""
+            _amountText = State(initialValue: formattedAmount)
+        } else {
+            _amountText = State(initialValue: "")
+        }
         _type = State(initialValue: item?.type ?? .bill)
         _frequency = State(initialValue: item?.frequency ?? .monthly)
         _nextDueDate = State(initialValue: item?.nextDueDate ?? Date())
@@ -277,7 +290,7 @@ private struct FlowItemEditor: View {
             Form {
                 Section("Details") {
                     TextField("Title", text: $title)
-                    TextField("Amount", value: $amount, format: .number)
+                    TextField("Amount", text: $amountText)
                         .keyboardType(.decimalPad)
                     Picker("Type", selection: $type) {
                         ForEach(FlowType.allCases, id: \.self) { type in
@@ -328,11 +341,12 @@ private struct FlowItemEditor: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
+                        guard let amountValue = parsedAmount, amountValue > 0 else { return }
                         let reminderDate = computedReminderDate()
                         let reminderTimeComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
                         if let item {
                             item.title = title
-                            item.amount = amount
+                            item.amount = amountValue
                             item.type = type
                             item.frequency = frequency
                             item.nextDueDate = nextDueDate
@@ -347,7 +361,7 @@ private struct FlowItemEditor: View {
                         } else {
                             let newItem = FlowItem(
                                 title: title,
-                                amount: amount,
+                                amount: amountValue,
                                 type: type,
                                 frequency: frequency,
                                 nextDueDate: nextDueDate,
@@ -363,10 +377,22 @@ private struct FlowItemEditor: View {
                         }
                         dismiss()
                     }
-                    .disabled(title.isEmpty)
+                    .disabled(isSaveDisabled)
                 }
             }
         }
+    }
+
+    private var parsedAmount: Double? {
+        let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let cleaned = trimmed.replacingOccurrences(of: ",", with: "")
+        return Double(cleaned)
+    }
+
+    private var isSaveDisabled: Bool {
+        guard let amountValue = parsedAmount, amountValue > 0 else { return true }
+        return title.isEmpty
     }
 
     private func computedReminderDate() -> Date? {

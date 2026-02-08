@@ -153,7 +153,7 @@ private struct AddExpenseSheet: View {
     let onSave: (SplitExpense) -> Void
 
     @State private var title = ""
-    @State private var amount: Double = 0
+    @State private var amountText: String = ""
     @State private var date = Date()
     @State private var selectedParticipants: Set<UUID> = []
     @State private var paidBy: SplitPerson?
@@ -163,7 +163,7 @@ private struct AddExpenseSheet: View {
             Form {
                 Section("Details") {
                     TextField("Title", text: $title)
-                    TextField("Amount", value: $amount, format: .number)
+                    TextField("Amount", text: $amountText)
                         .keyboardType(.decimalPad)
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                 }
@@ -204,15 +204,28 @@ private struct AddExpenseSheet: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
+                        guard let amountValue = parsedAmount, amountValue > 0 else { return }
                         let participants = people.filter { selectedParticipants.contains($0.id) }
-                        let expense = SplitExpense(title: title, amount: amount, date: date, participants: participants, paidBy: paidBy)
+                        let expense = SplitExpense(title: title, amount: amountValue, date: date, participants: participants, paidBy: paidBy)
                         onSave(expense)
                         dismiss()
                     }
-                    .disabled(title.isEmpty || people.isEmpty)
+                    .disabled(isSaveDisabled)
                 }
             }
         }
+    }
+
+    private var parsedAmount: Double? {
+        let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let cleaned = trimmed.replacingOccurrences(of: ",", with: "")
+        return Double(cleaned)
+    }
+
+    private var isSaveDisabled: Bool {
+        guard let amountValue = parsedAmount, amountValue > 0 else { return true }
+        return title.isEmpty || people.isEmpty
     }
 }
 
