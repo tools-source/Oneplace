@@ -165,18 +165,18 @@ struct FlowView: View {
         }
     }
 
-    private func repeatComponents(for item: FlowItem, baseDate: Date) -> (Bool, DateComponents?) {
+    private func repeatComponents(for item: FlowItem, baseDate: Date) -> (Bool, Set<Calendar.Component>?) {
         switch item.reminderRepeat {
         case .none:
             return (false, nil)
         case .daily:
-            let components = Calendar.current.dateComponents([.hour, .minute], from: baseDate)
+            let components: Set<Calendar.Component> = [.hour, .minute]
             return (true, components)
         case .weekly:
-            let components = Calendar.current.dateComponents([.weekday, .hour, .minute], from: baseDate)
+            let components: Set<Calendar.Component> = [.weekday, .hour, .minute]
             return (true, components)
         case .monthly:
-            let components = Calendar.current.dateComponents([.day, .hour, .minute], from: baseDate)
+            let components: Set<Calendar.Component> = [.day, .hour, .minute]
             return (true, components)
         }
     }
