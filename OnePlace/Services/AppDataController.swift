@@ -66,6 +66,7 @@ final class AppDataController: ObservableObject {
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
+            dump(error)
             if let fallback {
                 return fallback
             }

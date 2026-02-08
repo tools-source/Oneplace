@@ -18,7 +18,7 @@ final class SplitExpense {
     var title: String
     var amount: Double
     var date: Date
-    @Relationship(deleteRule: .nullify) var participants: [SplitPerson]
+    @Relationship(deleteRule: .nullify) var participants: [SplitPerson]?
     @Relationship(deleteRule: .nullify) var paidBy: SplitPerson?
 
     init(
@@ -26,7 +26,7 @@ final class SplitExpense {
         title: String,
         amount: Double,
         date: Date = Date(),
-        participants: [SplitPerson] = [],
+        participants: [SplitPerson]? = nil,
         paidBy: SplitPerson? = nil
     ) {
         self.id = id
