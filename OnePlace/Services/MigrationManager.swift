@@ -311,16 +311,16 @@ final class MigrationManager: ObservableObject {
             : Set(try destinationContext.fetch(FetchDescriptor<SplitExpense>()).map { $0.id })
 
         for expense in sourceExpenses where !existingExpenseIds.contains(expense.id) {
-            let participants = (expense.participants ?? []).compactMap { personMap[$0.id] }
+            let participants = expense.participants.compactMap { personMap[$0.id] }
             let paidBy = expense.paidBy.flatMap { personMap[$0.id] }
             let copy = SplitExpense(
                 id: expense.id,
                 title: expense.title,
                 amount: expense.amount,
-                date: expense.date,
-                participants: participants,
-                paidBy: paidBy
+                date: expense.date
             )
+            copy.participants = participants
+            copy.paidBy = paidBy
             destinationContext.insert(copy)
         }
     }
@@ -347,12 +347,13 @@ private extension MigrationManager {
     static func hasAnyData(in container: ModelContainer) -> Bool {
         let context = ModelContext(container)
         do {
-            return try context.fetchCount(FetchDescriptor<FinanceEntry>()) > 0
-                || context.fetchCount(FetchDescriptor<TaskItem>()) > 0
-                || context.fetchCount(FetchDescriptor<SplitPerson>()) > 0
-                || context.fetchCount(FetchDescriptor<SplitExpense>()) > 0
-                || context.fetchCount(FetchDescriptor<CommsCard>()) > 0
-                || context.fetchCount(FetchDescriptor<FlowItem>()) > 0
+            let hasFinance = try context.fetchCount(FetchDescriptor<FinanceEntry>()) > 0
+            let hasTasks = try context.fetchCount(FetchDescriptor<TaskItem>()) > 0
+            let hasPeople = try context.fetchCount(FetchDescriptor<SplitPerson>()) > 0
+            let hasExpenses = try context.fetchCount(FetchDescriptor<SplitExpense>()) > 0
+            let hasComms = try context.fetchCount(FetchDescriptor<CommsCard>()) > 0
+            let hasFlows = try context.fetchCount(FetchDescriptor<FlowItem>()) > 0
+            return hasFinance || hasTasks || hasPeople || hasExpenses || hasComms || hasFlows
         } catch {
             return false
         }

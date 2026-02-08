@@ -21,7 +21,9 @@ enum SampleData {
 
         let alex = SplitPerson(name: "Alex")
         let jordan = SplitPerson(name: "Jordan")
-        let dinner = SplitExpense(title: "Dinner", amount: 64, participants: [alex, jordan], paidBy: alex)
+        let dinner = SplitExpense(title: "Dinner", amount: 64)
+        dinner.participants = [alex, jordan]
+        dinner.paidBy = alex
         context.insert(alex)
         context.insert(jordan)
         context.insert(dinner)
