@@ -166,13 +166,20 @@ private struct FinanceRow: View {
     let entry: FinanceEntry
 
     var body: some View {
+        let description = entry.entryDescription
+        let category = entry.category
+        let title = description.isEmpty ? category : description
+        let subtitle = description.isEmpty ? "" : category
+
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(entry.category)
-                    .font(.subheadline)
-                Text(entry.entryDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(title)
+                    .font(.headline)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
