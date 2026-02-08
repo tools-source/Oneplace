@@ -15,7 +15,7 @@ enum SampleData {
         let container = try! ModelContainer(for: schema, configurations: [configuration])
         let context = container.mainContext
 
-        let rent = FinanceEntry(amount: 1200, type: .owe, category: "Housing", entryDescription: "April Rent", urgency: .high)
+        let rent = FinanceEntry(amount: 1200, type: .owe, category: "Bills & Utilities", entryDescription: "April Rent", urgency: .high)
         let paycheck = FinanceEntry(amount: 3200, type: .gain, category: "Salary", entryDescription: "Monthly Pay", urgency: .low)
         context.insert(rent)
         context.insert(paycheck)

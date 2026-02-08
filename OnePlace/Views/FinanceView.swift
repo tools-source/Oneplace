@@ -56,7 +56,8 @@ struct FinanceView: View {
 
     private var summarySection: some View {
         Section {
-            HStack(spacing: 12) {
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+            LazyVGrid(columns: columns, spacing: 12) {
                 SummaryCard(title: "Net", value: netTotal, color: netTotal >= 0 ? .green : .red)
                 SummaryCard(title: "Gain", value: gainTotal, color: .green)
                 SummaryCard(title: "Owe", value: oweTotal, color: .orange)
@@ -144,16 +145,20 @@ private struct SummaryCard: View {
     let color: Color
 
     var body: some View {
-        AppCard {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                    .font(.headline)
-                    .foregroundStyle(color)
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                .font(.headline)
+                .foregroundStyle(color)
         }
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
     }
 }
 
@@ -186,11 +191,11 @@ private struct FinanceRow: View {
 private struct FinanceEntryEditor: View {
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("lastSelectedCategory") private var lastSelectedCategory: String = ""
+    @AppStorage("lastCategory") private var lastCategoryRaw: String = ""
 
-    @State private var amount: Double
+    @State private var amountText: String
     @State private var type: FinanceType
-    @State private var category: String
+    @State private var selectedCategory: String
     @State private var description: String
     @State private var date: Date
     @State private var urgency: FinanceUrgency
@@ -200,45 +205,45 @@ private struct FinanceEntryEditor: View {
     private let entry: FinanceEntry?
     private let onSave: ((FinanceEntry) -> Void)?
 
-    private let expenseCategories = [
-        "Housing",
-        "Transportation",
-        "Food",
-        "Utilities",
-        "Health",
-        "Shopping",
-        "Travel",
-        "Entertainment",
-        "Other Expense"
-    ]
-    private let incomeCategories = [
-        "Salary",
-        "Bonus",
-        "Interest",
-        "Refund",
-        "Gift",
-        "Other Income"
-    ]
+    private let expenseCategories = FinanceCategory.expenseRawValues
+    private let incomeCategories = FinanceCategory.incomeRawValues
     private let categorySuggestions: [String: String] = [
-        "uber": "Transportation",
-        "lyft": "Transportation",
-        "rent": "Housing",
-        "gas": "Transportation",
-        "fuel": "Transportation",
+        "uber": "Transport",
+        "lyft": "Transport",
+        "rent": "Bills & Utilities",
+        "gas": "Transport",
+        "fuel": "Transport",
         "amazon": "Shopping",
-        "grocery": "Food",
-        "restaurant": "Food",
+        "grocery": "Food & Dining",
+        "restaurant": "Food & Dining",
+        "netflix": "Entertainment",
+        "doctor": "Healthcare",
+        "tuition": "Education",
         "salary": "Salary",
         "paycheck": "Salary",
-        "bonus": "Bonus"
+        "freelance": "Freelance",
+        "investment": "Investments"
     ]
+    private static let amountFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = .current
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 0
+        return formatter
+    }()
 
     init(entry: FinanceEntry?, onSave: ((FinanceEntry) -> Void)? = nil) {
         self.entry = entry
         self.onSave = onSave
-        _amount = State(initialValue: entry?.amount ?? 0)
+        if let entry {
+            let formattedAmount = Self.amountFormatter.string(from: NSNumber(value: entry.amount)) ?? ""
+            _amountText = State(initialValue: formattedAmount)
+        } else {
+            _amountText = State(initialValue: "")
+        }
         _type = State(initialValue: entry?.type ?? .gain)
-        _category = State(initialValue: entry?.category ?? "")
+        _selectedCategory = State(initialValue: entry?.category ?? "")
         _description = State(initialValue: entry?.entryDescription ?? "")
         _date = State(initialValue: entry?.date ?? Date())
         _urgency = State(initialValue: entry?.urgency ?? .medium)
@@ -249,15 +254,26 @@ private struct FinanceEntryEditor: View {
         NavigationStack {
             Form {
                 Section("Details") {
-                    TextField("Amount", value: $amount, format: .number)
+                    TextField("Description", text: $description)
+                    TextField("Amount", text: $amountText)
                         .keyboardType(.decimalPad)
-                    Picker("Category", selection: $category) {
-                        ForEach(availableCategories, id: \.self) { category in
-                            Text(category).tag(category)
+                    Picker("Category", selection: $selectedCategory) {
+                        if let customCategory {
+                            Section("Current") {
+                                Text(customCategory).tag(customCategory)
+                            }
+                        }
+                        Section("Income") {
+                            ForEach(incomeCategories, id: \.self) { category in
+                                Text(category).tag(category)
+                            }
+                        }
+                        Section("Expense") {
+                            ForEach(expenseCategories, id: \.self) { category in
+                                Text(category).tag(category)
+                            }
                         }
                     }
-                    .pickerStyle(.menu)
-                    TextField("Description", text: $description)
                     Picker("Type", selection: $type) {
                         ForEach(FinanceType.allCases, id: \.self) { type in
                             Text(type.rawValue.capitalized).tag(type)
@@ -276,11 +292,15 @@ private struct FinanceEntryEditor: View {
                 guard entry == nil else { return }
                 applyInitialCategorySelection()
             }
+            .onChange(of: type) { _, _ in
+                guard !userSelectedCategory else { return }
+                applyInitialCategorySelection()
+            }
             .onChange(of: description) { _, newValue in
                 guard !userSelectedCategory else { return }
                 applySuggestedCategory(for: newValue)
             }
-            .onChange(of: category) { _, _ in
+            .onChange(of: selectedCategory) { _, _ in
                 if isAutoSelectingCategory {
                     isAutoSelectingCategory = false
                 } else {
@@ -293,39 +313,55 @@ private struct FinanceEntryEditor: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
+                        guard let amountValue = parsedAmount else { return }
                         if let entry {
-                            entry.amount = amount
+                            entry.amount = amountValue
                             entry.type = type
-                            entry.category = category
+                            entry.category = selectedCategory
                             entry.entryDescription = description
                             entry.date = date
                             entry.urgency = urgency
                         } else {
-                            let newEntry = FinanceEntry(amount: amount, type: type, category: category, entryDescription: description, date: date, urgency: urgency)
+                            let newEntry = FinanceEntry(amount: amountValue, type: type, category: selectedCategory, entryDescription: description, date: date, urgency: urgency)
                             onSave?(newEntry)
                         }
-                        lastSelectedCategory = category
+                        lastCategoryRaw = selectedCategory
                         dismiss()
                     }
-                    .disabled(amount <= 0 || category.isEmpty)
+                    .disabled(isSaveDisabled)
                 }
             }
         }
     }
 
-    private var availableCategories: [String] {
-        let defaults = type == .gain ? incomeCategories : expenseCategories
-        if !defaults.contains(category), !category.isEmpty {
-            return defaults + [category]
+    private var allCategories: [String] {
+        incomeCategories + expenseCategories
+    }
+
+    private var customCategory: String? {
+        guard !selectedCategory.isEmpty, !allCategories.contains(selectedCategory) else { return nil }
+        return selectedCategory
+    }
+
+    private var parsedAmount: Double? {
+        let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let number = Self.amountFormatter.number(from: trimmed) {
+            return number.doubleValue
         }
-        return defaults
+        return Double(trimmed)
+    }
+
+    private var isSaveDisabled: Bool {
+        guard let amountValue = parsedAmount, amountValue > 0 else { return true }
+        return selectedCategory.isEmpty
     }
 
     private func applyInitialCategorySelection() {
-        let defaultCategory = type == .gain ? "Other Income" : "Other Expense"
-        let targetCategory = lastSelectedCategory.isEmpty ? defaultCategory : lastSelectedCategory
+        let defaultCategory = type == .gain ? FinanceCategory.otherIncome.rawValue : FinanceCategory.otherExpense.rawValue
+        let targetCategory = allCategories.contains(lastCategoryRaw) ? lastCategoryRaw : defaultCategory
         isAutoSelectingCategory = true
-        category = targetCategory
+        selectedCategory = targetCategory
     }
 
     private func applySuggestedCategory(for text: String) {
@@ -333,8 +369,9 @@ private struct FinanceEntryEditor: View {
         guard let suggestion = categorySuggestions.first(where: { lowered.contains($0.key) })?.value else {
             return
         }
+        guard allCategories.contains(suggestion) else { return }
         isAutoSelectingCategory = true
-        category = suggestion
+        selectedCategory = suggestion
     }
 }
 
