@@ -15,6 +15,9 @@ final class TaskItem {
     var priority: TaskPriority
     var dueDate: Date?
     var completed: Bool
+    var reminderEnabled: Bool
+    var reminderDate: Date?
+    var notificationId: String
 
     init(
         id: UUID = UUID(),
@@ -22,7 +25,10 @@ final class TaskItem {
         notes: String? = nil,
         priority: TaskPriority = .normal,
         dueDate: Date? = nil,
-        completed: Bool = false
+        completed: Bool = false,
+        reminderEnabled: Bool = false,
+        reminderDate: Date? = nil,
+        notificationId: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -30,5 +36,8 @@ final class TaskItem {
         self.priority = priority
         self.dueDate = dueDate
         self.completed = completed
+        self.reminderEnabled = reminderEnabled
+        self.reminderDate = reminderDate
+        self.notificationId = notificationId ?? id.uuidString
     }
 }

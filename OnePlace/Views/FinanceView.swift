@@ -8,15 +8,93 @@ struct FinanceView: View {
     @State private var searchText = ""
     @State private var selectedType: FinanceType?
     @State private var selectedUrgency: FinanceUrgency?
-    @State private var showingEditor = false
+    @State private var showingAdd = false
     @State private var editingEntry: FinanceEntry?
 
     private var filteredEntries: [FinanceEntry] {
         entries.filter { entry in
-            let matchesSearch = searchText.isEmpty || entry.category.localizedCaseInsensitiveContains(searchText) || entry.entryDescription.localizedCaseInsensitiveContains(searchText)
+            let matchesSearch = searchText.isEmpty
+                || entry.category.localizedCaseInsensitiveContains(searchText)
+                || entry.entryDescription.localizedCaseInsensitiveContains(searchText)
             let matchesType = selectedType == nil || entry.type == selectedType
             let matchesUrgency = selectedUrgency == nil || entry.urgency == selectedUrgency
             return matchesSearch && matchesType && matchesUrgency
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                summarySection
+                transactionsSection
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Finance")
+            .searchable(text: $searchText, prompt: "Search transactions")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    filterMenu
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAdd) {
+                FinanceEntryEditor(entry: nil) { newEntry in
+                    modelContext.insert(newEntry)
+                }
+            }
+            .sheet(item: $editingEntry) { entry in
+                FinanceEntryEditor(entry: entry)
+            }
+        }
+    }
+
+    private var summarySection: some View {
+        Section {
+            HStack(spacing: 12) {
+                SummaryCard(title: "Net", value: netTotal, color: netTotal >= 0 ? .green : .red)
+                SummaryCard(title: "Gain", value: gainTotal, color: .green)
+                SummaryCard(title: "Owe", value: oweTotal, color: .orange)
+            }
+        }
+        .listRowBackground(Color(.systemBackground))
+    }
+
+    private var transactionsSection: some View {
+        Section("Transactions") {
+            if filteredEntries.isEmpty {
+                EmptyState(
+                    title: "No transactions yet",
+                    message: "Add income or expenses to see your history here.",
+                    systemImage: "tray",
+                    ctaTitle: "Add Transaction"
+                ) {
+                    showingAdd = true
+                }
+                .listRowBackground(Color(.systemBackground))
+            } else {
+                ForEach(filteredEntries) { entry in
+                    FinanceRow(entry: entry)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                modelContext.delete(entry)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            Button {
+                                editingEntry = entry
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
+                        }
+                }
+            }
         }
     }
 
@@ -32,79 +110,6 @@ struct FinanceView: View {
 
     private var oweTotal: Double {
         entries.filter { $0.type == .owe }.map(\.amount).reduce(0, +)
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                summarySection
-                newTransactionSection
-                historySection
-            }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Finance")
-            .searchable(text: $searchText, prompt: "Search transactions")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    filterMenu
-                }
-            }
-            .sheet(item: $editingEntry) { entry in
-                FinanceEntryEditor(entry: entry)
-            }
-        }
-    }
-
-    private var summarySection: some View {
-        Section {
-            HStack(spacing: 12) {
-                SummaryCard(title: "Net", value: netTotal, color: netTotal >= 0 ? .green : .red)
-                SummaryCard(title: "Total Gain", value: gainTotal, color: .green)
-                SummaryCard(title: "Total Owe", value: oweTotal, color: .orange)
-            }
-        }
-        .listRowBackground(Color(.secondarySystemBackground))
-    }
-
-    private var newTransactionSection: some View {
-        Section("New Transaction") {
-            FinanceEntryEditor(entry: nil) { newEntry in
-                modelContext.insert(newEntry)
-            }
-        }
-    }
-
-    private var historySection: some View {
-        Section("History") {
-            ForEach(groupedEntries.keys.sorted(by: >), id: \.self) { date in
-                if let entries = groupedEntries[date] {
-                    Section(header: Text(date, style: .date)) {
-                        ForEach(entries) { entry in
-                            FinanceRow(entry: entry)
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        modelContext.delete(entry)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                    Button {
-                                        editingEntry = entry
-                                    } label: {
-                                        Label("Edit", systemImage: "pencil")
-                                    }
-                                    .tint(.blue)
-                                }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var groupedEntries: [Date: [FinanceEntry]] {
-        Dictionary(grouping: filteredEntries) { entry in
-            Calendar.current.startOfDay(for: entry.date)
-        }
     }
 
     private var filterMenu: some View {
@@ -139,18 +144,16 @@ private struct SummaryCard: View {
     let color: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                .font(.headline)
-                .foregroundStyle(color)
+        AppCard {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                    .font(.headline)
+                    .foregroundStyle(color)
+            }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -158,7 +161,7 @@ private struct FinanceRow: View {
     let entry: FinanceEntry
 
     var body: some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.category)
                     .font(.subheadline)
@@ -176,6 +179,7 @@ private struct FinanceRow: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -204,74 +208,50 @@ private struct FinanceEntryEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(entry == nil ? "Add Transaction" : "Edit Transaction")
-                    .font(.headline)
-                Spacer()
-                if entry != nil {
-                    Button("Done") {
-                        saveChanges()
+        NavigationStack {
+            Form {
+                Section("Details") {
+                    TextField("Category", text: $category)
+                    TextField("Description", text: $description)
+                    TextField("Amount", value: $amount, format: .number)
+                        .keyboardType(.decimalPad)
+                    Picker("Type", selection: $type) {
+                        ForEach(FinanceType.allCases, id: \.self) { type in
+                            Text(type.rawValue.capitalized).tag(type)
+                        }
+                    }
+                    Picker("Urgency", selection: $urgency) {
+                        ForEach(FinanceUrgency.allCases, id: \.self) { urgency in
+                            Text(urgency.rawValue.capitalized).tag(urgency)
+                        }
+                    }
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                }
+            }
+            .navigationTitle(entry == nil ? "New Transaction" : "Edit Transaction")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        if let entry {
+                            entry.amount = amount
+                            entry.type = type
+                            entry.category = category
+                            entry.entryDescription = description
+                            entry.date = date
+                            entry.urgency = urgency
+                        } else {
+                            let newEntry = FinanceEntry(amount: amount, type: type, category: category, entryDescription: description, date: date, urgency: urgency)
+                            onSave?(newEntry)
+                        }
                         dismiss()
                     }
+                    .disabled(category.isEmpty || description.isEmpty)
                 }
-            }
-
-            VStack(spacing: 10) {
-                TextField("Category", text: $category)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Description", text: $description)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Amount", value: $amount, format: .number)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                Picker("Type", selection: $type) {
-                    ForEach(FinanceType.allCases, id: \.self) { type in
-                        Text(type.rawValue.capitalized).tag(type)
-                    }
-                }
-                Picker("Urgency", selection: $urgency) {
-                    ForEach(FinanceUrgency.allCases, id: \.self) { urgency in
-                        Text(urgency.rawValue.capitalized).tag(urgency)
-                    }
-                }
-                DatePicker("Date", selection: $date, displayedComponents: .date)
-            }
-            .font(.subheadline)
-
-            if entry == nil {
-                Button {
-                    let newEntry = FinanceEntry(amount: amount, type: type, category: category, entryDescription: description, date: date, urgency: urgency)
-                    onSave?(newEntry)
-                    reset()
-                } label: {
-                    Label("Add Transaction", systemImage: "plus.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(category.isEmpty || description.isEmpty)
             }
         }
-        .padding(.vertical, 4)
-    }
-
-    private func saveChanges() {
-        guard let entry else { return }
-        entry.amount = amount
-        entry.type = type
-        entry.category = category
-        entry.entryDescription = description
-        entry.date = date
-        entry.urgency = urgency
-    }
-
-    private func reset() {
-        amount = 0
-        type = .gain
-        category = ""
-        description = ""
-        date = Date()
-        urgency = .medium
     }
 }
 
