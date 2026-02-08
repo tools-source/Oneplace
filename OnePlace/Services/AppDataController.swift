@@ -22,22 +22,23 @@ final class AppDataController: ObservableObject {
 
     init() {
         let schema = AppSchema.schema
-
-        cloudContainer = Self.makeCloudContainer(schema: schema)
-        localContainer = Self.makeLocalContainer(schema: schema)
-
+        let cloudContainerLocal = Self.makeCloudContainer(schema: schema)
+        let localContainerLocal = Self.makeLocalContainer(schema: schema)
         let storedPreference = UserDefaults.standard.object(forKey: Self.cloudSyncEnabledKey) as? Bool
-        let defaultPreference = storedPreference ?? (cloudContainer != nil)
+        let defaultPreference = storedPreference ?? (cloudContainerLocal != nil)
+
+        cloudContainer = cloudContainerLocal
+        localContainer = localContainerLocal
         isCloudSyncEnabled = defaultPreference
 
-        if isCloudSyncEnabled, let cloudContainer {
-            container = cloudContainer
+        if defaultPreference, let cloudContainerLocal {
+            container = cloudContainerLocal
         } else {
-            container = localContainer
+            container = localContainerLocal
         }
 
-        migrationManager.updateCloudContainer(cloudContainer)
-        if isCloudSyncEnabled {
+        migrationManager.updateCloudContainer(cloudContainerLocal)
+        if defaultPreference {
             Task { await migrationManager.handleCloudSyncEnabled() }
         }
     }

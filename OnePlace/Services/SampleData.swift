@@ -35,7 +35,7 @@ enum SampleData {
         return container
     }
 
-    static func makeFallbackContainer() -> ModelContainer {
+    @MainActor static func makeFallbackContainer() -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         if let container = try? ModelContainer(for: AppSchema.schema, configurations: [configuration]) {
             return container
