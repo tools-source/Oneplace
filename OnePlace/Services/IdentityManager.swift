@@ -25,6 +25,34 @@ final class IdentityManager {
         }
     }
 
+    func getAnonymousId() -> String? {
+        do {
+            return try keychain.getString(for: .anonymousId)
+        } catch {
+            logger.error("Failed to read anonymous ID in Keychain: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    func regenerateAnonymousId() -> String {
+        let newId = UUID().uuidString
+        do {
+            try keychain.setString(newId, for: .anonymousId)
+            return newId
+        } catch {
+            logger.error("Failed to regenerate anonymous ID in Keychain: \(error.localizedDescription, privacy: .public)")
+            return newId
+        }
+    }
+
+    func clearAnonymousId() {
+        do {
+            try keychain.deleteValue(for: .anonymousId)
+        } catch {
+            logger.error("Failed to delete anonymous ID in Keychain: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func setProUnlocked(_ value: Bool) {
         do {
             try keychain.setBool(value, for: .proUnlocked)

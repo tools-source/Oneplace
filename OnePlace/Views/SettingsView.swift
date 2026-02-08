@@ -5,8 +5,10 @@ struct SettingsView: View {
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var pendingRequests: [UNNotificationRequest] = []
     @State private var isRefreshing = false
-    #if DEBUG
     @State private var anonymousId: String = "—"
+    @State private var showKeychainAlert = false
+    @State private var keychainAlertMessage = ""
+    #if DEBUG
     @State private var proUnlocked = false
     @State private var earlyUser = false
     #endif
@@ -16,6 +18,7 @@ struct SettingsView: View {
             List {
                 notificationStatusSection
                 scheduledRemindersSection
+                keychainTestSection
                 #if DEBUG
                 debugSection
                 #endif
@@ -27,9 +30,15 @@ struct SettingsView: View {
             }
             .task {
                 await refreshStatus()
+                refreshAnonymousId()
                 #if DEBUG
                 loadDebugInfo()
                 #endif
+            }
+            .alert("Keychain Test", isPresented: $showKeychainAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(keychainAlertMessage)
             }
         }
     }
@@ -93,6 +102,26 @@ struct SettingsView: View {
         }
     }
 
+    private var keychainTestSection: some View {
+        Section("Keychain Test") {
+            LabeledContent("Anonymous ID", value: anonymousId)
+                .textSelection(.enabled)
+
+            Button("Regenerate ID") {
+                anonymousId = IdentityManager.shared.regenerateAnonymousId()
+                keychainAlertMessage = "Anonymous ID regenerated."
+                showKeychainAlert = true
+            }
+
+            Button("Clear ID", role: .destructive) {
+                IdentityManager.shared.clearAnonymousId()
+                anonymousId = "—"
+                keychainAlertMessage = "Anonymous ID cleared."
+                showKeychainAlert = true
+            }
+        }
+    }
+
     #if DEBUG
     private var debugSection: some View {
         Section("Debug") {
@@ -111,8 +140,6 @@ struct SettingsView: View {
                 }
             }
 
-            LabeledContent("Anonymous ID", value: anonymousId)
-                .textSelection(.enabled)
             LabeledContent("Pro unlocked", value: proUnlocked ? "Yes" : "No")
             LabeledContent("Early user", value: earlyUser ? "Yes" : "No")
         }
@@ -143,11 +170,18 @@ struct SettingsView: View {
 
     #if DEBUG
     private func loadDebugInfo() {
-        anonymousId = IdentityManager.shared.getOrCreateAnonymousId()
         proUnlocked = IdentityManager.shared.isProUnlocked()
         earlyUser = IdentityManager.shared.isEarlyUser()
     }
     #endif
+
+    private func refreshAnonymousId() {
+        if let storedId = IdentityManager.shared.getAnonymousId() {
+            anonymousId = storedId
+        } else {
+            anonymousId = "—"
+        }
+    }
 
     private func nextTriggerDate(for request: UNNotificationRequest) -> Date? {
         if let trigger = request.trigger as? UNCalendarNotificationTrigger {
