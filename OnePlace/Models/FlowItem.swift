@@ -39,10 +39,22 @@ final class FlowItem {
     var notes: String?
     var reminderEnabled: Bool
     var reminderDate: Date?
-    var reminderTime: DateComponents?
+    var reminderHour: Int?
+    var reminderMinute: Int?
     var reminderRepeat: ReminderRepeatRule
     var reminderOffsetDays: Int
     var notificationId: String
+
+    var reminderTime: DateComponents? {
+        get {
+            guard let reminderHour, let reminderMinute else { return nil }
+            return DateComponents(hour: reminderHour, minute: reminderMinute)
+        }
+        set {
+            reminderHour = newValue?.hour
+            reminderMinute = newValue?.minute
+        }
+    }
 
     init(
         id: UUID = UUID(),
@@ -70,7 +82,8 @@ final class FlowItem {
         self.notes = notes
         self.reminderEnabled = reminderEnabled
         self.reminderDate = reminderDate
-        self.reminderTime = reminderTime
+        self.reminderHour = reminderTime?.hour
+        self.reminderMinute = reminderTime?.minute
         self.reminderRepeat = reminderRepeat
         self.reminderOffsetDays = reminderOffsetDays
         self.notificationId = notificationId ?? id.uuidString
