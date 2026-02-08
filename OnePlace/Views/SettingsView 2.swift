@@ -2,9 +2,6 @@ import SwiftUI
 import UserNotifications
 
 struct SettingsView: View {
-    @EnvironmentObject private var cloudSyncManager: CloudSyncManager
-    @EnvironmentObject private var dataController: AppDataController
-
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var pendingRequests: [UNNotificationRequest] = []
     @State private var isRefreshing = false
@@ -12,7 +9,6 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                iCloudSyncSection
                 notificationStatusSection
                 scheduledRemindersSection
                 #if DEBUG
@@ -27,62 +23,6 @@ struct SettingsView: View {
             .task {
                 await refreshStatus()
             }
-            .alert("iCloud Sync", isPresented: Binding(
-                get: { cloudSyncManager.errorMessage != nil },
-                set: { _ in cloudSyncManager.clearError() }
-            )) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(cloudSyncManager.errorMessage ?? "")
-            }
-        }
-    }
-
-    private var iCloudSyncSection: some View {
-        Section("iCloud Sync") {
-            Toggle("Sync with iCloud", isOn: Binding(
-                get: { dataController.isCloudSyncEnabled },
-                set: { isEnabled in
-                    dataController.setCloudSyncEnabled(isEnabled)
-                }
-            ))
-
-            HStack {
-                Text("Status")
-                Spacer()
-                Text(iCloudAvailabilityLabel)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Text("Last Sync Attempt")
-                Spacer()
-                if let lastSyncAttempt = cloudSyncManager.lastSyncAttempt {
-                    Text(lastSyncAttempt, style: .time)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("—")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if let statusMessage = cloudSyncManager.statusMessage {
-                Text(statusMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text("Sign into iCloud in Settings to sync your data.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            Button("Retry") {
-                Task {
-                    await dataController.retryCloudContainer()
-                    await cloudSyncManager.refreshStatus()
-                }
-            }
-            .buttonStyle(.bordered)
         }
     }
 
@@ -185,19 +125,6 @@ struct SettingsView: View {
         }
     }
 
-    private var iCloudAvailabilityLabel: String {
-        switch cloudSyncManager.accountStatus {
-        case .available:
-            return cloudSyncManager.isICloudAvailable ? "Available" : "Denied"
-        case .noAccount, .restricted:
-            return "Denied"
-        case .couldNotDetermine:
-            return "Not Set"
-        @unknown default:
-            return "Not Set"
-        }
-    }
-
     private func refreshStatus() async {
         if isRefreshing { return }
         isRefreshing = true
@@ -205,7 +132,6 @@ struct SettingsView: View {
         let settings = await notificationSettings(from: center)
         authorizationStatus = settings.authorizationStatus
         pendingRequests = await pendingNotificationRequests(from: center)
-        await cloudSyncManager.refreshStatus()
         isRefreshing = false
     }
 
@@ -261,6 +187,4 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .modelContainer(SampleData.makeContainer())
-        .environmentObject(AppDataController())
-        .environmentObject(CloudSyncManager(containerIdentifier: AppDataController.cloudKitContainerIdentifier))
 }
