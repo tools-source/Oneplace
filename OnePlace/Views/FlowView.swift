@@ -47,7 +47,7 @@ struct FlowView: View {
 
     private var summarySection: some View {
         Section {
-            HStack(spacing: 12) {
+            LazyVGrid(columns: flowSummaryColumns, alignment: .leading, spacing: 12) {
                 SummaryCard(title: "Upcoming", value: Double(upcomingItems.count), subtitle: "Bills")
                 SummaryCard(title: "Due Soon", value: upcomingAmount, subtitle: "Total")
             }
@@ -127,6 +127,10 @@ struct FlowView: View {
         }
     }
 
+    private var flowSummaryColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
+    }
+
     private var upcomingItems: [FlowItem] {
         filteredItems.filter { $0.status != .paid }
     }
@@ -188,18 +192,23 @@ private struct SummaryCard: View {
     let subtitle: String
 
     var body: some View {
-        AppCard {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value, format: .number)
-                    .font(.headline)
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value, format: .number)
+                .font(.title2.weight(.semibold))
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+        .padding(12)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.15))
+        )
     }
 }
 

@@ -48,7 +48,7 @@ struct OrganizerView: View {
 
     private var summarySection: some View {
         Section {
-            HStack(spacing: 12) {
+            LazyVGrid(columns: organizerSummaryColumns, alignment: .leading, spacing: 12) {
                 SummaryCard(title: "Today", value: Double(todayTasks.count), subtitle: "Tasks")
                 SummaryCard(title: "Upcoming", value: Double(upcomingTasks.count), subtitle: "Tasks")
                 SummaryCard(title: "Done", value: Double(completedTasks.count), subtitle: "Tasks")
@@ -90,6 +90,10 @@ struct OrganizerView: View {
                 }
             }
         }
+    }
+
+    private var organizerSummaryColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
     }
 
     private var todayTasks: [TaskItem] {
@@ -141,18 +145,23 @@ private struct SummaryCard: View {
     let subtitle: String
 
     var body: some View {
-        AppCard {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value, format: .number)
-                    .font(.headline)
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value, format: .number)
+                .font(.title2.weight(.semibold))
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+        .padding(12)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.15))
+        )
     }
 }
 
