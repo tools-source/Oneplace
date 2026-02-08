@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct SplitView: View {
     @Environment(\.modelContext) private var modelContext
@@ -8,6 +9,8 @@ struct SplitView: View {
 
     @State private var showingAddPerson = false
     @State private var showingAddExpense = false
+    @State private var editMode: EditMode = .inactive
+    @State private var showCopiedAlert = false
 
     var body: some View {
         NavigationStack {
@@ -17,8 +20,12 @@ struct SplitView: View {
                 expensesSection
             }
             .listStyle(.insetGrouped)
+            .environment(\.editMode, $editMode)
             .navigationTitle("Split")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    EditButton()
+                }
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button {
                         showingAddExpense = true
@@ -31,6 +38,11 @@ struct SplitView: View {
                         Label("Add Person", systemImage: "person.badge.plus")
                     }
                 }
+            }
+            .alert("Copied", isPresented: $showCopiedAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Balances copied to clipboard.")
             }
             .sheet(isPresented: $showingAddPerson) {
                 AddPersonSheet { person in
@@ -62,7 +74,7 @@ struct SplitView: View {
     }
 
     private var balancesSection: some View {
-        Section("Balances") {
+        Section {
             if people.isEmpty {
                 Text("Balances will appear here")
                     .foregroundStyle(.secondary)
@@ -76,6 +88,18 @@ struct SplitView: View {
                             .foregroundStyle(balance >= 0 ? .green : .orange)
                     }
                 }
+            }
+        } header: {
+            HStack {
+                Text("Balances")
+                Spacer()
+                Button {
+                    copyBalances()
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.borderless)
             }
         }
     }
@@ -115,6 +139,29 @@ struct SplitView: View {
             return partial + expense.amount / count
         }
         return totalPaid - share
+    }
+
+    private func copyBalances() {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+
+        let currencyFormatter = NumberFormatter()
+        currencyFormatter.numberStyle = .currency
+        currencyFormatter.currencyCode = Locale.current.currency?.identifier ?? "USD"
+        currencyFormatter.minimumFractionDigits = 2
+        currencyFormatter.maximumFractionDigits = 2
+
+        let title = "Split balances (\(dateFormatter.string(from: Date())))"
+        let lines = people.map { person -> String in
+            let balance = balanceForPerson(person)
+            let formatted = currencyFormatter.string(from: NSNumber(value: balance)) ?? "\(balance)"
+            return "\(person.name): \(formatted)"
+        }
+        let text = ([title] + lines).joined(separator: "\n")
+
+        UIPasteboard.general.string = text
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        showCopiedAlert = true
     }
 }
 
