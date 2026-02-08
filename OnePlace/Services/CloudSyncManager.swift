@@ -49,6 +49,8 @@ final class CloudSyncManager: ObservableObject {
             return "iCloud access is restricted on this device."
         case .couldNotDetermine:
             return "Unable to determine iCloud status."
+        case .temporarilyUnavailable:
+            return "iCloud is temporarily unavailable. Please try again later."
         @unknown default:
             return "Unknown iCloud status."
         }

@@ -32,16 +32,16 @@ final class FlowItem {
     var id: UUID = UUID()
     var title: String = ""
     var amount: Double = 0
-    var type: FlowType = .bill
-    var frequency: FlowFrequency = .monthly
+    var type: FlowType = FlowType.bill
+    var frequency: FlowFrequency = FlowFrequency.monthly
     var nextDueDate: Date = Date()
-    var status: FlowStatus = .upcoming
+    var status: FlowStatus = FlowStatus.upcoming
     var notes: String?
     var reminderEnabled: Bool = false
     var reminderDate: Date?
     var reminderHour: Int?
     var reminderMinute: Int?
-    var reminderRepeat: ReminderRepeatRule = .none
+    var reminderRepeat: ReminderRepeatRule = ReminderRepeatRule.none
     var reminderOffsetDays: Int = 0
     var notificationId: String = ""
 
@@ -60,15 +60,15 @@ final class FlowItem {
         id: UUID = UUID(),
         title: String = "",
         amount: Double = 0,
-        type: FlowType = .bill,
-        frequency: FlowFrequency = .monthly,
+        type: FlowType = FlowType.bill,
+        frequency: FlowFrequency = FlowFrequency.monthly,
         nextDueDate: Date = Date(),
-        status: FlowStatus = .upcoming,
+        status: FlowStatus = FlowStatus.upcoming,
         notes: String? = nil,
         reminderEnabled: Bool = false,
         reminderDate: Date? = nil,
         reminderTime: DateComponents? = nil,
-        reminderRepeat: ReminderRepeatRule = .none,
+        reminderRepeat: ReminderRepeatRule = ReminderRepeatRule.none,
         reminderOffsetDays: Int = 0,
         notificationId: String? = nil
     ) {
