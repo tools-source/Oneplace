@@ -66,12 +66,36 @@ final class AppDataController: ObservableObject {
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
-            dump(error)
+            logContainerError(error, configuration: configuration)
             if let fallback {
                 return fallback
             }
             let inMemoryConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)
-            return try! ModelContainer(for: schema, configurations: [inMemoryConfiguration])
+            do {
+                return try ModelContainer(for: schema, configurations: [inMemoryConfiguration])
+            } catch {
+                logContainerError(error, configuration: inMemoryConfiguration)
+                fatalError("Failed to create any ModelContainer. See logs above for details.")
+            }
+        }
+    }
+
+    private static func logContainerError(_ error: Error, configuration: ModelConfiguration) {
+        print("Failed to create ModelContainer with configuration: \(configuration)")
+        dump(error)
+        let nsError = error as NSError
+        print("NSError domain: \(nsError.domain) code: \(nsError.code)")
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
+            print("Underlying error:")
+            dump(underlying)
+        }
+        if let detailedErrors = nsError.userInfo["NSDetailedErrors"] as? [NSError], !detailedErrors.isEmpty {
+            print("Detailed errors:")
+            detailedErrors.forEach { dump($0) }
+        }
+        if !nsError.userInfo.isEmpty {
+            print("User info:")
+            dump(nsError.userInfo)
         }
     }
 
