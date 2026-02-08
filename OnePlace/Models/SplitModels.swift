@@ -5,6 +5,8 @@ import SwiftData
 final class SplitPerson {
     var id: UUID
     var name: String
+    @Relationship(deleteRule: .nullify, inverse: \SplitExpense.participants) var expenses: [SplitExpense]?
+    @Relationship(deleteRule: .nullify, inverse: \SplitExpense.paidBy) var expensesPaid: [SplitExpense]?
 
     init(id: UUID = UUID(), name: String) {
         self.id = id
