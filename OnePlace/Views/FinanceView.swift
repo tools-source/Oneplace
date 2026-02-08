@@ -186,15 +186,52 @@ private struct FinanceRow: View {
 private struct FinanceEntryEditor: View {
     @Environment(\.dismiss) private var dismiss
 
+    @AppStorage("lastSelectedCategory") private var lastSelectedCategory: String = ""
+
     @State private var amount: Double
     @State private var type: FinanceType
     @State private var category: String
     @State private var description: String
     @State private var date: Date
     @State private var urgency: FinanceUrgency
+    @State private var userSelectedCategory: Bool
+    @State private var isAutoSelectingCategory = false
 
     private let entry: FinanceEntry?
     private let onSave: ((FinanceEntry) -> Void)?
+
+    private let expenseCategories = [
+        "Housing",
+        "Transportation",
+        "Food",
+        "Utilities",
+        "Health",
+        "Shopping",
+        "Travel",
+        "Entertainment",
+        "Other Expense"
+    ]
+    private let incomeCategories = [
+        "Salary",
+        "Bonus",
+        "Interest",
+        "Refund",
+        "Gift",
+        "Other Income"
+    ]
+    private let categorySuggestions: [String: String] = [
+        "uber": "Transportation",
+        "lyft": "Transportation",
+        "rent": "Housing",
+        "gas": "Transportation",
+        "fuel": "Transportation",
+        "amazon": "Shopping",
+        "grocery": "Food",
+        "restaurant": "Food",
+        "salary": "Salary",
+        "paycheck": "Salary",
+        "bonus": "Bonus"
+    ]
 
     init(entry: FinanceEntry?, onSave: ((FinanceEntry) -> Void)? = nil) {
         self.entry = entry
@@ -205,16 +242,22 @@ private struct FinanceEntryEditor: View {
         _description = State(initialValue: entry?.entryDescription ?? "")
         _date = State(initialValue: entry?.date ?? Date())
         _urgency = State(initialValue: entry?.urgency ?? .medium)
+        _userSelectedCategory = State(initialValue: entry != nil)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Details") {
-                    TextField("Category", text: $category)
-                    TextField("Description", text: $description)
                     TextField("Amount", value: $amount, format: .number)
                         .keyboardType(.decimalPad)
+                    Picker("Category", selection: $category) {
+                        ForEach(availableCategories, id: \.self) { category in
+                            Text(category).tag(category)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    TextField("Description", text: $description)
                     Picker("Type", selection: $type) {
                         ForEach(FinanceType.allCases, id: \.self) { type in
                             Text(type.rawValue.capitalized).tag(type)
@@ -229,6 +272,21 @@ private struct FinanceEntryEditor: View {
                 }
             }
             .navigationTitle(entry == nil ? "New Transaction" : "Edit Transaction")
+            .onAppear {
+                guard entry == nil else { return }
+                applyInitialCategorySelection()
+            }
+            .onChange(of: description) { _, newValue in
+                guard !userSelectedCategory else { return }
+                applySuggestedCategory(for: newValue)
+            }
+            .onChange(of: category) { _, _ in
+                if isAutoSelectingCategory {
+                    isAutoSelectingCategory = false
+                } else {
+                    userSelectedCategory = true
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
@@ -246,12 +304,37 @@ private struct FinanceEntryEditor: View {
                             let newEntry = FinanceEntry(amount: amount, type: type, category: category, entryDescription: description, date: date, urgency: urgency)
                             onSave?(newEntry)
                         }
+                        lastSelectedCategory = category
                         dismiss()
                     }
-                    .disabled(category.isEmpty || description.isEmpty)
+                    .disabled(amount <= 0 || category.isEmpty)
                 }
             }
         }
+    }
+
+    private var availableCategories: [String] {
+        let defaults = type == .gain ? incomeCategories : expenseCategories
+        if !defaults.contains(category), !category.isEmpty {
+            return defaults + [category]
+        }
+        return defaults
+    }
+
+    private func applyInitialCategorySelection() {
+        let defaultCategory = type == .gain ? "Other Income" : "Other Expense"
+        let targetCategory = lastSelectedCategory.isEmpty ? defaultCategory : lastSelectedCategory
+        isAutoSelectingCategory = true
+        category = targetCategory
+    }
+
+    private func applySuggestedCategory(for text: String) {
+        let lowered = text.lowercased()
+        guard let suggestion = categorySuggestions.first(where: { lowered.contains($0.key) })?.value else {
+            return
+        }
+        isAutoSelectingCategory = true
+        category = suggestion
     }
 }
 
