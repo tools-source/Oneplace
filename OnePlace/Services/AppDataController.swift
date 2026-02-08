@@ -8,7 +8,15 @@ final class AppDataController: ObservableObject {
     let cloudContainer: ModelContainer
     let localContainer: ModelContainer
     @Published var container: ModelContainer
-    let migrationManager: MigrationManager
+    lazy var migrationManager: MigrationManager = {
+        MigrationManager(
+            localContainer: localContainer,
+            cloudContainer: cloudContainer,
+            onSwitchToCloud: { [weak self] container in
+                self?.container = container
+            }
+        )
+    }()
 
     init() {
         let schema = Schema([
@@ -44,14 +52,6 @@ final class AppDataController: ObservableObject {
         }
 
         container = cloudContainer
-        migrationManager = MigrationManager(
-            localContainer: localContainer,
-            cloudContainer: cloudContainer,
-            onSwitchToCloud: { [weak self] container in
-                self?.container = container
-            }
-        )
-
         let decision = MigrationManager.loadDecision()
         let localHasData = Self.hasAnyData(in: localContainer)
         let cloudHasData = Self.hasAnyData(in: cloudContainer)
