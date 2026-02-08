@@ -199,14 +199,7 @@ final class MigrationManager: ObservableObject {
 
 extension MigrationManager {
     static var preview: MigrationManager {
-        let schema = Schema([
-            FinanceEntry.self,
-            TaskItem.self,
-            SplitPerson.self,
-            SplitExpense.self,
-            CommsCard.self,
-            FlowItem.self
-        ])
+        let schema = AppSchema.shared
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = (try? ModelContainer(for: schema, configurations: [configuration]))
             ?? SampleData.makeFallbackContainer()

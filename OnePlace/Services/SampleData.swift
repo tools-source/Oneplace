@@ -3,14 +3,7 @@ import SwiftData
 
 enum SampleData {
     @MainActor static func makeContainer(inMemory: Bool = true) -> ModelContainer {
-        let schema = Schema([
-            FinanceEntry.self,
-            TaskItem.self,
-            SplitPerson.self,
-            SplitExpense.self,
-            CommsCard.self,
-            FlowItem.self
-        ])
+        let schema = AppSchema.shared
         let configuration = ModelConfiguration(isStoredInMemoryOnly: inMemory)
         guard let container = try? ModelContainer(for: schema, configurations: [configuration]) else {
             print("Failed to create sample data ModelContainer. Returning fallback container.")
@@ -43,25 +36,13 @@ enum SampleData {
     }
 
     static func makeFallbackContainer() -> ModelContainer {
-        let emptySchema = Schema([])
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        if let container = try? ModelContainer(for: emptySchema, configurations: [configuration]) {
+        if let container = try? ModelContainer(for: AppSchema.shared, configurations: [configuration]) {
             return container
         }
 
-        print("Failed to create fallback ModelContainer. Returning empty in-memory container.")
-        return (try? ModelContainer(for: emptySchema, configurations: [configuration])) ?? ModelContainerPlaceholder.container
+        print("Failed to create fallback ModelContainer with shared schema. Retrying in-memory creation.")
+        return (try? ModelContainer(for: AppSchema.shared, configurations: [configuration]))
+            ?? SampleData.makeContainer(inMemory: true)
     }
-}
-
-private enum ModelContainerPlaceholder {
-    static let container: ModelContainer = {
-        let emptySchema = Schema([])
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        return (try? ModelContainer(for: emptySchema, configurations: [configuration])) ?? {
-            let fallbackSchema = Schema([])
-            let fallbackConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)
-            return (try? ModelContainer(for: fallbackSchema, configurations: [fallbackConfiguration]))!
-        }()
-    }()
 }
