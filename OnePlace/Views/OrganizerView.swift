@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 struct OrganizerView: View {
     @Environment(\.modelContext) private var modelContext
@@ -104,7 +105,7 @@ struct OrganizerView: View {
                             Button {
                                 task.completed.toggle()
                                 if task.completed {
-                                    NotificationManager.shared.cancelReminder(id: task.notificationId)
+                                    cancelReminder(id: task.notificationId)
                                 }
                             } label: {
                                 Label(task.completed ? "Reopen" : "Complete", systemImage: "checkmark")
@@ -141,27 +142,38 @@ struct OrganizerView: View {
     }
 
     private func delete(_ task: TaskItem) {
-        NotificationManager.shared.cancelReminder(id: task.notificationId)
+        cancelReminder(id: task.notificationId)
         modelContext.delete(task)
     }
 
     private func scheduleReminder(for task: TaskItem) {
-        NotificationManager.shared.cancelReminder(id: task.notificationId)
+        cancelReminder(id: task.notificationId)
         guard task.reminderEnabled, let reminderDate = task.reminderDate else { return }
 
         let title = "Reminder: \(task.title)"
         let body = task.dueDate != nil ? "Due \(task.dueDate!.formatted(date: .abbreviated, time: .omitted))" : "Task reminder"
 
+        let center = UNUserNotificationCenter.current()
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminderDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: task.notificationId, content: content, trigger: trigger)
+
         Task {
-            await NotificationManager.shared.scheduleReminder(
-                id: task.notificationId,
-                title: title,
-                body: body,
-                date: reminderDate,
-                repeats: false,
-                calendarComponents: nil
-            )
+            do {
+                try await center.add(request)
+            } catch {
+                return
+            }
         }
+    }
+
+    private func cancelReminder(id: String) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
     }
 }
 

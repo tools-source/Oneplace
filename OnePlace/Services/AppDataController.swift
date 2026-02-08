@@ -67,17 +67,20 @@ final class AppDataController: ObservableObject {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             logContainerError(error, configuration: configuration)
-            if let fallback {
-                return fallback
-            }
-            let inMemoryConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)
-            do {
-                return try ModelContainer(for: schema, configurations: [inMemoryConfiguration])
-            } catch {
-                logContainerError(error, configuration: inMemoryConfiguration)
-                fatalError("Failed to create any ModelContainer. See logs above for details.")
-            }
         }
+
+        if let fallback {
+            return fallback
+        }
+
+        let inMemoryConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)
+        print("Falling back to in-memory ModelContainer after persistent store failure.")
+        if let inMemoryContainer = try? ModelContainer(for: schema, configurations: [inMemoryConfiguration]) {
+            return inMemoryContainer
+        }
+
+        assertionFailure("Failed to create any ModelContainer. See logs above for details.")
+        return try! ModelContainer(for: schema, configurations: [inMemoryConfiguration])
     }
 
     private static func logContainerError(_ error: Error, configuration: ModelConfiguration) {

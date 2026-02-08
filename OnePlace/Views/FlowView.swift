@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 struct FlowView: View {
     @Environment(\.modelContext) private var modelContext
@@ -96,7 +97,7 @@ struct FlowView: View {
                             .tint(.blue)
                             Button {
                                 item.status = .paid
-                                NotificationManager.shared.cancelReminder(id: item.notificationId)
+                                cancelReminder(id: item.notificationId)
                             } label: {
                                 Label("Mark Paid", systemImage: "checkmark.seal")
                             }
@@ -156,12 +157,12 @@ struct FlowView: View {
     }
 
     private func delete(_ item: FlowItem) {
-        NotificationManager.shared.cancelReminder(id: item.notificationId)
+        cancelReminder(id: item.notificationId)
         modelContext.delete(item)
     }
 
     private func scheduleReminder(for item: FlowItem) {
-        NotificationManager.shared.cancelReminder(id: item.notificationId)
+        cancelReminder(id: item.notificationId)
         guard item.reminderEnabled, let reminderDate = item.reminderDate else { return }
 
         let formattedAmount = item.amount.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
@@ -169,16 +170,30 @@ struct FlowView: View {
         let body = "Amount: \(formattedAmount)"
         let (repeats, components) = repeatComponents(for: item, baseDate: reminderDate)
 
+        let center = UNUserNotificationCenter.current()
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        let triggerComponents = components ?? Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: reminderDate
+        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: repeats)
+        let request = UNNotificationRequest(identifier: item.notificationId, content: content, trigger: trigger)
+
         Task {
-            await NotificationManager.shared.scheduleReminder(
-                id: item.notificationId,
-                title: title,
-                body: body,
-                date: reminderDate,
-                repeats: repeats,
-                calendarComponents: components
-            )
+            do {
+                try await center.add(request)
+            } catch {
+                return
+            }
         }
+    }
+
+    private func cancelReminder(id: String) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
     }
 
     private func repeatComponents(for item: FlowItem, baseDate: Date) -> (Bool, DateComponents?) {

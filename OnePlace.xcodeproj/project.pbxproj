@@ -10,7 +10,6 @@
 		0BF9F97A2F383B3900E14DC7 /* SettingsView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9792F383B3900E14DC7 /* SettingsView 2.swift */; };
 		0BF9F97C2F383B6400E14DC7 /* EmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F97B2F383B6400E14DC7 /* EmptyState.swift */; };
 		0BF9F97E2F383BA400E14DC7 /* AppCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F97D2F383BA400E14DC7 /* AppCard.swift */; };
-		0BF9F9802F383BA800E14DC7 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F97F2F383BA800E14DC7 /* NotificationManager.swift */; };
 		0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */; };
 		0BF9F9842F38664500E14DC7 /* AudioPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */; };
 		0BF9F9862F38666C00E14DC7 /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9852F38666C00E14DC7 /* StatCard.swift */; };
@@ -40,7 +39,6 @@
 		0BF9F9792F383B3900E14DC7 /* SettingsView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView 2.swift"; sourceTree = "<group>"; };
 		0BF9F97B2F383B6400E14DC7 /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
 		0BF9F97D2F383BA400E14DC7 /* AppCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCard.swift; sourceTree = "<group>"; };
-		0BF9F97F2F383BA800E14DC7 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCategory.swift; sourceTree = "<group>"; };
 		0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerManager.swift; sourceTree = "<group>"; };
 		0BF9F9852F38666C00E14DC7 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
@@ -134,7 +132,6 @@
 				0BF9F9792F383B3900E14DC7 /* SettingsView 2.swift */,
 				0BF9F97B2F383B6400E14DC7 /* EmptyState.swift */,
 				0BF9F97D2F383BA400E14DC7 /* AppCard.swift */,
-				0BF9F97F2F383BA800E14DC7 /* NotificationManager.swift */,
 				0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */,
 				0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */,
 				0BF9F9852F38666C00E14DC7 /* StatCard.swift */,
@@ -233,7 +230,6 @@
 			files = (
 				5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */,
 				5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */,
-				0BF9F9802F383BA800E14DC7 /* NotificationManager.swift in Sources */,
 				0C5A1A252F4B200100AA0001 /* AppDataController.swift in Sources */,
 				0C5A1A242F4B200100AA0001 /* CloudSyncManager.swift in Sources */,
 				0C5A1A262F4B200100AA0001 /* MigrationManager.swift in Sources */,
