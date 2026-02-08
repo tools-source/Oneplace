@@ -5,6 +5,11 @@ struct SettingsView: View {
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var pendingRequests: [UNNotificationRequest] = []
     @State private var isRefreshing = false
+    #if DEBUG
+    @State private var anonymousId: String = "—"
+    @State private var proUnlocked = false
+    @State private var earlyUser = false
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -22,6 +27,9 @@ struct SettingsView: View {
             }
             .task {
                 await refreshStatus()
+                #if DEBUG
+                loadDebugInfo()
+                #endif
             }
         }
     }
@@ -102,6 +110,11 @@ struct SettingsView: View {
                     await refreshStatus()
                 }
             }
+
+            LabeledContent("Anonymous ID", value: anonymousId)
+                .textSelection(.enabled)
+            LabeledContent("Pro unlocked", value: proUnlocked ? "Yes" : "No")
+            LabeledContent("Early user", value: earlyUser ? "Yes" : "No")
         }
     }
     #endif
@@ -127,6 +140,14 @@ struct SettingsView: View {
         pendingRequests = await NotificationManager.shared.listPendingReminders()
         isRefreshing = false
     }
+
+    #if DEBUG
+    private func loadDebugInfo() {
+        anonymousId = IdentityManager.shared.getOrCreateAnonymousId()
+        proUnlocked = IdentityManager.shared.isProUnlocked()
+        earlyUser = IdentityManager.shared.isEarlyUser()
+    }
+    #endif
 
     private func nextTriggerDate(for request: UNNotificationRequest) -> Date? {
         if let trigger = request.trigger as? UNCalendarNotificationTrigger {

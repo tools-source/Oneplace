@@ -23,6 +23,9 @@ struct OnePlaceApp: App {
               // You could also log the error here
               print("Failed to create persistent ModelContainer. Falling back to in-memory. Error: \(error)")
           }
+
+        // Ensure the anonymous ID is created early and persists across reinstalls via Keychain.
+        _ = IdentityManager.shared.getOrCreateAnonymousId()
       }
 
     var body: some Scene {
