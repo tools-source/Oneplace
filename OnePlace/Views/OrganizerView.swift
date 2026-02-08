@@ -49,9 +49,27 @@ struct OrganizerView: View {
     private var summarySection: some View {
         Section {
             LazyVGrid(columns: organizerSummaryColumns, alignment: .leading, spacing: 12) {
-                SummaryCard(title: "Today", value: Double(todayTasks.count), subtitle: "Tasks")
-                SummaryCard(title: "Upcoming", value: Double(upcomingTasks.count), subtitle: "Tasks")
-                SummaryCard(title: "Done", value: Double(completedTasks.count), subtitle: "Tasks")
+                StatCard(
+                    title: "Today",
+                    value: todayTasks.count.formatted(),
+                    subtitle: "Tasks",
+                    icon: "checkmark.circle",
+                    tint: .blue
+                )
+                StatCard(
+                    title: "Upcoming",
+                    value: upcomingTasks.count.formatted(),
+                    subtitle: "Tasks",
+                    icon: "clock",
+                    tint: .purple
+                )
+                StatCard(
+                    title: "Done",
+                    value: completedTasks.count.formatted(),
+                    subtitle: "Tasks",
+                    icon: "checkmark.seal",
+                    tint: .green
+                )
             }
         }
         .listRowBackground(Color(.systemBackground))
@@ -136,32 +154,6 @@ struct OrganizerView: View {
                 calendarComponents: nil
             )
         }
-    }
-}
-
-private struct SummaryCard: View {
-    let title: String
-    let value: Double
-    let subtitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value, format: .number)
-                .font(.title2.weight(.semibold))
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
-        .padding(12)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.15))
-        )
     }
 }
 

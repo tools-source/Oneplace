@@ -48,8 +48,20 @@ struct FlowView: View {
     private var summarySection: some View {
         Section {
             LazyVGrid(columns: flowSummaryColumns, alignment: .leading, spacing: 12) {
-                SummaryCard(title: "Upcoming", value: Double(upcomingItems.count), subtitle: "Bills")
-                SummaryCard(title: "Due Soon", value: upcomingAmount, subtitle: "Total")
+                StatCard(
+                    title: "Upcoming",
+                    value: upcomingItems.count.formatted(),
+                    subtitle: "Bills",
+                    icon: "calendar",
+                    tint: .blue
+                )
+                StatCard(
+                    title: "Due Soon",
+                    value: upcomingAmount.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
+                    subtitle: "Total",
+                    icon: "exclamationmark.circle",
+                    tint: .orange
+                )
             }
         }
         .listRowBackground(Color(.systemBackground))
@@ -183,32 +195,6 @@ struct FlowView: View {
             let components: Set<Calendar.Component> = [.day, .hour, .minute]
             return (true, components)
         }
-    }
-}
-
-private struct SummaryCard: View {
-    let title: String
-    let value: Double
-    let subtitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value, format: .number)
-                .font(.title2.weight(.semibold))
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
-        .padding(12)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.15))
-        )
     }
 }
 
