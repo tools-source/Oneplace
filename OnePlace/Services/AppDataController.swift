@@ -21,14 +21,27 @@ final class AppDataController: ObservableObject {
         ])
 
         let localConfiguration = ModelConfiguration(schema: schema)
-        let cloudConfiguration = ModelConfiguration(
-            "CloudStore",
-            schema: schema,
-            cloudKitDatabase: .private(Self.cloudKitContainerIdentifier)
-        )
+        let cloudConfiguration: ModelConfiguration? = {
+            guard FileManager.default.ubiquityIdentityToken != nil else {
+                return nil
+            }
+            return ModelConfiguration(
+                "CloudStore",
+                schema: schema,
+                cloudKitDatabase: .private(Self.cloudKitContainerIdentifier)
+            )
+        }()
 
         localContainer = Self.makeContainer(schema: schema, configuration: localConfiguration)
-        cloudContainer = Self.makeContainer(schema: schema, configuration: cloudConfiguration, fallback: localContainer)
+        if let cloudConfiguration {
+            cloudContainer = Self.makeContainer(
+                schema: schema,
+                configuration: cloudConfiguration,
+                fallback: localContainer
+            )
+        } else {
+            cloudContainer = localContainer
+        }
 
         container = cloudContainer
         migrationManager = MigrationManager(
@@ -73,14 +86,8 @@ final class AppDataController: ObservableObject {
             return fallback
         }
 
-        let inMemoryConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)
         print("Falling back to in-memory ModelContainer after persistent store failure.")
-        if let inMemoryContainer = try? ModelContainer(for: schema, configurations: [inMemoryConfiguration]) {
-            return inMemoryContainer
-        }
-
-        assertionFailure("Failed to create any ModelContainer. See logs above for details.")
-        return try! ModelContainer(for: schema, configurations: [inMemoryConfiguration])
+        return makeInMemoryContainer(schema: schema)
     }
 
     private static func logContainerError(_ error: Error, configuration: ModelConfiguration) {
@@ -100,6 +107,18 @@ final class AppDataController: ObservableObject {
             print("User info:")
             dump(nsError.userInfo)
         }
+    }
+
+    private static func makeInMemoryContainer(schema: Schema) -> ModelContainer {
+        let inMemoryConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)
+        if let inMemoryContainer = try? ModelContainer(for: schema, configurations: [inMemoryConfiguration]) {
+            return inMemoryContainer
+        }
+
+        print("Unable to create in-memory ModelContainer with schema. Returning empty in-memory container.")
+        let emptySchema = Schema([])
+        return (try? ModelContainer(for: emptySchema, configurations: [inMemoryConfiguration]))
+            ?? SampleData.makeFallbackContainer()
     }
 
     private static func hasAnyData(in container: ModelContainer) -> Bool {

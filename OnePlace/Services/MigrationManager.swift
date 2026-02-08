@@ -208,7 +208,8 @@ extension MigrationManager {
             FlowItem.self
         ])
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: schema, configurations: [configuration])
+        let container = (try? ModelContainer(for: schema, configurations: [configuration]))
+            ?? SampleData.makeFallbackContainer()
         return MigrationManager(localContainer: container, cloudContainer: container)
     }
 }

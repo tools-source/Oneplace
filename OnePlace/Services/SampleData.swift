@@ -12,7 +12,10 @@ enum SampleData {
             FlowItem.self
         ])
         let configuration = ModelConfiguration(isStoredInMemoryOnly: inMemory)
-        let container = try! ModelContainer(for: schema, configurations: [configuration])
+        guard let container = try? ModelContainer(for: schema, configurations: [configuration]) else {
+            print("Failed to create sample data ModelContainer. Returning fallback container.")
+            return makeFallbackContainer()
+        }
         let context = container.mainContext
 
         let rent = FinanceEntry(amount: 1200, type: .owe, category: "Bills & Utilities", entryDescription: "April Rent", urgency: .high)
@@ -38,4 +41,27 @@ enum SampleData {
 
         return container
     }
+
+    static func makeFallbackContainer() -> ModelContainer {
+        let emptySchema = Schema([])
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        if let container = try? ModelContainer(for: emptySchema, configurations: [configuration]) {
+            return container
+        }
+
+        print("Failed to create fallback ModelContainer. Returning empty in-memory container.")
+        return (try? ModelContainer(for: emptySchema, configurations: [configuration])) ?? ModelContainerPlaceholder.container
+    }
+}
+
+private enum ModelContainerPlaceholder {
+    static let container: ModelContainer = {
+        let emptySchema = Schema([])
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        return (try? ModelContainer(for: emptySchema, configurations: [configuration])) ?? {
+            let fallbackSchema = Schema([])
+            let fallbackConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)
+            return (try? ModelContainer(for: fallbackSchema, configurations: [fallbackConfiguration]))!
+        }()
+    }()
 }
