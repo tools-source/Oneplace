@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 enum SampleData {
-    static func makeContainer(inMemory: Bool = true) -> ModelContainer {
+    @MainActor static func makeContainer(inMemory: Bool = true) -> ModelContainer {
         let schema = Schema([
             FinanceEntry.self,
             TaskItem.self,
