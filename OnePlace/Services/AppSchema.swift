@@ -1,12 +1,12 @@
 import SwiftData
 
 enum AppSchema {
-    static let shared = Schema([
+    static let schema = Schema([
         FinanceEntry.self,
+        FlowItem.self,
         TaskItem.self,
         SplitPerson.self,
         SplitExpense.self,
-        CommsCard.self,
-        FlowItem.self
+        CommsCard.self
     ])
 }

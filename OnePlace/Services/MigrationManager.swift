@@ -4,10 +4,9 @@ import SwiftData
 @MainActor
 final class MigrationManager: ObservableObject {
     enum Decision: String {
-        case undecided
+        case notSet
         case keepLocal
         case keepCloud
-        case migrated
     }
 
     @Published var shouldShowPrompt = false
@@ -32,13 +31,34 @@ final class MigrationManager: ObservableObject {
 
     static func loadDecision() -> Decision {
         guard let rawValue = UserDefaults.standard.string(forKey: decisionKey) else {
-            return .undecided
+            return .notSet
         }
-        return Decision(rawValue: rawValue) ?? .undecided
+        return Decision(rawValue: rawValue) ?? .notSet
+    }
+
+    static func saveDecision(_ decision: Decision) {
+        UserDefaults.standard.set(decision.rawValue, forKey: decisionKey)
+    }
+
+    static func handleCloudSyncEnabled(localHasData: Bool, cloudHasData: Bool) -> Decision {
+        if localHasData && !cloudHasData {
+            return .keepLocal
+        }
+
+        if cloudHasData && !localHasData {
+            return .keepCloud
+        }
+
+        if localHasData && cloudHasData {
+            let decision = loadDecision()
+            return decision == .notSet ? .notSet : decision
+        }
+
+        return .notSet
     }
 
     func keepLocalOnly() {
-        saveDecision(.keepLocal)
+        Self.saveDecision(.keepLocal)
         shouldShowPrompt = false
     }
 
@@ -60,21 +80,21 @@ final class MigrationManager: ObservableObject {
 
         let localHasData = Self.hasAnyData(in: localContainer)
         let cloudHasData = Self.hasAnyData(in: cloudContainer)
-        let decision = Self.loadDecision()
+        let decision = Self.handleCloudSyncEnabled(localHasData: localHasData, cloudHasData: cloudHasData)
 
         if localHasData && !cloudHasData {
             await migrateToCloud(overwriteDestination: false)
-            saveDecision(.keepLocal)
+            Self.saveDecision(.keepLocal)
         } else if cloudHasData && !localHasData {
             await migrateToLocal(overwriteDestination: false)
-            saveDecision(.keepCloud)
+            Self.saveDecision(.keepCloud)
         } else if localHasData && cloudHasData {
             switch decision {
             case .keepLocal:
                 await migrateToCloud(overwriteDestination: true)
-            case .keepCloud, .migrated:
+            case .keepCloud:
                 await migrateToLocal(overwriteDestination: true)
-            case .undecided:
+            case .notSet:
                 shouldShowPrompt = true
             }
         } else {
@@ -103,7 +123,7 @@ final class MigrationManager: ObservableObject {
             try migrateSplitModels(from: localContext, to: cloudContext, overwriteDestination: overwriteDestination)
             try cloudContext.save()
 
-            saveDecision(.keepLocal)
+            Self.saveDecision(.keepLocal)
             shouldShowPrompt = false
             onSwitchToCloud(cloudContainer)
         } catch {
@@ -132,7 +152,7 @@ final class MigrationManager: ObservableObject {
             try migrateSplitModels(from: cloudContext, to: localContext, overwriteDestination: overwriteDestination)
             try localContext.save()
 
-            saveDecision(.keepCloud)
+            Self.saveDecision(.keepCloud)
             shouldShowPrompt = false
             onSwitchToCloud(cloudContainer)
         } catch {
@@ -142,10 +162,6 @@ final class MigrationManager: ObservableObject {
 
     func clearError() {
         migrationError = nil
-    }
-
-    private func saveDecision(_ decision: Decision) {
-        UserDefaults.standard.set(decision.rawValue, forKey: Self.decisionKey)
     }
 
     private func migrateFinance(
@@ -319,7 +335,7 @@ final class MigrationManager: ObservableObject {
 
 extension MigrationManager {
     static var preview: MigrationManager {
-        let schema = AppSchema.shared
+        let schema = AppSchema.schema
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = (try? ModelContainer(for: schema, configurations: [configuration]))
             ?? SampleData.makeFallbackContainer()
