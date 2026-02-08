@@ -2,6 +2,8 @@ import SwiftUI
 import UserNotifications
 
 struct SettingsView: View {
+    @EnvironmentObject private var authManager: AuthManager
+
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var pendingRequests: [UNNotificationRequest] = []
     @State private var isRefreshing = false
@@ -9,6 +11,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                accountSection
                 notificationStatusSection
                 scheduledRemindersSection
                 #if DEBUG
@@ -22,6 +25,29 @@ struct SettingsView: View {
             }
             .task {
                 await refreshStatus()
+            }
+        }
+    }
+
+    private var accountSection: some View {
+        Section("Account") {
+            HStack {
+                Text("User")
+                Spacer()
+                Text(authManager.currentUserId ?? "Not signed in")
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            if let provider = authManager.authProvider {
+                HStack {
+                    Text("Provider")
+                    Spacer()
+                    Text(provider.rawValue.capitalized)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Button("Sign Out", role: .destructive) {
+                authManager.signOut()
             }
         }
     }
@@ -187,4 +213,5 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .modelContainer(SampleData.makeContainer())
+        .environmentObject(AuthManager())
 }

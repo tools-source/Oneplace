@@ -1,37 +1,45 @@
 import SwiftUI
 
 struct RootTabView: View {
+    let ownerUserId: String
+
     var body: some View {
         TabView {
-            FinanceView()
+            FinanceView(ownerUserId: ownerUserId)
                 .tabItem {
                     Label("Finance", systemImage: "banknote")
                 }
 
-            FlowView()
+            FlowView(ownerUserId: ownerUserId)
                 .tabItem {
                     Label("Flow", systemImage: "calendar.badge.clock")
                 }
 
-            OrganizerView()
+            OrganizerView(ownerUserId: ownerUserId)
                 .tabItem {
                     Label("Organizer", systemImage: "checklist")
                 }
 
-            SplitView()
+            SplitView(ownerUserId: ownerUserId)
                 .tabItem {
                     Label("Split", systemImage: "person.2.fill")
                 }
 
-            CommsView()
+            CommsView(ownerUserId: ownerUserId)
                 .tabItem {
                     Label("Comms", systemImage: "bubble.left.and.bubble.right")
+                }
+
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape")
                 }
         }
     }
 }
 
 #Preview {
-    RootTabView()
+    RootTabView(ownerUserId: SampleData.previewUserId)
         .modelContainer(SampleData.makeContainer())
+        .environmentObject(AuthManager())
 }

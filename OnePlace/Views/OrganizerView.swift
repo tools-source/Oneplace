@@ -3,13 +3,23 @@ import SwiftUI
 import UserNotifications
 
 struct OrganizerView: View {
+    let ownerUserId: String
+
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \TaskItem.dueDate) private var tasks: [TaskItem]
+    @Query private var tasks: [TaskItem]
 
     @State private var showingAdd = false
     @State private var editingTask: TaskItem?
     @State private var searchText = ""
     @State private var summaryWidth: CGFloat = 0
+
+    init(ownerUserId: String) {
+        self.ownerUserId = ownerUserId
+        _tasks = Query(
+            filter: #Predicate<TaskItem> { $0.ownerUserId == ownerUserId },
+            sort: [SortDescriptor(\.dueDate)]
+        )
+    }
 
     private var filteredTasks: [TaskItem] {
         guard !searchText.isEmpty else { return tasks }
@@ -35,13 +45,13 @@ struct OrganizerView: View {
                 }
             }
             .sheet(isPresented: $showingAdd) {
-                TaskEditor(task: nil) { item in
+                TaskEditor(ownerUserId: ownerUserId, task: nil) { item in
                     modelContext.insert(item)
                     scheduleReminder(for: item)
                 }
             }
             .sheet(item: $editingTask) { task in
-                TaskEditor(task: task) { updatedTask in
+                TaskEditor(ownerUserId: ownerUserId, task: task) { updatedTask in
                     scheduleReminder(for: updatedTask)
                 }
             }
@@ -236,8 +246,10 @@ private struct TaskEditor: View {
 
     private let task: TaskItem?
     private let onSave: (TaskItem) -> Void
+    private let ownerUserId: String
 
-    init(task: TaskItem?, onSave: @escaping (TaskItem) -> Void) {
+    init(ownerUserId: String, task: TaskItem?, onSave: @escaping (TaskItem) -> Void) {
+        self.ownerUserId = ownerUserId
         self.task = task
         self.onSave = onSave
         _title = State(initialValue: task?.title ?? "")
@@ -295,6 +307,7 @@ private struct TaskEditor: View {
                             onSave(task)
                         } else {
                             let item = TaskItem(
+                                ownerUserId: ownerUserId,
                                 title: title,
                                 notes: notes.isEmpty ? nil : notes,
                                 priority: priority,
@@ -314,6 +327,7 @@ private struct TaskEditor: View {
 }
 
 #Preview {
-    OrganizerView()
+    OrganizerView(ownerUserId: SampleData.previewUserId)
         .modelContainer(SampleData.makeContainer())
+        .environmentObject(AuthManager())
 }

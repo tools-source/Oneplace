@@ -10,6 +10,7 @@ enum TaskPriority: String, CaseIterable, Codable {
 @Model
 final class TaskItem {
     var id: UUID = UUID()
+    var ownerUserId: String = ""
     var title: String = ""
     var notes: String?
     var priority: TaskPriority = TaskPriority.normal
@@ -21,6 +22,7 @@ final class TaskItem {
 
     init(
         id: UUID = UUID(),
+        ownerUserId: String,
         title: String = "",
         notes: String? = nil,
         priority: TaskPriority = TaskPriority.normal,
@@ -31,6 +33,7 @@ final class TaskItem {
         notificationId: String? = nil
     ) {
         self.id = id
+        self.ownerUserId = ownerUserId
         self.title = title
         self.notes = notes
         self.priority = priority

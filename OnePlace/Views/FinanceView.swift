@@ -2,14 +2,24 @@ import SwiftData
 import SwiftUI
 
 struct FinanceView: View {
+    let ownerUserId: String
+
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \FinanceEntry.date, order: .reverse) private var entries: [FinanceEntry]
+    @Query private var entries: [FinanceEntry]
 
     @State private var searchText = ""
     @State private var selectedType: FinanceType?
     @State private var selectedUrgency: FinanceUrgency?
     @State private var showingAdd = false
     @State private var editingEntry: FinanceEntry?
+
+    init(ownerUserId: String) {
+        self.ownerUserId = ownerUserId
+        _entries = Query(
+            filter: #Predicate<FinanceEntry> { $0.ownerUserId == ownerUserId },
+            sort: [SortDescriptor(\.date, order: .reverse)]
+        )
+    }
 
     private var filteredEntries: [FinanceEntry] {
         entries.filter { entry in
@@ -44,12 +54,12 @@ struct FinanceView: View {
                 }
             }
             .sheet(isPresented: $showingAdd) {
-                FinanceEntryEditor(entry: nil) { newEntry in
+                FinanceEntryEditor(ownerUserId: ownerUserId, entry: nil) { newEntry in
                     modelContext.insert(newEntry)
                 }
             }
             .sheet(item: $editingEntry) { entry in
-                FinanceEntryEditor(entry: entry)
+                FinanceEntryEditor(ownerUserId: ownerUserId, entry: entry)
             }
         }
     }
@@ -206,6 +216,7 @@ private struct FinanceEntryEditor: View {
 
     private let entry: FinanceEntry?
     private let onSave: ((FinanceEntry) -> Void)?
+    private let ownerUserId: String
 
     private let expenseCategories = FinanceCategory.expenseRawValues
     private let incomeCategories = FinanceCategory.incomeRawValues
@@ -235,7 +246,8 @@ private struct FinanceEntryEditor: View {
         return formatter
     }()
 
-    init(entry: FinanceEntry?, onSave: ((FinanceEntry) -> Void)? = nil) {
+    init(ownerUserId: String, entry: FinanceEntry?, onSave: ((FinanceEntry) -> Void)? = nil) {
+        self.ownerUserId = ownerUserId
         self.entry = entry
         self.onSave = onSave
         if let entry {
@@ -331,7 +343,7 @@ private struct FinanceEntryEditor: View {
                             entry.date = date
                             entry.urgency = urgency
                         } else {
-                            let newEntry = FinanceEntry(amount: amountValue, type: type, category: selectedCategory, entryDescription: description, date: date, urgency: urgency)
+                            let newEntry = FinanceEntry(ownerUserId: ownerUserId, amount: amountValue, type: type, category: selectedCategory, entryDescription: description, date: date, urgency: urgency)
                             onSave?(newEntry)
                         }
                         lastCategoryRaw = selectedCategory
@@ -400,6 +412,7 @@ private struct FinanceEntryEditor: View {
 }
 
 #Preview {
-    FinanceView()
+    FinanceView(ownerUserId: SampleData.previewUserId)
         .modelContainer(SampleData.makeContainer())
+        .environmentObject(AuthManager())
 }
