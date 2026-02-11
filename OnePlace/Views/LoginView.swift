@@ -8,6 +8,7 @@ struct LoginView: View {
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
+
             VStack(spacing: 8) {
                 Text("Welcome to OnePlace")
                     .font(.title)
@@ -17,22 +18,30 @@ struct LoginView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
+
             Spacer()
+
             VStack(spacing: 12) {
                 SignInWithAppleButton(.signIn) { request in
-                    request.requestedScopes = [.fullName, .email]
+                    authManager.onAppleRequest(request)
                 } onCompletion: { result in
+                    print("[Auth] Apple Sign-In completion received in LoginView.")
                     authManager.handleAppleSignIn(result: result)
                 }
                 .signInWithAppleButtonStyle(.black)
                 .frame(height: 48)
                 .clipShape(Capsule())
+                .contentShape(Capsule())
+                .allowsHitTesting(true)
 
                 Button {
+                    print("[Auth] Google Sign-In button tapped.")
                     Task {
-                        if let controller = UIApplication.shared.topMostViewController() {
-                            await authManager.signInWithGoogle(presenting: controller)
+                        guard let controller = UIApplication.shared.topMostViewController() else {
+                            print("[Auth] Unable to find top-most UIViewController for Google Sign-In presentation.")
+                            return
                         }
+                        await authManager.signInWithGoogle(presenting: controller)
                     }
                 } label: {
                     HStack {
@@ -47,18 +56,27 @@ struct LoginView: View {
                 .tint(.red)
             }
             .padding(.horizontal, 32)
+
             Spacer()
         }
         .padding()
+        .background(Color(.systemBackground))
+        .onAppear {
+            print("[Auth] LoginView appeared. Buttons are active in the view hierarchy.")
+        }
     }
 }
 
 private extension UIApplication {
     func topMostViewController() -> UIViewController? {
-        guard let scene = connectedScenes.first as? UIWindowScene,
-              let root = scene.windows.first?.rootViewController else {
+        guard let windowScene = connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+              let root = windowScene.windows.first(where: \.isKeyWindow)?.rootViewController
+        else {
             return nil
         }
+
         var top = root
         while let presented = top.presentedViewController {
             top = presented
