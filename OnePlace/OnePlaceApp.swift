@@ -13,13 +13,19 @@ struct OnePlaceApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if authManager.isLoggedIn, let userId = authManager.currentUserId {
+                if authManager.isAuthenticated, let userId = authManager.currentUserId {
                     RootTabView(ownerUserId: userId)
                 } else {
                     LoginView()
                 }
             }
             .environmentObject(authManager)
+            .onOpenURL { url in
+                _ = authManager.handleGoogleOpenURL(url)
+            }
+            .task {
+                await authManager.restoreSessionFromProvider()
+            }
         }
         .modelContainer(dataController.container)
     }
