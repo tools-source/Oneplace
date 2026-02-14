@@ -1,41 +1,46 @@
 import SwiftUI
 
-public struct StatCard: View {
+struct StatCard: View {
     let title: String
     let value: String
     let subtitle: String?
     let icon: String
     let tint: Color
+    let minHeight: CGFloat
+    let horizontalPadding: CGFloat
+    let verticalPadding: CGFloat
 
     @Environment(\.colorScheme) private var colorScheme
 
-    public init(title: String, value: String, subtitle: String? = nil, icon: String, tint: Color) {
+    init(
+        title: String,
+        value: String,
+        subtitle: String? = nil,
+        icon: String,
+        tint: Color,
+        minHeight: CGFloat = 96,
+        horizontalPadding: CGFloat = DesignSystem.cardPadding,
+        verticalPadding: CGFloat = DesignSystem.cardPadding
+    ) {
         self.title = title
         self.value = value
         self.subtitle = subtitle
         self.icon = icon
         self.tint = tint
+        self.minHeight = minHeight
+        self.horizontalPadding = horizontalPadding
+        self.verticalPadding = verticalPadding
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(tint.opacity(0.15))
-                        .frame(width: 24, height: 24)
-                    Image(systemName: icon)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(tint)
-                }
+                iconBadge
 
                 Text(title)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.secondaryTextColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .truncationMode(.tail)
-                    .allowsTightening(true)
 
                 Spacer(minLength: 0)
             }
@@ -45,30 +50,44 @@ public struct StatCard: View {
                 .foregroundStyle(.primary)
                 .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .truncationMode(.tail)
-                .allowsTightening(true)
 
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.secondaryTextColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                    .truncationMode(.tail)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 96, maxHeight: 96, alignment: .leading)
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
+        .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
                 .fill(Color(.secondarySystemBackground))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
                 .strokeBorder(borderColor, lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.15 : 0.06), radius: 6, x: 0, y: 3)
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.1 : 0.04), radius: 4, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private var iconBadge: some View {
+        if icon == "finance.gain" {
+            FinanceTypeBadge(type: .gain)
+        } else if icon == "finance.owe" {
+            FinanceTypeBadge(type: .owe)
+        } else {
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.15))
+                    .frame(width: 24, height: 24)
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
+        }
     }
 
     static func currencyString(for amount: Double) -> String {
