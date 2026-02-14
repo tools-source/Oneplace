@@ -1,28 +1,19 @@
-import SwiftData
 import SwiftUI
 
 struct FinanceView: View {
     let ownerUserId: String
 
-    @Environment(\.modelContext) private var modelContext
-    @Query private var entries: [FinanceEntry]
+    @EnvironmentObject private var authManager: AuthManager
+    @StateObject private var viewModel = FinanceViewModel()
 
     @State private var searchText = ""
     @State private var selectedType: FinanceType?
     @State private var selectedUrgency: FinanceUrgency?
     @State private var showingAdd = false
-    @State private var editingEntry: FinanceEntry?
+    @State private var editingEntry: FinanceEntryRecord?
 
-    init(ownerUserId: String) {
-        self.ownerUserId = ownerUserId
-        _entries = Query(
-            filter: #Predicate<FinanceEntry> { $0.ownerUserId == ownerUserId },
-            sort: [SortDescriptor(\.date, order: .reverse)]
-        )
-    }
-
-    private var filteredEntries: [FinanceEntry] {
-        entries.filter { entry in
+    private var filteredEntries: [FinanceEntryRecord] {
+        viewModel.entries.filter { entry in
             let matchesSearch = searchText.isEmpty
                 || entry.category.localizedCaseInsensitiveContains(searchText)
                 || entry.entryDescription.localizedCaseInsensitiveContains(searchText)
@@ -37,6 +28,11 @@ struct FinanceView: View {
             List {
                 summarySection
                 transactionsSection
+            }
+            .overlay {
+                if viewModel.isLoading && viewModel.entries.isEmpty {
+                    ProgressView("Loading finance data…")
+                }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Finance")
@@ -53,14 +49,50 @@ struct FinanceView: View {
                     }
                 }
             }
+            .task(id: ownerUserId) {
+                await viewModel.loadEntries(for: ownerUserId)
+            }
+            .refreshable {
+                await viewModel.loadEntries(for: ownerUserId)
+            }
+            .alert("Finance Sync", isPresented: Binding(
+                get: { viewModel.errorMessage != nil },
+                set: { if !$0 { viewModel.errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {
+                    viewModel.errorMessage = nil
+                }
+            } message: {
+                Text(viewModel.errorMessage ?? "")
+            }
             .sheet(isPresented: $showingAdd) {
-                FinanceEntryEditor(ownerUserId: ownerUserId, entry: nil) { newEntry in
-                    modelContext.insert(newEntry)
+                FinanceEntryEditor(ownerUserId: ownerUserId, entry: nil) { draft in
+                    Task {
+                        await viewModel.addEntry(for: ownerUserId, draft: draft)
+                    }
                 }
             }
             .sheet(item: $editingEntry) { entry in
-                FinanceEntryEditor(ownerUserId: ownerUserId, entry: entry)
+                FinanceEntryEditor(ownerUserId: ownerUserId, entry: entry) { updatedDraft in
+                    Task {
+                        let updated = FinanceEntryRecord(
+                            id: entry.id,
+                            ownerUserId: entry.ownerUserId,
+                            amount: updatedDraft.amount,
+                            type: updatedDraft.type,
+                            category: updatedDraft.category,
+                            entryDescription: updatedDraft.entryDescription,
+                            date: updatedDraft.date,
+                            urgency: updatedDraft.urgency
+                        )
+                        await viewModel.updateEntry(updated)
+                    }
+                }
             }
+        }
+        .onChange(of: authManager.authState) { _, newValue in
+            guard case .signedIn(let user) = newValue, user.uid == ownerUserId else { return }
+            Task { await viewModel.loadEntries(for: ownerUserId) }
         }
     }
 
@@ -109,7 +141,7 @@ struct FinanceView: View {
                     FinanceRow(entry: entry)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
-                                modelContext.delete(entry)
+                                Task { await viewModel.deleteEntry(entry) }
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -126,17 +158,17 @@ struct FinanceView: View {
     }
 
     private var netTotal: Double {
-        let gain = entries.filter { $0.type == .gain }.map(\.amount).reduce(0, +)
-        let owe = entries.filter { $0.type == .owe }.map(\.amount).reduce(0, +)
+        let gain = viewModel.entries.filter { $0.type == .gain }.map(\.amount).reduce(0, +)
+        let owe = viewModel.entries.filter { $0.type == .owe }.map(\.amount).reduce(0, +)
         return gain - owe
     }
 
     private var gainTotal: Double {
-        entries.filter { $0.type == .gain }.map(\.amount).reduce(0, +)
+        viewModel.entries.filter { $0.type == .gain }.map(\.amount).reduce(0, +)
     }
 
     private var oweTotal: Double {
-        entries.filter { $0.type == .owe }.map(\.amount).reduce(0, +)
+        viewModel.entries.filter { $0.type == .owe }.map(\.amount).reduce(0, +)
     }
 
     private var filterMenu: some View {
@@ -166,7 +198,7 @@ struct FinanceView: View {
 }
 
 private struct FinanceRow: View {
-    let entry: FinanceEntry
+    let entry: FinanceEntryRecord
 
     var body: some View {
         let description = entry.entryDescription
@@ -198,6 +230,15 @@ private struct FinanceRow: View {
     }
 }
 
+struct FinanceEntryDraft {
+    var amount: Double
+    var type: FinanceType
+    var category: String
+    var entryDescription: String
+    var date: Date
+    var urgency: FinanceUrgency
+}
+
 private struct FinanceEntryEditor: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -214,9 +255,8 @@ private struct FinanceEntryEditor: View {
     @State private var typeWasManuallySet = false
     @State private var isAutoSettingType = false
 
-    private let entry: FinanceEntry?
-    private let onSave: ((FinanceEntry) -> Void)?
-    private let ownerUserId: String
+    private let entry: FinanceEntryRecord?
+    private let onSave: ((FinanceEntryDraft) -> Void)?
 
     private let expenseCategories = FinanceCategory.expenseRawValues
     private let incomeCategories = FinanceCategory.incomeRawValues
@@ -246,8 +286,7 @@ private struct FinanceEntryEditor: View {
         return formatter
     }()
 
-    init(ownerUserId: String, entry: FinanceEntry?, onSave: ((FinanceEntry) -> Void)? = nil) {
-        self.ownerUserId = ownerUserId
+    init(ownerUserId: String, entry: FinanceEntryRecord?, onSave: ((FinanceEntryDraft) -> Void)? = nil) {
         self.entry = entry
         self.onSave = onSave
         if let entry {
@@ -335,17 +374,15 @@ private struct FinanceEntryEditor: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
                         guard let amountValue = parsedAmount else { return }
-                        if let entry {
-                            entry.amount = amountValue
-                            entry.type = type
-                            entry.category = selectedCategory
-                            entry.entryDescription = description
-                            entry.date = date
-                            entry.urgency = urgency
-                        } else {
-                            let newEntry = FinanceEntry(ownerUserId: ownerUserId, amount: amountValue, type: type, category: selectedCategory, entryDescription: description, date: date, urgency: urgency)
-                            onSave?(newEntry)
-                        }
+                        let draft = FinanceEntryDraft(
+                            amount: amountValue,
+                            type: type,
+                            category: selectedCategory,
+                            entryDescription: description,
+                            date: date,
+                            urgency: urgency
+                        )
+                        onSave?(draft)
                         lastCategoryRaw = selectedCategory
                         dismiss()
                     }
