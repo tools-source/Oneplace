@@ -13,7 +13,6 @@ struct AddFinanceEntryView: View {
     @State private var type: FinanceType
     @State private var urgency: FinanceUrgency
 
-
     init(entry: FinanceEntryRecord? = nil, onSave: @escaping (FinanceEntryDraft) -> Void) {
         self.entry = entry
         self.onSave = onSave
@@ -28,10 +27,18 @@ struct AddFinanceEntryView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Amount") {
-                    TextField("0.00", text: $amountText)
-                        .keyboardType(.decimalPad)
+                Section {
+                    fieldRow(label: "Description") {
+                        TextField("Description", text: $entryDescription)
+                    }
+
+                    fieldRow(label: "Amount") {
+                        TextField("0.00", text: $amountText)
+                            .keyboardType(.decimalPad)
+                    }
                 }
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                .listRowBackground(Color.clear)
 
                 Section("Details") {
                     Picker("Category", selection: $category) {
@@ -50,8 +57,6 @@ struct AddFinanceEntryView: View {
                             .foregroundStyle(type == .gain ? .green : .red)
                     }
 
-                    TextField("Description", text: $entryDescription)
-
                     DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
 
                     Picker("Urgency", selection: $urgency) {
@@ -61,6 +66,9 @@ struct AddFinanceEntryView: View {
                     }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle(entry == nil ? "New Transaction" : "Edit Transaction")
             .onAppear {
                 if category.isEmpty {
@@ -68,7 +76,7 @@ struct AddFinanceEntryView: View {
                 }
                 updateTypeFromCategory()
             }
-            .onChange(of: category) { newValue, oldValue in
+            .onChange(of: category) { _, _ in
                 updateTypeFromCategory()
             }
             .toolbar {
@@ -93,6 +101,26 @@ struct AddFinanceEntryView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func fieldRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            content()
+                .font(.body)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.15))
+        )
     }
 
     private func updateTypeFromCategory() {

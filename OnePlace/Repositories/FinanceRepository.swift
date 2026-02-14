@@ -39,7 +39,8 @@ final class FinanceRepository {
             category: draft.category,
             entryDescription: draft.entryDescription,
             date: draft.date,
-            urgency: draft.urgency
+            urgency: draft.urgency,
+            isCompleted: false
         )
 
         try await documentRef.setData(encode(record: record), merge: false)
@@ -82,6 +83,8 @@ final class FinanceRepository {
             return nil
         }
 
+        let isCompleted = data["isCompleted"] as? Bool ?? false
+
         let date: Date
         if let timestamp = data["date"] as? Timestamp {
             date = timestamp.dateValue()
@@ -99,7 +102,8 @@ final class FinanceRepository {
             category: category,
             entryDescription: entryDescription,
             date: date,
-            urgency: urgency
+            urgency: urgency,
+            isCompleted: isCompleted
         )
     }
 
@@ -112,7 +116,8 @@ final class FinanceRepository {
             "category": record.category,
             "entryDescription": record.entryDescription,
             "urgency": record.urgency.rawValue,         // enum -> String
-            "date": Timestamp(date: record.date)
+            "date": Timestamp(date: record.date),
+            "isCompleted": record.isCompleted
         ]
     }
 
@@ -125,6 +130,7 @@ final class FinanceRepository {
         let entryDescription: String
         let date: Date
         let urgency: String
+        let isCompleted: Bool
 
         func toRecord(id: String, ownerUserId: String) -> FinanceEntryRecord? {
             guard let financeType = FinanceType(rawValue: type),
@@ -141,7 +147,8 @@ final class FinanceRepository {
                 category: category,
                 entryDescription: entryDescription,
                 date: date,
-                urgency: financeUrgency
+                urgency: financeUrgency,
+                isCompleted: isCompleted
             )
         }
     }

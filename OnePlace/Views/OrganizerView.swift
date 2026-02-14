@@ -34,7 +34,9 @@ struct OrganizerView: View {
                 taskSection(title: "Upcoming", tasks: upcomingTasks)
                 taskSection(title: "Completed", tasks: completedTasks)
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Organizer")
             .searchable(text: $searchText, prompt: "Search tasks")
             .toolbar {

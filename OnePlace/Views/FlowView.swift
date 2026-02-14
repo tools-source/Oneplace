@@ -32,7 +32,9 @@ struct FlowView: View {
                 upcomingSection
                 paidSection
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Flow")
             .searchable(text: $searchText, prompt: "Search bills")
             .toolbar {

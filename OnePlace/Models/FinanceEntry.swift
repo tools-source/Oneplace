@@ -22,6 +22,7 @@ final class FinanceEntry {
     var entryDescription: String = ""
     var date: Date = Date()
     var urgency: FinanceUrgency = FinanceUrgency.medium
+    var isCompleted: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -31,7 +32,8 @@ final class FinanceEntry {
         category: String = "Uncategorized",
         entryDescription: String = "",
         date: Date = Date(),
-        urgency: FinanceUrgency = FinanceUrgency.medium
+        urgency: FinanceUrgency = FinanceUrgency.medium,
+        isCompleted: Bool = false
     ) {
         self.id = id
         self.ownerUserId = ownerUserId
@@ -41,5 +43,6 @@ final class FinanceEntry {
         self.entryDescription = entryDescription
         self.date = date
         self.urgency = urgency
+        self.isCompleted = isCompleted
     }
 }
