@@ -1,64 +1,87 @@
-import FirebaseFirestore
 import Foundation
+import FirebaseAuth
 
 @MainActor
 final class FinanceViewModel: ObservableObject {
+
+    // UI State
     @Published private(set) var entries: [FinanceEntryRecord] = []
-    @Published private(set) var isLoading = false
-    @Published var errorMessage: String?
+    @Published private(set) var isLoading: Bool = false
+    @Published var errorMessage: String? = nil
 
-    private let repository: FinanceRepository
+    private let repo: FinanceRepository
 
-    init(repository: FinanceRepository = FinanceRepository()) {
-        self.repository = repository
+    // ✅ Avoid default-arg creating a @MainActor object
+    init(repo: FinanceRepository? = nil) {
+        self.repo = repo ?? FinanceRepository()
     }
 
-    func loadEntries(for uid: String) async {
+    // MARK: - Public API
+
+    func refresh() async {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            entries = []
+            errorMessage = "You’re not signed in."
+            return
+        }
+
         isLoading = true
+        errorMessage = nil
         defer { isLoading = false }
 
         do {
-            entries = try await repository.fetchEntries(for: uid)
-            errorMessage = nil
+            entries = try await repo.fetchEntries(for: uid)
         } catch {
-            errorMessage = makeFriendlyError(error)
+            errorMessage = error.localizedDescription
         }
     }
 
-    func addEntry(for uid: String, draft: FinanceEntryDraft) async {
+    func addEntry(draft: FinanceEntryDraft) async {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            errorMessage = "You’re not signed in."
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
         do {
-            try await repository.createEntry(for: uid, draft: draft)
-            await loadEntries(for: uid)
+            try await repo.createEntry(for: uid, draft: draft)
+            entries = try await repo.fetchEntries(for: uid)
         } catch {
-            errorMessage = makeFriendlyError(error)
+            errorMessage = error.localizedDescription
         }
     }
 
     func updateEntry(_ entry: FinanceEntryRecord) async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
         do {
-            try await repository.updateEntry(entry)
-            await loadEntries(for: entry.ownerUserId)
+            try await repo.updateEntry(entry)
+            guard let uid = Auth.auth().currentUser?.uid else { return }
+            entries = try await repo.fetchEntries(for: uid)
         } catch {
-            errorMessage = makeFriendlyError(error)
+            errorMessage = error.localizedDescription
         }
     }
 
     func deleteEntry(_ entry: FinanceEntryRecord) async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
         do {
-            try await repository.deleteEntry(entry)
+            try await repo.deleteEntry(entry)
             entries.removeAll { $0.id == entry.id }
         } catch {
-            errorMessage = makeFriendlyError(error)
+            errorMessage = error.localizedDescription
         }
     }
 
-    private func makeFriendlyError(_ error: Error) -> String {
-        let nsError = error as NSError
-        if nsError.domain == FirestoreErrorDomain,
-           nsError.code == FirestoreErrorCode.unavailable.rawValue {
-            return "You're offline. Changes sync automatically when connection returns."
-        }
-
-        return nsError.localizedDescription
+    func clearError() {
+        errorMessage = nil
     }
 }

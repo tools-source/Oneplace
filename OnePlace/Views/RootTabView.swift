@@ -5,7 +5,7 @@ struct RootTabView: View {
 
     var body: some View {
         TabView {
-            FinanceView(ownerUserId: ownerUserId)
+            FinanceView() 
                 .tabItem {
                     Label("Finance", systemImage: "banknote")
                 }
