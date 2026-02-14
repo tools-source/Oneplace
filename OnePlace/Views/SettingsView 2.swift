@@ -34,10 +34,12 @@ struct SettingsView: View {
             HStack {
                 Text("User")
                 Spacer()
-                Text(userIdText)
+                Text(userDisplayText)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
             }
+
             if case .signedIn(let user) = authManager.authState {
                 HStack {
                     Text("Provider")
@@ -46,21 +48,31 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
             Button("Sign Out", role: .destructive) {
                 authManager.signOut()
             }
         }
     }
-    private var userIdText: String {
+
+    private var userDisplayText: String {
         switch authManager.authState {
         case .signedIn(let user):
+            let fullName = user.fullName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let fullName, !fullName.isEmpty { return fullName }
+
+            let email = user.email?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let email, !email.isEmpty { return email }
+
             return user.uid
+
         case .loading:
             return "Loading…"
         case .signedOut:
             return "Not signed in"
         }
     }
+
     private var notificationStatusSection: some View {
         Section("Notifications") {
             HStack {
@@ -145,7 +157,7 @@ struct SettingsView: View {
             }
         }
     }
-    #endif
+    #endif 
 
     private var statusLabel: String {
         switch authorizationStatus {

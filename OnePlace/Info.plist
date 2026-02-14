@@ -27,9 +27,10 @@
 			<string>com.oneplace.auth.google</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>REVERSED_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.74585403015-410mbc5d7ta8qt5npa38psf2e3t25qs9</string>
 			</array>
 		</dict>
+		<dict/>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>

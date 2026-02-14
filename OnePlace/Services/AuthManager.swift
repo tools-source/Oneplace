@@ -10,10 +10,11 @@ import UIKit
 
 @MainActor
 final class AuthManager: ObservableObject {
+
     enum AuthState: Equatable {
-      case loading
-      case signedOut
-      case signedIn(AppUser)
+        case loading
+        case signedOut
+        case signedIn(AppUser)
     }
 
     @Published private(set) var authState: AuthState = .signedOut
@@ -25,14 +26,44 @@ final class AuthManager: ObservableObject {
 
     init() {}
 
+    // ✅ Make sure Firebase is configured before we touch FirebaseApp.app()/Auth/Firestore
+    private func ensureFirebaseConfigured() throws {
+        if FirebaseApp.app() == nil {
+            // This should normally NOT be needed if AppDelegate calls configure(),
+            // but it prevents timing/target issues.
+            FirebaseApp.configure()
+        }
+
+        guard FirebaseApp.app() != nil else {
+            throw AuthFlowError.configuration(
+                "Firebase is not configured (FirebaseApp.app() is nil). Check that FirebaseApp.configure() runs in AppDelegate and that GoogleService-Info.plist is in Copy Bundle Resources."
+            )
+        }
+    }
+
     func restoreSessionFromProvider() async {
+        do {
+            try ensureFirebaseConfigured()
+        } catch {
+            authState = .signedOut
+            errorMessage = error.localizedDescription
+            return
+        }
+
         guard let user = auth.currentUser else {
             authState = .signedOut
             return
         }
 
         do {
-            let provider = user.providerData.first?.providerID == "apple.com" ? "apple" : "google"
+            let providerID = user.providerData.first?.providerID
+            let provider: String
+            switch providerID {
+            case "apple.com": provider = "apple"
+            case "google.com": provider = "google"
+            default: provider = "unknown"
+            }
+
             let appUser = try await ensureUserRecordExists(firebaseUser: user, provider: provider)
             authState = .signedIn(appUser)
         } catch {
@@ -46,8 +77,12 @@ final class AuthManager: ObservableObject {
         authState = .loading
 
         do {
-            guard let clientID = FirebaseApp.app()?.options.clientID else {
-                throw AuthFlowError.configuration("Firebase is not configured correctly. Add GoogleService-Info.plist to the OnePlace target.")
+            try ensureFirebaseConfigured()
+            print("CLIENT ID =", FirebaseApp.app()?.options.clientID ?? "NIL")
+            guard let clientID = FirebaseApp.app()?.options.clientID, !clientID.isEmpty else {
+                throw AuthFlowError.configuration(
+                    "Firebase clientID is missing. This usually means the GoogleService-Info.plist does not match your Bundle ID, or the wrong plist was added."
+                )
             }
 
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
@@ -57,14 +92,17 @@ final class AuthManager: ObservableObject {
             }
 
             let signInResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingVC)
+
             guard let idToken = signInResult.user.idToken?.tokenString else {
                 throw AuthFlowError.authentication("Google Sign-In failed: missing ID token.")
             }
 
             let accessToken = signInResult.user.accessToken.tokenString
             let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+
             let authResult = try await auth.signIn(with: credential)
             let user = try await ensureUserRecordExists(firebaseUser: authResult.user, provider: "google")
+
             authState = .signedIn(user)
         } catch {
             authState = .signedOut
@@ -79,6 +117,15 @@ final class AuthManager: ObservableObject {
         let delegate = AppleSignInCoordinator { [weak self] result in
             Task { @MainActor in
                 guard let self else { return }
+
+                do {
+                    try self.ensureFirebaseConfigured()
+                } catch {
+                    self.authState = .signedOut
+                    self.errorMessage = error.localizedDescription
+                    return
+                }
+
                 switch result {
                 case .success(let credential):
                     do {
@@ -89,12 +136,14 @@ final class AuthManager: ObservableObject {
                         self.authState = .signedOut
                         self.errorMessage = self.makeFriendlyError(error)
                     }
+
                 case .failure(let error):
                     self.authState = .signedOut
                     self.errorMessage = self.makeFriendlyError(error)
                 }
             }
         }
+
         appleSignInDelegate = delegate
         delegate.startSignInWithAppleFlow()
     }
@@ -234,7 +283,11 @@ extension AppleSignInCoordinator: ASAuthorizationControllerDelegate {
             return
         }
 
-        let credential = OAuthProvider.appleCredential(withIDToken: idTokenString, rawNonce: nonce, fullName: appleIDCredential.fullName)
+        let credential = OAuthProvider.appleCredential(
+            withIDToken: idTokenString,
+            rawNonce: nonce,
+            fullName: appleIDCredential.fullName
+        )
 
         completion(.success(credential))
     }

@@ -6,52 +6,44 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        if FirebaseApp.app() == nil {
-            FirebaseApp.configure()
-        }
+
+        print("📦 plist path =", Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") ?? "NOT FOUND")
+
+        FirebaseApp.configure()
         return true
     }
 }
 
 @main
 struct OnePlaceApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    // ✅ register app delegate for Firebase setup
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     @StateObject private var dataController: AppDataController
-    @State private var authManager: AuthManager?
+    @StateObject private var authManager: AuthManager
 
     init() {
         let controller = AppDataController()
         _dataController = StateObject(wrappedValue: controller)
+
+        _authManager = StateObject(wrappedValue: AuthManager())
     }
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if let authManager {
-                    Group {
-                        switch authManager.authState {
-                        case .signedIn(let user):
-                            RootTabView(ownerUserId: user.uid)
-                        case .loading:
-                            ProgressView("Loading…")
-                        case .signedOut:
-                            LoginView()
-                        }
-                    }
-                    .environmentObject(authManager)
-                    .task {
-                        await authManager.restoreSessionFromProvider()
-                    }
-                } else {
+                switch authManager.authState {
+                case .signedIn(let user):
+                    RootTabView(ownerUserId: user.uid)
+                case .loading:
                     ProgressView("Loading…")
-                        .task {
-                            if FirebaseApp.app() == nil {
-                                FirebaseApp.configure()
-                            }
-                            authManager = AuthManager()
-                        }
+                case .signedOut:
+                    LoginView()
                 }
+            }
+            .environmentObject(authManager)
+            .task {
+                await authManager.restoreSessionFromProvider()
             }
         }
         .modelContainer(dataController.container)
