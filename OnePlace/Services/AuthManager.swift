@@ -19,26 +19,11 @@ final class AuthManager: ObservableObject {
     @Published private(set) var authState: AuthState = .signedOut
     @Published var errorMessage: String?
 
-    private let auth: Auth
-    private let firestore: Firestore
+    private lazy var auth: Auth = { Auth.auth() }()
+    private lazy var firestore: Firestore = { Firestore.firestore() }()
     private var appleSignInDelegate: AppleSignInCoordinator?
 
-    init(auth: Auth = Auth.auth(), firestore: Firestore = Firestore.firestore()) {
-        self.auth = auth
-        self.firestore = firestore
-
-        if let user = auth.currentUser {
-            Task {
-                do {
-                    let appUser = try await ensureUserRecordExists(firebaseUser: user, provider: "unknown")
-                    self.authState = .signedIn(appUser)
-                } catch {
-                    self.authState = .signedOut
-                    self.errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
+    init() {}
 
     func restoreSessionFromProvider() async {
         guard let user = auth.currentUser else {
@@ -95,8 +80,9 @@ final class AuthManager: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 switch result {
-                case .success(let authResult):
+                case .success(let credential):
                     do {
+                        let authResult = try await self.auth.signIn(with: credential)
                         let user = try await self.ensureUserRecordExists(firebaseUser: authResult.user, provider: "apple")
                         self.authState = .signedIn(user)
                     } catch {
@@ -183,10 +169,10 @@ private enum AuthFlowError: LocalizedError {
 }
 
 private final class AppleSignInCoordinator: NSObject {
-    private let completion: (Result<AuthDataResult, Error>) -> Void
+    private let completion: (Result<OAuthCredential, Error>) -> Void
     private var currentNonce: String?
 
-    init(completion: @escaping (Result<AuthDataResult, Error>) -> Void) {
+    init(completion: @escaping (Result<OAuthCredential, Error>) -> Void) {
         self.completion = completion
     }
 
@@ -250,14 +236,7 @@ extension AppleSignInCoordinator: ASAuthorizationControllerDelegate {
 
         let credential = OAuthProvider.appleCredential(withIDToken: idTokenString, rawNonce: nonce, fullName: appleIDCredential.fullName)
 
-        Task {
-            do {
-                let authResult = try await Auth.auth().signIn(with: credential)
-                completion(.success(authResult))
-            } catch {
-                completion(.failure(error))
-            }
-        }
+        completion(.success(credential))
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
