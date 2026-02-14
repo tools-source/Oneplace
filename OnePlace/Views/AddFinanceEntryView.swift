@@ -68,7 +68,7 @@ struct AddFinanceEntryView: View {
                 }
                 updateTypeFromCategory()
             }
-            .onChange(of: category) { _ in
+            .onChange(of: category) { newValue, oldValue in
                 updateTypeFromCategory()
             }
             .toolbar {
