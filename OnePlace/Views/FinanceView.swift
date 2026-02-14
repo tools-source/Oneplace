@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct FinanceView: View {
     @StateObject private var vm = FinanceViewModel()
@@ -115,24 +116,61 @@ struct FinanceView: View {
 
     private var summaryCards: some View {
         HStack(spacing: 10) {
-            StatCard(
-                title: "Net",
-                value: StatCard.currencyString(for: netTotal),
-                icon: netTotal >= 0 ? "arrow.up.right" : "arrow.down.right",
-                tint: netTotal >= 0 ? .blue : .red
-            )
-            StatCard(
-                title: "Gain",
-                value: StatCard.currencyString(for: gainTotal),
-                icon: "arrow.up.circle.fill",
-                tint: .green
-            )
-            StatCard(
-                title: "Owe",
-                value: StatCard.currencyString(for: oweTotal),
-                icon: "arrow.down.circle.fill",
-                tint: .red
-            )
+            AppCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        FinanceTypeBadge(netTotal: netTotal)
+                        Text("Net")
+                            .font(.caption)
+                            .foregroundStyle(DesignSystem.secondaryTextColor)
+                        Spacer(minLength: 0)
+                    }
+
+                    Text(StatCard.currencyString(for: netTotal))
+                        .font(.title3.weight(.semibold))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
+                .frame(minHeight: 72, alignment: .leading)
+            }
+
+            AppCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        FinanceTypeBadge(type: .gain)
+                        Text("Gain")
+                            .font(.caption)
+                            .foregroundStyle(DesignSystem.secondaryTextColor)
+                        Spacer(minLength: 0)
+                    }
+
+                    Text(StatCard.currencyString(for: gainTotal))
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.green)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
+                .frame(minHeight: 72, alignment: .leading)
+            }
+
+            AppCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        FinanceTypeBadge(type: .owe)
+                        Text("Owe")
+                            .font(.caption)
+                            .foregroundStyle(DesignSystem.secondaryTextColor)
+                        Spacer(minLength: 0)
+                    }
+
+                    Text(StatCard.currencyString(for: oweTotal))
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.red)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
+                .frame(minHeight: 72, alignment: .leading)
+            }
         }
     }
 
@@ -143,9 +181,8 @@ struct FinanceView: View {
 
         AppCard {
             HStack(alignment: .center, spacing: 12) {
-                Image(systemName: entry.type == .gain ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(entry.type == .gain ? .green : .red)
+                FinanceTypeBadge(type: entry.type)
+                    .padding(.leading, 0)
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
@@ -159,18 +196,19 @@ struct FinanceView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.caption)
                                 .foregroundStyle(.green)
+                                .transition(.opacity)
                         }
                     }
 
                     if hasDescription {
                         Text(entry.category)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DesignSystem.secondaryTextColor)
                             .lineLimit(1)
                     } else {
                         Text("No description")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DesignSystem.secondaryTextColor)
                             .lineLimit(1)
                     }
                 }
@@ -183,9 +221,11 @@ struct FinanceView: View {
                     .monospacedDigit()
             }
             .opacity(entry.isCompleted ? 0.78 : 1)
+            .animation(.easeInOut(duration: 0.18), value: entry.isCompleted)
         }
         .contextMenu {
             Button {
+                triggerLightHaptic()
                 Task { await vm.toggleCompletion(for: entry) }
             } label: {
                 Label(entry.isCompleted ? "Mark Undone" : "Mark Complete", systemImage: entry.isCompleted ? "arrow.uturn.backward.circle" : "checkmark.circle")
@@ -198,6 +238,7 @@ struct FinanceView: View {
             }
 
             Button(role: .destructive) {
+                triggerLightHaptic()
                 Task { await vm.deleteEntry(entry) }
             } label: {
                 Label("Delete", systemImage: "trash")
@@ -205,6 +246,7 @@ struct FinanceView: View {
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
+                triggerLightHaptic()
                 Task { await vm.toggleCompletion(for: entry) }
             } label: {
                 Label(entry.isCompleted ? "Undo" : "Complete", systemImage: entry.isCompleted ? "arrow.uturn.backward.circle" : "checkmark.circle")
@@ -220,10 +262,15 @@ struct FinanceView: View {
             .tint(.blue)
 
             Button(role: .destructive) {
+                triggerLightHaptic()
                 Task { await vm.deleteEntry(entry) }
             } label: {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+
+    private func triggerLightHaptic() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
