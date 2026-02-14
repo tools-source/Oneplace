@@ -34,9 +34,9 @@ struct SplitView: View {
                 balancesSection
                 expensesSection
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground))
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Split")
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {

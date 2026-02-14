@@ -9,15 +9,21 @@ struct FinanceEntryRecord: Identifiable, Equatable {
     var entryDescription: String
     var date: Date
     var urgency: FinanceUrgency
+    var isCompleted: Bool
 }
 
 struct FinanceEntryDocument: Codable {
+    enum CodingKeys: String, CodingKey {
+        case amount, type, category, entryDescription, date, urgency, isCompleted
+    }
+
     var amount: Double
     var type: String
     var category: String
     var entryDescription: String
     var date: Date
     var urgency: String
+    var isCompleted: Bool
 
     init(record: FinanceEntryRecord) {
         amount = record.amount
@@ -26,6 +32,18 @@ struct FinanceEntryDocument: Codable {
         entryDescription = record.entryDescription
         date = record.date
         urgency = record.urgency.rawValue
+        isCompleted = record.isCompleted
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        amount = try container.decode(Double.self, forKey: .amount)
+        type = try container.decode(String.self, forKey: .type)
+        category = try container.decode(String.self, forKey: .category)
+        entryDescription = try container.decode(String.self, forKey: .entryDescription)
+        date = try container.decode(Date.self, forKey: .date)
+        urgency = try container.decode(String.self, forKey: .urgency)
+        isCompleted = try container.decodeIfPresent(Bool.self, forKey: .isCompleted) ?? false
     }
 
     func toRecord(id: String, ownerUserId: String) -> FinanceEntryRecord? {
@@ -42,7 +60,8 @@ struct FinanceEntryDocument: Codable {
             category: category,
             entryDescription: entryDescription,
             date: date,
-            urgency: entryUrgency
+            urgency: entryUrgency,
+            isCompleted: isCompleted
         )
     }
 }

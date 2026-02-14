@@ -18,7 +18,9 @@ struct SettingsView: View {
                 debugSection
                 #endif
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Settings")
             .refreshable {
                 await refreshStatus()

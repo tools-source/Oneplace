@@ -68,6 +68,22 @@ final class FinanceViewModel: ObservableObject {
         }
     }
 
+
+    func toggleCompletion(for entry: FinanceEntryRecord) async {
+        errorMessage = nil
+
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        let original = entries[index]
+        entries[index].isCompleted.toggle()
+
+        do {
+            try await repo.updateEntry(entries[index])
+        } catch {
+            entries[index] = original
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func deleteEntry(_ entry: FinanceEntryRecord) async {
         isLoading = true
         errorMessage = nil

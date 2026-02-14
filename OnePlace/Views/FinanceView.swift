@@ -36,14 +36,18 @@ struct FinanceView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
+            List {
+                Section {
                     summaryCards
+                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                }
 
+                Section {
                     if vm.isLoading && vm.entries.isEmpty {
                         ProgressView("Loading…")
                             .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 24)
+                            .padding(.vertical, 24)
                     } else if filteredEntries.isEmpty {
                         EmptyState(
                             title: "No transactions yet",
@@ -53,18 +57,19 @@ struct FinanceView: View {
                         ) {
                             showingAdd = true
                         }
-                        .padding(.top, 24)
+                        .padding(.vertical, 24)
                     } else {
-                        LazyVStack(spacing: 10) {
-                            ForEach(filteredEntries) { entry in
-                                transactionRow(for: entry)
-                            }
+                        ForEach(filteredEntries) { entry in
+                            transactionRow(for: entry)
+                                .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                         }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Finance")
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search transactions")
@@ -98,7 +103,8 @@ struct FinanceView: View {
                         category: draft.category,
                         entryDescription: draft.entryDescription,
                         date: draft.date,
-                        urgency: draft.urgency
+                        urgency: draft.urgency,
+                        isCompleted: entry.isCompleted
                     )
                     Task { await vm.updateEntry(updated) }
                     editingEntry = nil
@@ -132,40 +138,78 @@ struct FinanceView: View {
 
     @ViewBuilder
     private func transactionRow(for entry: FinanceEntryRecord) -> some View {
-        AppCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .center, spacing: 12) {
-                    Image(systemName: entry.type == .gain ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(entry.type == .gain ? .green : .red)
+        let trimmedDescription = entry.entryDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasDescription = !trimmedDescription.isEmpty
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.category)
+        AppCard {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: entry.type == .gain ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(entry.type == .gain ? .green : .red)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(hasDescription ? trimmedDescription : entry.category)
                             .font(.headline)
-                        if !entry.entryDescription.isEmpty {
-                            Text(entry.entryDescription)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                            .strikethrough(entry.isCompleted)
+                            .foregroundStyle(entry.isCompleted ? .secondary : .primary)
+                            .lineLimit(1)
+
+                        if entry.isCompleted {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
                         }
                     }
 
-                    Spacer()
-
-                    Text(StatCard.currencyString(for: entry.amount))
-                        .font(.headline)
-                        .foregroundStyle(entry.type == .gain ? .green : .red)
-                        .monospacedDigit()
+                    if hasDescription {
+                        Text(entry.category)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Text("No description")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
 
-                HStack {
-                    Label(entry.type == .gain ? "Gain" : "Owe", systemImage: entry.type == .gain ? "plus.circle" : "minus.circle")
-                    Spacer()
-                    Text(entry.date.formatted(date: .abbreviated, time: .shortened))
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Spacer()
+
+                Text(StatCard.currencyString(for: entry.amount))
+                    .font(.headline)
+                    .foregroundStyle(entry.type == .gain ? .green : .red)
+                    .monospacedDigit()
             }
+            .opacity(entry.isCompleted ? 0.78 : 1)
+        }
+        .contextMenu {
+            Button {
+                Task { await vm.toggleCompletion(for: entry) }
+            } label: {
+                Label(entry.isCompleted ? "Mark Undone" : "Mark Complete", systemImage: entry.isCompleted ? "arrow.uturn.backward.circle" : "checkmark.circle")
+            }
+
+            Button {
+                editingEntry = entry
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            Button(role: .destructive) {
+                Task { await vm.deleteEntry(entry) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button {
+                Task { await vm.toggleCompletion(for: entry) }
+            } label: {
+                Label(entry.isCompleted ? "Undo" : "Complete", systemImage: entry.isCompleted ? "arrow.uturn.backward.circle" : "checkmark.circle")
+            }
+            .tint(.green)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button {
