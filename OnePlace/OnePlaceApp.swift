@@ -1,3 +1,4 @@
+import FirebaseCore
 import SwiftUI
 
 @main
@@ -6,6 +7,10 @@ struct OnePlaceApp: App {
     @StateObject private var authManager = AuthManager()
 
     init() {
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+        }
+
         let controller = AppDataController()
         _dataController = StateObject(wrappedValue: controller)
     }
@@ -13,16 +18,16 @@ struct OnePlaceApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if authManager.isAuthenticated, let userId = authManager.currentUserId {
-                    RootTabView(ownerUserId: userId)
-                } else {
+                switch authManager.authState {
+                case .signedIn(let user):
+                    RootTabView(ownerUserId: user.uid)
+                case .loading:
+                    ProgressView("Loading…")
+                case .signedOut:
                     LoginView()
                 }
             }
             .environmentObject(authManager)
-            .onOpenURL { url in
-                _ = authManager.handleGoogleOpenURL(url)
-            }
             .task {
                 await authManager.restoreSessionFromProvider()
             }

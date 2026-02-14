@@ -1,273 +1,297 @@
 import AuthenticationServices
+import CryptoKit
+import FirebaseAuth
+import FirebaseCore
+import FirebaseFirestore
 import Foundation
-import Security
+import GoogleSignIn
 import SwiftUI
 import UIKit
 
-#if canImport(GoogleSignIn)
-import GoogleSignIn
-#endif
-
 @MainActor
 final class AuthManager: ObservableObject {
-    enum AuthProvider: String, Codable {
-        case apple
-        case google
+    enum AuthState: Equatable {
+        case signedOut
+        case loading
+        case signedIn(AppUser)
     }
 
-    @Published private(set) var isAuthenticated = false
-    @Published private(set) var currentUserId: String?
-    @Published private(set) var authProvider: AuthProvider?
-    @Published private(set) var currentEmail: String?
-    @Published private(set) var currentFullName: String?
+    @Published private(set) var authState: AuthState = .signedOut
+    @Published var errorMessage: String?
 
-    // Backward-compatible API for existing views.
-    var isLoggedIn: Bool { isAuthenticated }
+    private let auth: Auth
+    private let firestore: Firestore
+    private var appleSignInDelegate: AppleSignInCoordinator?
 
-    private let userDefaults: UserDefaults
-    private let providerKey = "auth.provider"
-    private let emailKey = "auth.email"
-    private let fullNameKey = "auth.fullName"
-    private let userIdentifierKeychainKey = "com.oneplace.auth.userIdentifier"
+    init(auth: Auth = Auth.auth(), firestore: Firestore = Firestore.firestore()) {
+        self.auth = auth
+        self.firestore = firestore
 
-    init(userDefaults: UserDefaults = .standard) {
-        self.userDefaults = userDefaults
-        restoreSession()
-    }
-
-    func onAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
-        print("[Auth] Apple Sign-In request started.")
-        request.requestedScopes = [.fullName, .email]
-    }
-
-    func handleAppleSignIn(result: Result<ASAuthorization, Error>) {
-        switch result {
-        case .success(let authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-                print("[Auth] Apple Sign-In completed but credential was not ASAuthorizationAppleIDCredential.")
-                return
-            }
-
-            let userIdentifier = credential.user
-            let email = credential.email
-            let fullName = formattedName(from: credential.fullName)
-
-            print("[Auth] Apple Sign-In success. userIdentifier=\(userIdentifier)")
-            print("[Auth] Apple Sign-In email=\(email ?? \"nil (only returned on first sign-in)\")")
-            print("[Auth] Apple Sign-In fullName=\(fullName ?? \"nil (only returned on first sign-in)\")")
-
-            setSession(
-                userId: userIdentifier,
-                provider: .apple,
-                email: email,
-                fullName: fullName
-            )
-
-        case .failure(let error):
-            let nsError = error as NSError
-            print("[Auth] Apple Sign-In failed. domain=\(nsError.domain) code=\(nsError.code) message=\(nsError.localizedDescription)")
-            if nsError.domain == ASAuthorizationError.errorDomain,
-               let authError = ASAuthorizationError.Code(rawValue: nsError.code) {
-                print("[Auth] Apple Sign-In ASAuthorizationError=\(authError)")
+        if let user = auth.currentUser {
+            Task {
+                do {
+                    let appUser = try await ensureUserRecordExists(firebaseUser: user, provider: "unknown")
+                    self.authState = .signedIn(appUser)
+                } catch {
+                    self.authState = .signedOut
+                    self.errorMessage = error.localizedDescription
+                }
             }
         }
-    }
-
-    func signInWithGoogle(presenting: UIViewController) async {
-        #if canImport(GoogleSignIn)
-        do {
-            print("[Auth] Google Sign-In request started.")
-            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenting)
-            let user = result.user
-            let userId = user.userID ?? user.profile?.email ?? UUID().uuidString
-            let email = user.profile?.email
-            let fullName = user.profile?.name
-
-            print("[Auth] Google Sign-In success. userIdentifier=\(userId)")
-            print("[Auth] Google Sign-In email=\(email ?? \"nil\")")
-            print("[Auth] Google Sign-In fullName=\(fullName ?? \"nil\")")
-
-            setSession(
-                userId: userId,
-                provider: .google,
-                email: email,
-                fullName: fullName
-            )
-        } catch {
-            let nsError = error as NSError
-            print("[Auth] Google Sign-In failed. domain=\(nsError.domain) code=\(nsError.code) message=\(nsError.localizedDescription)")
-        }
-        #else
-        print("[Auth] Google Sign-In SDK is not available in this build. Add GoogleSignIn dependency and configure URL schemes.")
-        #endif
-    }
-
-    func handleGoogleOpenURL(_ url: URL) -> Bool {
-        #if canImport(GoogleSignIn)
-        let handled = GIDSignIn.sharedInstance.handle(url)
-        print("[Auth] handleGoogleOpenURL called with \(url.absoluteString). handled=\(handled)")
-        return handled
-        #else
-        print("[Auth] handleGoogleOpenURL called, but GoogleSignIn SDK is not available.")
-        return false
-        #endif
     }
 
     func restoreSessionFromProvider() async {
-        if authProvider == .apple, let userIdentifier = currentUserId {
-            await validateAppleCredentialState(for: userIdentifier)
-        }
-
-        #if canImport(GoogleSignIn)
-        if authProvider == .google {
-            do {
-                let user = try await GIDSignIn.sharedInstance.restorePreviousSignIn()
-                let userId = user.userID ?? user.profile?.email ?? UUID().uuidString
-                print("[Auth] Restored previous Google session for userIdentifier=\(userId)")
-                setSession(
-                    userId: userId,
-                    provider: .google,
-                    email: user.profile?.email,
-                    fullName: user.profile?.name
-                )
-            } catch {
-                print("[Auth] Unable to restore Google session: \(error.localizedDescription)")
-            }
-        }
-        #endif
-    }
-
-    func signOut() {
-        print("[Auth] Signing out current user.")
-        currentUserId = nil
-        authProvider = nil
-        currentEmail = nil
-        currentFullName = nil
-        isAuthenticated = false
-
-        userDefaults.removeObject(forKey: providerKey)
-        userDefaults.removeObject(forKey: emailKey)
-        userDefaults.removeObject(forKey: fullNameKey)
-        KeychainStore.delete(account: userIdentifierKeychainKey)
-
-        #if canImport(GoogleSignIn)
-        GIDSignIn.sharedInstance.signOut()
-        #endif
-    }
-
-    private func setSession(userId: String, provider: AuthProvider, email: String?, fullName: String?) {
-        currentUserId = userId
-        authProvider = provider
-        currentEmail = email ?? userDefaults.string(forKey: emailKey)
-        currentFullName = fullName ?? userDefaults.string(forKey: fullNameKey)
-        isAuthenticated = true
-
-        KeychainStore.save(value: userId, account: userIdentifierKeychainKey)
-        userDefaults.set(provider.rawValue, forKey: providerKey)
-        if let email { userDefaults.set(email, forKey: emailKey) }
-        if let fullName { userDefaults.set(fullName, forKey: fullNameKey) }
-    }
-
-    private func restoreSession() {
-        guard let providerRaw = userDefaults.string(forKey: providerKey),
-              let provider = AuthProvider(rawValue: providerRaw),
-              let storedUserId = KeychainStore.read(account: userIdentifierKeychainKey) else {
-            print("[Auth] No persisted auth session found.")
-            currentUserId = nil
-            authProvider = nil
-            currentEmail = nil
-            currentFullName = nil
-            isAuthenticated = false
+        guard let user = auth.currentUser else {
+            authState = .signedOut
             return
         }
 
-        currentUserId = storedUserId
-        authProvider = provider
-        currentEmail = userDefaults.string(forKey: emailKey)
-        currentFullName = userDefaults.string(forKey: fullNameKey)
-        isAuthenticated = true
-
-        print("[Auth] Restored local auth session. provider=\(provider.rawValue), userIdentifier=\(storedUserId)")
-    }
-
-    private func validateAppleCredentialState(for userIdentifier: String) async {
-        let provider = ASAuthorizationAppleIDProvider()
-
         do {
-            let state = try await provider.credentialState(forUserID: userIdentifier)
-            switch state {
-            case .authorized:
-                print("[Auth] Apple credential state is authorized.")
-            case .revoked:
-                print("[Auth] Apple credential state is revoked. Signing out.")
-                signOut()
-            case .notFound:
-                print("[Auth] Apple credential state is not found. Signing out.")
-                signOut()
-            case .transferred:
-                print("[Auth] Apple credential state is transferred.")
-            @unknown default:
-                print("[Auth] Apple credential state is unknown. Keeping current session.")
-            }
+            let provider = user.providerData.first?.providerID == "apple.com" ? "apple" : "google"
+            let appUser = try await ensureUserRecordExists(firebaseUser: user, provider: provider)
+            authState = .signedIn(appUser)
         } catch {
-            print("[Auth] Failed to validate Apple credential state: \(error.localizedDescription)")
+            authState = .signedOut
+            errorMessage = "Could not restore your session. \(error.localizedDescription)"
         }
     }
 
-    private func formattedName(from personName: PersonNameComponents?) -> String? {
-        guard let personName else { return nil }
-        let formatter = PersonNameComponentsFormatter()
-        let formatted = formatter.string(from: personName).trimmingCharacters(in: .whitespacesAndNewlines)
-        return formatted.isEmpty ? nil : formatted
+    func signInWithGoogle() async {
+        errorMessage = nil
+        authState = .loading
+
+        do {
+            guard let clientID = FirebaseApp.app()?.options.clientID else {
+                throw AuthFlowError.configuration("Firebase is not configured correctly. Add GoogleService-Info.plist to the OnePlace target.")
+            }
+
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+
+            guard let presentingVC = UIApplication.shared.topMostViewController() else {
+                throw AuthFlowError.presentation("Unable to present Google Sign-In. Try again.")
+            }
+
+            let signInResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingVC)
+            guard let idToken = signInResult.user.idToken?.tokenString else {
+                throw AuthFlowError.authentication("Google Sign-In failed: missing ID token.")
+            }
+
+            let accessToken = signInResult.user.accessToken.tokenString
+            let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+            let authResult = try await auth.signIn(with: credential)
+            let user = try await ensureUserRecordExists(firebaseUser: authResult.user, provider: "google")
+            authState = .signedIn(user)
+        } catch {
+            authState = .signedOut
+            errorMessage = makeFriendlyError(error)
+        }
+    }
+
+    func signInWithApple() {
+        errorMessage = nil
+        authState = .loading
+
+        let delegate = AppleSignInCoordinator { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                switch result {
+                case .success(let authResult):
+                    do {
+                        let user = try await self.ensureUserRecordExists(firebaseUser: authResult.user, provider: "apple")
+                        self.authState = .signedIn(user)
+                    } catch {
+                        self.authState = .signedOut
+                        self.errorMessage = self.makeFriendlyError(error)
+                    }
+                case .failure(let error):
+                    self.authState = .signedOut
+                    self.errorMessage = self.makeFriendlyError(error)
+                }
+            }
+        }
+        appleSignInDelegate = delegate
+        delegate.startSignInWithAppleFlow()
+    }
+
+    func signOut() {
+        do {
+            try auth.signOut()
+            GIDSignIn.sharedInstance.signOut()
+            authState = .signedOut
+            errorMessage = nil
+        } catch {
+            errorMessage = "Could not sign out. \(error.localizedDescription)"
+        }
+    }
+
+    func ensureUserRecordExists(firebaseUser: FirebaseAuth.User, provider: String) async throws -> AppUser {
+        let userRef = firestore.collection("users").document(firebaseUser.uid)
+        let snapshot = try await userRef.getDocument()
+
+        if snapshot.exists {
+            try await userRef.setData([
+                "lastLoginAt": FieldValue.serverTimestamp(),
+                "provider": provider
+            ], merge: true)
+        } else {
+            try await userRef.setData([
+                "uid": firebaseUser.uid,
+                "email": firebaseUser.email as Any,
+                "fullName": firebaseUser.displayName as Any,
+                "provider": provider,
+                "createdAt": FieldValue.serverTimestamp(),
+                "lastLoginAt": FieldValue.serverTimestamp()
+            ])
+        }
+
+        return AppUser(
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            fullName: firebaseUser.displayName,
+            provider: provider
+        )
+    }
+
+    private func makeFriendlyError(_ error: Error) -> String {
+        let nsError = error as NSError
+
+        if nsError.domain == ASAuthorizationError.errorDomain,
+           let code = ASAuthorizationError.Code(rawValue: nsError.code),
+           code == .canceled {
+            return "Sign in was canceled. Please try again when you are ready."
+        }
+
+        if nsError.code == URLError.notConnectedToInternet.rawValue {
+            return "No internet connection. Reconnect and try again."
+        }
+
+        return nsError.localizedDescription
     }
 }
 
-enum KeychainStore {
-    static func save(value: String, account: String) {
-        guard let data = value.data(using: .utf8) else { return }
+private enum AuthFlowError: LocalizedError {
+    case configuration(String)
+    case presentation(String)
+    case authentication(String)
 
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: account,
-            kSecValueData as String: data
-        ]
+    var errorDescription: String? {
+        switch self {
+        case .configuration(let message), .presentation(let message), .authentication(let message):
+            return message
+        }
+    }
+}
 
-        SecItemDelete(query as CFDictionary)
-        let status = SecItemAdd(query as CFDictionary, nil)
-        if status != errSecSuccess {
-            print("[Auth] Keychain save failed for account=\(account). status=\(status)")
+private final class AppleSignInCoordinator: NSObject {
+    private let completion: (Result<AuthDataResult, Error>) -> Void
+    private var currentNonce: String?
+
+    init(completion: @escaping (Result<AuthDataResult, Error>) -> Void) {
+        self.completion = completion
+    }
+
+    func startSignInWithAppleFlow() {
+        let nonce = randomNonceString()
+        currentNonce = nonce
+
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = sha256(nonce)
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        controller.performRequests()
+    }
+
+    private func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        var remainingLength = length
+
+        while remainingLength > 0 {
+            let randoms: [UInt8] = (0..<16).map { _ in
+                var random: UInt8 = 0
+                let errorCode = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
+                if errorCode != errSecSuccess {
+                    fatalError("Unable to generate nonce. OSStatus \(errorCode)")
+                }
+                return random
+            }
+
+            for random in randoms where remainingLength > 0 {
+                if random < charset.count {
+                    result.append(charset[Int(random)])
+                    remainingLength -= 1
+                }
+            }
+        }
+
+        return result
+    }
+
+    private func sha256(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        return hashedData.compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
+
+extension AppleSignInCoordinator: ASAuthorizationControllerDelegate {
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let nonce = currentNonce,
+              let identityToken = appleIDCredential.identityToken,
+              let idTokenString = String(data: identityToken, encoding: .utf8) else {
+            completion(.failure(AuthFlowError.authentication("Unable to read Apple identity token.")))
+            return
+        }
+
+        let credential = OAuthProvider.appleCredential(withIDToken: idTokenString, rawNonce: nonce, fullName: appleIDCredential.fullName)
+
+        Task {
+            do {
+                let authResult = try await Auth.auth().signIn(with: credential)
+                completion(.success(authResult))
+            } catch {
+                completion(.failure(error))
+            }
         }
     }
 
-    static func read(account: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let value = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-
-        return value
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        completion(.failure(error))
     }
+}
 
-    static func delete(account: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: account
-        ]
+extension AppleSignInCoordinator: ASAuthorizationControllerPresentationContextProviding {
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        UIApplication.shared.topMostViewController()?.view.window ?? ASPresentationAnchor()
+    }
+}
 
-        let status = SecItemDelete(query as CFDictionary)
-        if status != errSecSuccess, status != errSecItemNotFound {
-            print("[Auth] Keychain delete failed for account=\(account). status=\(status)")
+private extension UIApplication {
+    func topMostViewController(base: UIViewController? = nil) -> UIViewController? {
+        let root = base ?? connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })?
+            .rootViewController
+
+        if let nav = root as? UINavigationController {
+            return topMostViewController(base: nav.visibleViewController)
         }
+
+        if let tab = root as? UITabBarController,
+           let selected = tab.selectedViewController {
+            return topMostViewController(base: selected)
+        }
+
+        if let presented = root?.presentedViewController {
+            return topMostViewController(base: presented)
+        }
+
+        return root
     }
 }
