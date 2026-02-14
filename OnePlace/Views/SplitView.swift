@@ -38,20 +38,7 @@ struct SplitView: View {
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("Split")
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Button {
-                        showingAddExpense = true
-                    } label: {
-                        Label("Add Expense", systemImage: "plus.circle")
-                    }
-                    Button {
-                        showingAddPerson = true
-                    } label: {
-                        Label("Add Person", systemImage: "person.badge.plus")
-                    }
-                }
-            }
+            // ✅ Removed the two confusing top-right buttons
             .alert("Copied", isPresented: $showCopiedAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -76,7 +63,7 @@ struct SplitView: View {
     }
 
     private var peopleSection: some View {
-        Section("People") {
+        Section {
             if people.isEmpty {
                 Text("Add people to start splitting")
                     .foregroundStyle(.secondary)
@@ -88,6 +75,19 @@ struct SplitView: View {
                     indexSet.map { people[$0] }.forEach(modelContext.delete)
                 }
             }
+        } header: {
+            HStack {
+                Text("People")
+                Spacer()
+                Button {
+                    showingAddPerson = true
+                } label: {
+                    Label("Add", systemImage: "person.badge.plus")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.borderless)
+            }
+            .textCase(nil)
         }
     }
 
@@ -119,35 +119,48 @@ struct SplitView: View {
                 }
                 .buttonStyle(.borderless)
             }
+            .textCase(nil)
         }
     }
 
     private var expensesSection: some View {
-        Section("Expenses") {
+        Section {
             if expenses.isEmpty {
                 Text("No expenses yet")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(expenses) { expense in
-                    ExpenseRow(
-                        expense: expense
-                    )
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button {
-                            editExpense(expense)
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                        .tint(.blue)
+                    ExpenseRow(expense: expense)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button {
+                                editExpense(expense)
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
 
-                        Button(role: .destructive) {
-                            deleteExpense(expense)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                            Button(role: .destructive) {
+                                deleteExpense(expense)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
-                    }
                 }
             }
+        } header: {
+            HStack {
+                Text("Expenses")
+                Spacer()
+                Button {
+                    showingAddExpense = true
+                } label: {
+                    Label("Add", systemImage: "plus.circle")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.borderless)
+                .disabled(people.isEmpty) // optional: prevents expense creation if no people yet
+            }
+            .textCase(nil)
         }
     }
 
@@ -304,7 +317,6 @@ private struct AddExpenseSheet: View {
                             expenseToEdit.amount = amountValue
                             expenseToEdit.date = date
                             expenseToEdit.paidBy = paidBy
-                            // Always assign an array; empty means no participants
                             expenseToEdit.participants = participants
                         } else {
                             let expense = SplitExpense(
@@ -314,7 +326,6 @@ private struct AddExpenseSheet: View {
                                 date: date
                             )
                             expense.paidBy = paidBy
-                            // Always assign an array; empty means no participants
                             expense.participants = participants
                             onSave(expense)
                         }

@@ -27,7 +27,7 @@ struct RootTabView: View {
 
             CommsView(ownerUserId: ownerUserId)
                 .tabItem {
-                    Label("Comms", systemImage: "bubble.left.and.bubble.right")
+                    Label("Talk Board", systemImage: "waveform")
                 }
 
             SettingsView()

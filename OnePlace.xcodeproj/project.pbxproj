@@ -14,6 +14,8 @@
 		0B2D74B22F4056DE00B52D14 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 0B2D74B12F4056DE00B52D14 /* GoogleService-Info.plist */; };
 		0B2D74B42F40717A00B52D14 /* AddFinanceEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2D74B32F40717200B52D14 /* AddFinanceEntryView.swift */; };
 		0B2D74B62F4073AB00B52D14 /* FinanceEntryDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2D74B52F4073A800B52D14 /* FinanceEntryDraft.swift */; };
+		0B2D74BC2F408B8A00B52D14 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2D74BB2F408B8100B52D14 /* DesignSystem.swift */; };
+		0B2D74BE2F408BA300B52D14 /* FinanceTypeBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2D74BD2F408BA100B52D14 /* FinanceTypeBadge.swift */; };
 		0B4379B52F40252B00A95976 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 0B4379B42F40252B00A95976 /* FirebaseAuth */; };
 		0BF9F97A2F383B3900E14DC7 /* SettingsView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9792F383B3900E14DC7 /* SettingsView 2.swift */; };
 		0BF9F97C2F383B6400E14DC7 /* EmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F97B2F383B6400E14DC7 /* EmptyState.swift */; };
@@ -52,6 +54,8 @@
 		0B2D74B12F4056DE00B52D14 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		0B2D74B32F40717200B52D14 /* AddFinanceEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFinanceEntryView.swift; sourceTree = "<group>"; };
 		0B2D74B52F4073A800B52D14 /* FinanceEntryDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceEntryDraft.swift; sourceTree = "<group>"; };
+		0B2D74BB2F408B8100B52D14 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		0B2D74BD2F408BA100B52D14 /* FinanceTypeBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceTypeBadge.swift; sourceTree = "<group>"; };
 		0BF9F9792F383B3900E14DC7 /* SettingsView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView 2.swift"; sourceTree = "<group>"; };
 		0BF9F97B2F383B6400E14DC7 /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
 		0BF9F97D2F383BA400E14DC7 /* AppCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCard.swift; sourceTree = "<group>"; };
@@ -104,6 +108,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0B2D74B92F408B2E00B52D14 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				0B2D74BD2F408BA100B52D14 /* FinanceTypeBadge.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		0B2D74BA2F408B4800B52D14 /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				0B2D74BB2F408B8100B52D14 /* DesignSystem.swift */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
 		1A0F10062F5B100100ABCD01 /* Firestore */ = {
 			isa = PBXGroup;
 			children = (
@@ -141,6 +161,8 @@
 				5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */,
 				0C5A1A232F4B200100AA0001 /* OnePlace.entitlements */,
 				5F8A9B8E2B2C8A4E00A1A1A1 /* Info.plist */,
+				0B2D74BA2F408B4800B52D14 /* Design */,
+				0B2D74B92F408B2E00B52D14 /* Components */,
 				5F8A9B622B2C8A4E00A1A1A1 /* Models */,
 				5F8A9B632B2C8A4E00A1A1A1 /* Views */,
 				1A0F10072F5B100100ABCD01 /* Repositories */,
@@ -291,6 +313,7 @@
 				A1B2C3D40000000000000001 /* AppUser.swift in Sources */,
 				0B2D74B42F40717A00B52D14 /* AddFinanceEntryView.swift in Sources */,
 				0C5A1A252F4B200100AA0001 /* AppDataController.swift in Sources */,
+				0B2D74BE2F408BA300B52D14 /* FinanceTypeBadge.swift in Sources */,
 				0C5A1A272F4B200100AA0001 /* AppSchema.swift in Sources */,
 				0B2D74B62F4073AB00B52D14 /* FinanceEntryDraft.swift in Sources */,
 				5F8A9B712B2C8A4E00A1A1A1 /* TaskItem.swift in Sources */,
@@ -301,6 +324,7 @@
 				0BF9F97E2F383BA400E14DC7 /* AppCard.swift in Sources */,
 				5F8A9B772B2C8A4E00A1A1A1 /* FlowItem.swift in Sources */,
 				5F8A9B792B2C8A4E00A1A1A1 /* SampleData.swift in Sources */,
+				0B2D74BC2F408B8A00B52D14 /* DesignSystem.swift in Sources */,
 				5F8A9B7B2B2C8A4E00A1A1A1 /* AudioRecorder.swift in Sources */,
 				5F8A9B7D2B2C8A4E00A1A1A1 /* ImagePicker.swift in Sources */,
 				5F8A9B7F2B2C8A4E00A1A1A1 /* RootTabView.swift in Sources */,

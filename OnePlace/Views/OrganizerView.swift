@@ -31,8 +31,9 @@ struct OrganizerView: View {
     }
 
     private var filteredTasks: [TaskItem] {
-        guard !searchText.isEmpty else { return tasks }
-        return tasks.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return tasks }
+        return tasks.filter { $0.title.localizedCaseInsensitiveContains(query) }
     }
 
     private var selectedTasks: [TaskItem] {
@@ -46,112 +47,164 @@ struct OrganizerView: View {
         }
     }
 
+    // MARK: - Body (broken into smaller pieces to avoid compiler timeouts)
+
     var body: some View {
         NavigationStack {
-            List {
-                summarySection
+            organizerList
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .navigationTitle("Organizer")
+                .searchable(text: $searchText, prompt: "Search tasks")
+                .animation(.easeInOut(duration: 0.2), value: selectedSegment)
+                .toolbar { addToolbarButton }
+                .sheet(isPresented: $showingAdd) { addSheet }
+                .sheet(item: $editingTask) { task in editSheet(task: task) }
+        }
+    }
 
-                Section {
-                    Picker("Filter", selection: $selectedSegment) {
-                        ForEach(OrganizerSegment.allCases) { segment in
-                            Text(segment.rawValue).tag(segment)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: selectedSegment) { _, _ in
-                        triggerLightHaptic()
-                    }
-                    .padding(.top, 8)
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+    private var organizerList: some View {
+        List {
+            summarySection
+            filterSection
+            tasksSection
+        }
+    }
 
-                Section {
-                    if selectedTasks.isEmpty {
-                        compactEmptyState
-                            .padding(.vertical, 12)
-                    } else {
-                        ForEach(selectedTasks) { task in
-                            TaskRow(task: task)
-                                .frame(minHeight: DesignSystem.rowHeight)
-                                .swipeActions {
-                                    Button(role: .destructive) {
-                                        triggerLightHaptic()
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            delete(task)
-                                        }
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-
-                                    Button {
-                                        editingTask = task
-                                    } label: {
-                                        Label("Edit", systemImage: "pencil")
-                                    }
-                                    .tint(.blue)
-
-                                    Button {
-                                        triggerLightHaptic()
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            task.completed.toggle()
-                                            if task.completed {
-                                                cancelReminder(id: task.notificationId)
-                                            }
-                                        }
-                                    } label: {
-                                        Label(task.completed ? "Reopen" : "Complete", systemImage: "checkmark")
-                                    }
-                                    .tint(.green)
-                                }
-                        }
-                    }
-                } header: {
-                    Text(selectedSegment.rawValue)
-                        .font(.subheadline.weight(.semibold))
-                        .textCase(nil)
-                        .foregroundStyle(DesignSystem.secondaryTextColor)
-                        .padding(.top, 14)
-                }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("Organizer")
-            .searchable(text: $searchText, prompt: "Search tasks")
-            .animation(.easeInOut(duration: 0.2), value: selectedSegment)
-            .toolbar {
-                Button {
-                    showingAdd = true
-                } label: {
-                    Label("Add Task", systemImage: "plus")
-                }
-            }
-            .sheet(isPresented: $showingAdd) {
-                TaskEditor(ownerUserId: ownerUserId, task: nil) { item in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        modelContext.insert(item)
-                    }
-                    scheduleReminder(for: item)
-                }
-            }
-            .sheet(item: $editingTask) { task in
-                TaskEditor(ownerUserId: ownerUserId, task: task) { updatedTask in
-                    scheduleReminder(for: updatedTask)
-                }
+    private var addToolbarButton: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button {
+                showingAdd = true
+            } label: {
+                Label("Add Task", systemImage: "plus")
             }
         }
     }
 
+    private var addSheet: some View {
+        TaskEditor(ownerUserId: ownerUserId, task: nil) { item in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                modelContext.insert(item)
+            }
+            scheduleReminder(for: item)
+        }
+    }
+
+    private func editSheet(task: TaskItem) -> some View {
+        TaskEditor(ownerUserId: ownerUserId, task: task) { updatedTask in
+            scheduleReminder(for: updatedTask)
+        }
+    }
+
+    // MARK: - Sections
+
+    private var filterSection: some View {
+        Section {
+            Picker("Filter", selection: $selectedSegment) {
+                ForEach(OrganizerSegment.allCases) { segment in
+                    Text(segment.rawValue).tag(segment)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: selectedSegment) { _, _ in
+                triggerLightHaptic()
+            }
+            .padding(.top, 8)
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+    }
+
+    private var tasksSection: some View {
+        Section {
+            if selectedTasks.isEmpty {
+                compactEmptyState
+                    .padding(.vertical, 12)
+            } else {
+                ForEach(selectedTasks) { task in
+                    taskRow(task)
+                }
+            }
+        } header: {
+            Text(selectedSegment.rawValue)
+                .font(.subheadline.weight(.semibold))
+                .textCase(nil)
+                .foregroundStyle(DesignSystem.secondaryTextColor)
+                .padding(.top, 14)
+        }
+    }
+
+    @ViewBuilder
+    private func taskRow(_ task: TaskItem) -> some View {
+        TaskRow(task: task)
+            .frame(minHeight: DesignSystem.rowHeight)
+            .swipeActions {
+                deleteAction(task)
+                editAction(task)
+                completeAction(task)
+            }
+    }
+
+    // MARK: - Swipe Actions (split out for simpler type-checking)
+
+    private func deleteAction(_ task: TaskItem) -> some View {
+        Button(role: .destructive) {
+            triggerLightHaptic()
+            withAnimation(.easeInOut(duration: 0.2)) {
+                delete(task)
+            }
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
+    }
+
+    private func editAction(_ task: TaskItem) -> some View {
+        Button {
+            editingTask = task
+        } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+        .tint(.blue)
+    }
+
+    private func completeAction(_ task: TaskItem) -> some View {
+        Button {
+            triggerLightHaptic()
+            withAnimation(.easeInOut(duration: 0.2)) {
+                task.completed.toggle()
+                if task.completed {
+                    cancelReminder(id: task.notificationId)
+                }
+            }
+        } label: {
+            Label(task.completed ? "Reopen" : "Complete", systemImage: "checkmark")
+        }
+        .tint(.green)
+    }
+
+    // MARK: - Summary Section
+
     private var summarySection: some View {
         Section {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    organizerStatCard(title: "Today", value: todayTasks.count, icon: "checkmark.circle", tint: .blue, segment: .today)
-                    organizerStatCard(title: "Upcoming", value: upcomingTasks.count, icon: "clock", tint: .purple, segment: .upcoming)
-                    organizerStatCard(title: "Done", value: completedTasks.count, icon: "checkmark.seal", tint: .green, segment: .done)
-                }
-                .padding(.horizontal, 2)
+            HStack(spacing: 10) {
+                organizerStatCard(title: "Today",
+                                  value: todayTasks.count,
+                                  icon: "checkmark.circle",
+                                  tint: .blue,
+                                  segment: .today)
+
+                organizerStatCard(title: "Upcoming",
+                                  value: upcomingTasks.count,
+                                  icon: "clock",
+                                  tint: .purple,
+                                  segment: .upcoming)
+
+                organizerStatCard(title: "Done",
+                                  value: completedTasks.count,
+                                  icon: "checkmark.seal",
+                                  tint: .green,
+                                  segment: .done)
             }
             .padding(.vertical, 2)
         }
@@ -189,7 +242,7 @@ struct OrganizerView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .frame(width: 120, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
                     .fill(Color(.secondarySystemBackground))
@@ -223,6 +276,8 @@ struct OrganizerView: View {
         .frame(maxWidth: .infinity)
     }
 
+    // MARK: - Task buckets
+
     private var todayTasks: [TaskItem] {
         filteredTasks.filter { task in
             guard let dueDate = task.dueDate else { return false }
@@ -241,17 +296,23 @@ struct OrganizerView: View {
         filteredTasks.filter { $0.completed }
     }
 
+    // MARK: - Data ops
+
     private func delete(_ task: TaskItem) {
         cancelReminder(id: task.notificationId)
         modelContext.delete(task)
     }
+
+    // MARK: - Notifications
 
     private func scheduleReminder(for task: TaskItem) {
         cancelReminder(id: task.notificationId)
         guard task.reminderEnabled, let reminderDate = task.reminderDate else { return }
 
         let title = "Reminder: \(task.title)"
-        let body = task.dueDate != nil ? "Due \(task.dueDate!.formatted(date: .abbreviated, time: .omitted))" : "Task reminder"
+        let body = task.dueDate != nil
+            ? "Due \(task.dueDate!.formatted(date: .abbreviated, time: .omitted))"
+            : "Task reminder"
 
         let center = UNUserNotificationCenter.current()
         let content = UNMutableNotificationContent()
