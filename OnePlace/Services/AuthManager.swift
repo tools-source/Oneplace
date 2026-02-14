@@ -28,12 +28,6 @@ final class AuthManager: ObservableObject {
 
     // ✅ Make sure Firebase is configured before we touch FirebaseApp.app()/Auth/Firestore
     private func ensureFirebaseConfigured() throws {
-        if FirebaseApp.app() == nil {
-            // This should normally NOT be needed if AppDelegate calls configure(),
-            // but it prevents timing/target issues.
-            FirebaseApp.configure()
-        }
-
         guard FirebaseApp.app() != nil else {
             throw AuthFlowError.configuration(
                 "Firebase is not configured (FirebaseApp.app() is nil). Check that FirebaseApp.configure() runs in AppDelegate and that GoogleService-Info.plist is in Copy Bundle Resources."
