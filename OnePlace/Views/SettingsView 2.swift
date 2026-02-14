@@ -34,15 +34,15 @@ struct SettingsView: View {
             HStack {
                 Text("User")
                 Spacer()
-                Text(authManager.currentUserId ?? "Not signed in")
+                Text(userIdText)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            if let provider = authManager.authProvider {
+            if case .signedIn(let user) = authManager.authState {
                 HStack {
                     Text("Provider")
                     Spacer()
-                    Text(provider.rawValue.capitalized)
+                    Text(user.provider.capitalized)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -51,7 +51,16 @@ struct SettingsView: View {
             }
         }
     }
-
+    private var userIdText: String {
+        switch authManager.authState {
+        case .signedIn(let user):
+            return user.uid
+        case .loading:
+            return "Loading…"
+        case .signedOut:
+            return "Not signed in"
+        }
+    }
     private var notificationStatusSection: some View {
         Section("Notifications") {
             HStack {

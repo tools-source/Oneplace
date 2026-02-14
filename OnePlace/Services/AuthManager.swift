@@ -11,9 +11,9 @@ import UIKit
 @MainActor
 final class AuthManager: ObservableObject {
     enum AuthState: Equatable {
-        case signedOut
-        case loading
-        case signedIn(AppUser)
+      case loading
+      case signedOut
+      case signedIn(AppUser)
     }
 
     @Published private(set) var authState: AuthState = .signedOut
