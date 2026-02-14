@@ -1,87 +1,81 @@
-import AuthenticationServices
 import SwiftUI
-import UIKit
 
 struct LoginView: View {
     @EnvironmentObject private var authManager: AuthManager
 
-    var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            VStack(spacing: 8) {
-                Text("Welcome to OnePlace")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                Text("Sign in to keep your data private on this device.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            Spacer()
-
-            VStack(spacing: 12) {
-                SignInWithAppleButton(.signIn) { request in
-                    authManager.onAppleRequest(request)
-                } onCompletion: { result in
-                    print("[Auth] Apple Sign-In completion received in LoginView.")
-                    authManager.handleAppleSignIn(result: result)
-                }
-                .signInWithAppleButtonStyle(.black)
-                .frame(height: 48)
-                .clipShape(Capsule())
-                .contentShape(Capsule())
-                .allowsHitTesting(true)
-
-                Button {
-                    print("[Auth] Google Sign-In button tapped.")
-                    Task {
-                        guard let controller = UIApplication.shared.topMostViewController() else {
-                            print("[Auth] Unable to find top-most UIViewController for Google Sign-In presentation.")
-                            return
-                        }
-                        await authManager.signInWithGoogle(presenting: controller)
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "g.circle.fill")
-                        Text("Sign in with Google")
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-            }
-            .padding(.horizontal, 32)
-
-            Spacer()
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .onAppear {
-            print("[Auth] LoginView appeared. Buttons are active in the view hierarchy.")
-        }
+    private var isLoading: Bool {
+        if case .loading = authManager.authState { return true }
+        return false
     }
-}
 
-private extension UIApplication {
-    func topMostViewController() -> UIViewController? {
-        guard let windowScene = connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive }),
-              let root = windowScene.windows.first(where: \.isKeyWindow)?.rootViewController
-        else {
-            return nil
-        }
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Color.blue.opacity(0.2), Color.indigo.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
 
-        var top = root
-        while let presented = top.presentedViewController {
-            top = presented
+            VStack(spacing: 24) {
+                Spacer(minLength: 40)
+
+                VStack(spacing: 12) {
+                    Image(systemName: "square.grid.2x2.fill")
+                        .font(.system(size: 56))
+                        .foregroundStyle(.indigo)
+                    Text("OnePlace")
+                        .font(.largeTitle.bold())
+                    Text("Sign in to sync your plans, tasks, and finances across devices.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 24)
+
+                if let errorMessage = authManager.errorMessage {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(12)
+                        .frame(maxWidth: .infinity)
+                        .background(.white.opacity(0.9), in: RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, 24)
+                }
+
+                VStack(spacing: 12) {
+                    Button {
+                        authManager.signInWithApple()
+                    } label: {
+                        Label("Continue with Apple", systemImage: "apple.logo")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.black)
+                    .disabled(isLoading)
+
+                    Button {
+                        Task {
+                            await authManager.signInWithGoogle()
+                        }
+                    } label: {
+                        Label("Continue with Google", systemImage: "globe")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white)
+                    .foregroundStyle(.black)
+                    .disabled(isLoading)
+                }
+                .padding(.horizontal, 24)
+
+                if isLoading {
+                    ProgressView("Signing in…")
+                        .padding(.top, 8)
+                }
+
+                Spacer()
+            }
         }
-        return top
     }
 }
 

@@ -32,6 +32,9 @@
 		5F8A9B892B2C8A4E00A1A1A1 /* CommsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B882B2C8A4E00A1A1A1 /* CommsView.swift */; };
 		5F8A9B8B2B2C8A4E00A1A1A1 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B8A2B2C8A4E00A1A1A1 /* HelpView.swift */; };
 		5F8A9B8D2B2C8A4E00A1A1A1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5F8A9B8C2B2C8A4E00A1A1A1 /* Assets.xcassets */; };
+		A1B2C3D40000000000000001 /* AppUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000002 /* AppUser.swift */; };
+		A1B2C3D40000000000000003 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000004 /* AuthManager.swift */; };
+		A1B2C3D40000000000000005 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000006 /* LoginView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +66,9 @@
 		5F8A9B8A2B2C8A4E00A1A1A1 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		5F8A9B8C2B2C8A4E00A1A1A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5F8A9B8E2B2C8A4E00A1A1A1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A1B2C3D40000000000000002 /* AppUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUser.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000004 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000006 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +119,7 @@
 				5F8A9B722B2C8A4E00A1A1A1 /* SplitModels.swift */,
 				5F8A9B742B2C8A4E00A1A1A1 /* CommsCard.swift */,
 				5F8A9B762B2C8A4E00A1A1A1 /* FlowItem.swift */,
+				A1B2C3D40000000000000002 /* AppUser.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -133,6 +140,7 @@
 				0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */,
 				0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */,
 				0BF9F9852F38666C00E14DC7 /* StatCard.swift */,
+				A1B2C3D40000000000000006 /* LoginView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -145,6 +153,7 @@
 				5F8A9B782B2C8A4E00A1A1A1 /* SampleData.swift */,
 				5F8A9B7A2B2C8A4E00A1A1A1 /* AudioRecorder.swift */,
 				5F8A9B7C2B2C8A4E00A1A1A1 /* ImagePicker.swift */,
+				A1B2C3D40000000000000004 /* AuthManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -227,6 +236,7 @@
 			files = (
 				5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */,
 				5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */,
+				A1B2C3D40000000000000001 /* AppUser.swift in Sources */,
 				0C5A1A252F4B200100AA0001 /* AppDataController.swift in Sources */,
 				0C5A1A272F4B200100AA0001 /* AppSchema.swift in Sources */,
 				5F8A9B712B2C8A4E00A1A1A1 /* TaskItem.swift in Sources */,
@@ -245,6 +255,8 @@
 				5F8A9B852B2C8A4E00A1A1A1 /* OrganizerView.swift in Sources */,
 				0BF9F9862F38666C00E14DC7 /* StatCard.swift in Sources */,
 				0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */,
+				A1B2C3D40000000000000003 /* AuthManager.swift in Sources */,
+				A1B2C3D40000000000000005 /* LoginView.swift in Sources */,
 				5F8A9B872B2C8A4E00A1A1A1 /* SplitView.swift in Sources */,
 				0BF9F97C2F383B6400E14DC7 /* EmptyState.swift in Sources */,
 				5F8A9B892B2C8A4E00A1A1A1 /* CommsView.swift in Sources */,
