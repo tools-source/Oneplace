@@ -175,10 +175,32 @@ final class AuthManager: ObservableObject {
             try await user.delete()
             performLocalCleanup()
         } catch {
+            if isUserCanceledAuth(error) {
+                errorMessage = nil
+                return
+            }
+
             let friendly = makeFriendlyError(error)
             errorMessage = friendly
             throw AuthFlowError.authentication(friendly)
         }
+    }
+
+    func isUserCanceledAuth(_ error: Error) -> Bool {
+        let nsError = error as NSError
+
+        if nsError.domain == ASAuthorizationError.errorDomain,
+           let code = ASAuthorizationError.Code(rawValue: nsError.code),
+           code == .canceled {
+            return true
+        }
+
+        if nsError.domain == GIDSignInErrorDomain,
+           nsError.code == GIDSignInErrorCode.canceled.rawValue {
+            return true
+        }
+
+        return false
     }
 
     func ensureUserRecordExists(firebaseUser: FirebaseAuth.User, provider: String) async throws -> AppUser {
