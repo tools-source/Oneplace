@@ -5,7 +5,7 @@ struct HelpView: View {
         NavigationStack {
             List {
                 Section("Welcome to One Place") {
-                    Text("Manage finances, bills, tasks, shared expenses, and communication cards—all locally on your device.")
+                    Text("Manage finances, bills, tasks, shared expenses, and communication cards across your devices.")
                 }
                 Section("Getting Started") {
                     Label("Add a transaction in Finance to track gains and owes.", systemImage: "banknote")
@@ -15,7 +15,7 @@ struct HelpView: View {
                     Label("Create communication cards with audio and images.", systemImage: "quote.bubble")
                 }
                 Section("Privacy") {
-                    Text("All data stays on this device. One Place does not use a backend or share your information.")
+                    Text("OnePlace uses Firebase Authentication and Cloud Firestore to sync your data securely. We do not sell, rent, or share personal data for advertising.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
