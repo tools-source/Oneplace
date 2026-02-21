@@ -35,6 +35,8 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    // MARK: - Session restore
+
     func restoreSessionFromProvider() async {
         do {
             try ensureFirebaseConfigured()
@@ -66,13 +68,15 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    // MARK: - Sign In
+
     func signInWithGoogle() async {
         errorMessage = nil
         authState = .loading
 
         do {
             try ensureFirebaseConfigured()
-            print("CLIENT ID =", FirebaseApp.app()?.options.clientID ?? "NIL")
+
             guard let clientID = FirebaseApp.app()?.options.clientID, !clientID.isEmpty else {
                 throw AuthFlowError.configuration(
                     "Firebase clientID is missing. This usually means the GoogleService-Info.plist does not match your Bundle ID, or the wrong plist was added."
@@ -96,9 +100,15 @@ final class AuthManager: ObservableObject {
 
             let authResult = try await auth.signIn(with: credential)
             let user = try await ensureUserRecordExists(firebaseUser: authResult.user, provider: "google")
-
             authState = .signedIn(user)
         } catch {
+            // If user cancels sign-in, don’t show an "error" toast/alert.
+            if isUserCanceledAuth(error) {
+                authState = .signedOut
+                errorMessage = nil
+                return
+            }
+
             authState = .signedOut
             errorMessage = makeFriendlyError(error)
         }
@@ -127,11 +137,21 @@ final class AuthManager: ObservableObject {
                         let user = try await self.ensureUserRecordExists(firebaseUser: authResult.user, provider: "apple")
                         self.authState = .signedIn(user)
                     } catch {
+                        if self.isUserCanceledAuth(error) {
+                            self.authState = .signedOut
+                            self.errorMessage = nil
+                            return
+                        }
                         self.authState = .signedOut
                         self.errorMessage = self.makeFriendlyError(error)
                     }
 
                 case .failure(let error):
+                    if self.isUserCanceledAuth(error) {
+                        self.authState = .signedOut
+                        self.errorMessage = nil
+                        return
+                    }
                     self.authState = .signedOut
                     self.errorMessage = self.makeFriendlyError(error)
                 }
@@ -141,6 +161,8 @@ final class AuthManager: ObservableObject {
         appleSignInDelegate = delegate
         delegate.startSignInWithAppleFlow()
     }
+
+    // MARK: - Sign Out
 
     func signOut() {
         do {
@@ -152,6 +174,8 @@ final class AuthManager: ObservableObject {
             errorMessage = "Could not sign out. \(error.localizedDescription)"
         }
     }
+
+    // MARK: - Delete Account
 
     func deleteAccount() async throws {
         errorMessage = nil
@@ -170,6 +194,7 @@ final class AuthManager: ObservableObject {
         }
 
         do {
+            // ✅ Re-auth (required by Firebase for sensitive operations)
             try await reauthenticateIfNeeded(for: user)
 
             // ✅ Firestore cleanup (client-side; deletes known subcollections)
@@ -181,6 +206,7 @@ final class AuthManager: ObservableObject {
             // ✅ Local cleanup
             performLocalCleanup()
         } catch {
+            // ✅ If user cancels Apple/Google confirmation, don’t show an error.
             if isUserCanceledAuth(error) {
                 errorMessage = nil
                 return
@@ -192,22 +218,32 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    /// Treat user-cancel as a non-error across Apple/Google versions.
     func isUserCanceledAuth(_ error: Error) -> Bool {
         let nsError = error as NSError
 
+        // Apple Sign-In cancel
         if nsError.domain == ASAuthorizationError.errorDomain,
            let code = ASAuthorizationError.Code(rawValue: nsError.code),
            code == .canceled {
             return true
         }
 
-        if nsError.domain == GIDSignInErrorDomain,
-           nsError.code == GIDSignInErrorCode.canceled.rawValue {
+        // Google Sign-In cancel (constants differ by version; avoid referencing symbols that may not exist)
+        let message = nsError.localizedDescription.lowercased()
+        if message.contains("cancel") || message.contains("canceled") || message.contains("cancelled") {
+            return true
+        }
+
+        // Generic user-cancel patterns (safe fallback)
+        if nsError.code == 0 || nsError.code == -999 {
             return true
         }
 
         return false
     }
+
+    // MARK: - User record
 
     func ensureUserRecordExists(firebaseUser: FirebaseAuth.User, provider: String) async throws -> AppUser {
         let userRef = firestore.collection("users").document(firebaseUser.uid)
@@ -236,6 +272,8 @@ final class AuthManager: ObservableObject {
             provider: provider
         )
     }
+
+    // MARK: - Friendly errors
 
     private func makeFriendlyError(_ error: Error) -> String {
         let nsError = error as NSError
@@ -269,6 +307,8 @@ final class AuthManager: ObservableObject {
 
         return nsError.localizedDescription
     }
+
+    // MARK: - Reauthentication
 
     private func reauthenticateIfNeeded(for user: FirebaseAuth.User) async throws {
         let providerIDs = Set(user.providerData.map(\.providerID))
@@ -340,7 +380,6 @@ final class AuthManager: ObservableObject {
         let userDocRef = firestore.collection("users").document(uid)
 
         // ✅ IMPORTANT: Update these names to match YOUR Firestore structure exactly.
-        // These are common module names in OnePlace.
         let subcollections: [String] = [
             "finance",
             "organizer",
@@ -386,6 +425,8 @@ final class AuthManager: ObservableObject {
             if snapshot.documents.count < batchSize { break }
         }
     }
+
+    // MARK: - Cleanup
 
     private func performLocalCleanup() {
         do {
