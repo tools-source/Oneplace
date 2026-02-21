@@ -153,6 +153,34 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    func deleteAccount() async throws {
+        errorMessage = nil
+
+        do {
+            try ensureFirebaseConfigured()
+        } catch {
+            errorMessage = error.localizedDescription
+            throw error
+        }
+
+        guard let user = auth.currentUser else {
+            let error = AuthFlowError.authentication("You are not signed in.")
+            errorMessage = error.localizedDescription
+            throw error
+        }
+
+        do {
+            try await reauthenticateIfNeeded(for: user)
+            try await deleteUserFirestoreData(uid: user.uid)
+            try await user.delete()
+            performLocalCleanup()
+        } catch {
+            let friendly = makeFriendlyError(error)
+            errorMessage = friendly
+            throw AuthFlowError.authentication(friendly)
+        }
+    }
+
     func ensureUserRecordExists(firebaseUser: FirebaseAuth.User, provider: String) async throws -> AppUser {
         let userRef = firestore.collection("users").document(firebaseUser.uid)
         let snapshot = try await userRef.getDocument()
@@ -194,7 +222,138 @@ final class AuthManager: ObservableObject {
             return "No internet connection. Reconnect and try again."
         }
 
+        if nsError.domain == FirestoreErrorDomain,
+           nsError.code == FirestoreErrorCode.permissionDenied.rawValue {
+            return "Permission denied while removing your data. Please contact support if this persists."
+        }
+
+        if nsError.domain == AuthErrorDomain,
+           let code = AuthErrorCode(rawValue: nsError.code),
+           code == .requiresRecentLogin {
+            return "Please confirm your sign-in to delete your account."
+        }
+
+        if nsError.domain == AuthErrorDomain,
+           let code = AuthErrorCode(rawValue: nsError.code),
+           code == .networkError {
+            return "Network error. Check your connection and try again."
+        }
+
         return nsError.localizedDescription
+    }
+
+    private func reauthenticateIfNeeded(for user: FirebaseAuth.User) async throws {
+        let providerIDs = Set(user.providerData.map(\.providerID))
+
+        if providerIDs.contains("google.com") {
+            let credential = try await googleReauthenticationCredential()
+            try await user.reauthenticate(with: credential)
+            return
+        }
+
+        if providerIDs.contains("apple.com") {
+            let credential = try await appleReauthenticationCredential()
+            try await user.reauthenticate(with: credential)
+            return
+        }
+
+        throw AuthFlowError.authentication("Please sign in again and retry deleting your account.")
+    }
+
+    private func googleReauthenticationCredential() async throws -> AuthCredential {
+        guard let clientID = FirebaseApp.app()?.options.clientID, !clientID.isEmpty else {
+            throw AuthFlowError.configuration("Firebase clientID is missing. Please reinstall or contact support.")
+        }
+
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+
+        guard let presentingVC = UIApplication.shared.topMostViewController() else {
+            throw AuthFlowError.presentation("Unable to present Google Sign-In. Try again.")
+        }
+
+        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingVC)
+
+        guard let idToken = result.user.idToken?.tokenString else {
+            throw AuthFlowError.authentication("Google re-authentication failed. Please try again.")
+        }
+
+        return GoogleAuthProvider.credential(
+            withIDToken: idToken,
+            accessToken: result.user.accessToken.tokenString
+        )
+    }
+
+    private func appleReauthenticationCredential() async throws -> AuthCredential {
+        try await withCheckedThrowingContinuation { continuation in
+            let delegate = AppleSignInCoordinator { [weak self] result in
+                guard let self else {
+                    continuation.resume(throwing: AuthFlowError.authentication("Apple re-authentication was interrupted."))
+                    return
+                }
+
+                switch result {
+                case .success(let credential):
+                    continuation.resume(returning: credential)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+
+                self.appleSignInDelegate = nil
+            }
+
+            self.appleSignInDelegate = delegate
+            delegate.startSignInWithAppleFlow()
+        }
+    }
+
+    private func deleteUserFirestoreData(uid: String) async throws {
+        let userDocRef = firestore.collection("users").document(uid)
+        try await deleteDocumentTree(userDocRef)
+    }
+
+    private func deleteDocumentTree(_ document: DocumentReference) async throws {
+        let subcollections = try await fetchSubcollections(from: document)
+        for collection in subcollections {
+            try await deleteCollectionTree(collection)
+        }
+
+        let snapshot = try await document.getDocument()
+        if snapshot.exists {
+            try await document.delete()
+        }
+    }
+
+    private func deleteCollectionTree(_ collection: CollectionReference) async throws {
+        let snapshot = try await collection.getDocuments()
+
+        for document in snapshot.documents {
+            try await deleteDocumentTree(document.reference)
+        }
+    }
+
+    private func fetchSubcollections(from document: DocumentReference) async throws -> [CollectionReference] {
+        try await withCheckedThrowingContinuation { continuation in
+            document.collections { collections, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                continuation.resume(returning: collections ?? [])
+            }
+        }
+    }
+
+    private func performLocalCleanup() {
+        do {
+            try auth.signOut()
+        } catch {
+            print("Sign-out cleanup warning: \(error.localizedDescription)")
+        }
+
+        GIDSignIn.sharedInstance.signOut()
+        authState = .signedOut
+        errorMessage = nil
     }
 }
 
