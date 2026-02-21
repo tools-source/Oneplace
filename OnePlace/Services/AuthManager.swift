@@ -6,6 +6,7 @@ import FirebaseFirestore
 import Foundation
 import GoogleSignIn
 import SwiftUI
+@preconcurrency import UserNotifications
 import UIKit
 
 @MainActor
@@ -34,7 +35,30 @@ final class AuthManager: ObservableObject {
             )
         }
     }
+    private func requestNotificationsIfNeeded() {
+        // Ask only once (you can rename this key)
+        let key = "didAskNotificationsPermission"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
 
+        let center = UNUserNotificationCenter.current()
+
+        center.getNotificationSettings { settings in
+            // Don’t re-prompt if already decided
+            guard settings.authorizationStatus == .notDetermined else {
+                UserDefaults.standard.set(true, forKey: key)
+                return
+            }
+
+            DispatchQueue.main.async {
+                center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+                    UserDefaults.standard.set(true, forKey: key)
+
+                    // Optional: register for remote notifications only if you use push
+                    // DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
+                }
+            }
+        }
+    }
     // MARK: - Session restore
 
     func restoreSessionFromProvider() async {
@@ -101,6 +125,7 @@ final class AuthManager: ObservableObject {
             let authResult = try await auth.signIn(with: credential)
             let user = try await ensureUserRecordExists(firebaseUser: authResult.user, provider: "google")
             authState = .signedIn(user)
+            requestNotificationsIfNeeded()
         } catch {
             // If user cancels sign-in, don’t show an "error" toast/alert.
             if isUserCanceledAuth(error) {
@@ -136,6 +161,7 @@ final class AuthManager: ObservableObject {
                         let authResult = try await self.auth.signIn(with: credential)
                         let user = try await self.ensureUserRecordExists(firebaseUser: authResult.user, provider: "apple")
                         self.authState = .signedIn(user)
+                        self.requestNotificationsIfNeeded()
                     } catch {
                         if self.isUserCanceledAuth(error) {
                             self.authState = .signedOut
