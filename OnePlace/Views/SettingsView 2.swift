@@ -115,6 +115,12 @@ struct SettingsView: View {
         do {
             try await authManager.deleteAccount()
         } catch {
+            if authManager.isUserCanceledAuth(error) {
+                deleteAccountErrorMessage = nil
+                isDeletingAccount = false
+                return
+            }
+
             if let errorMessage = authManager.errorMessage, !errorMessage.isEmpty {
                 deleteAccountErrorMessage = errorMessage
             } else {
