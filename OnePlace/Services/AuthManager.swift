@@ -171,8 +171,14 @@ final class AuthManager: ObservableObject {
 
         do {
             try await reauthenticateIfNeeded(for: user)
+
+            // ✅ Firestore cleanup (client-side; deletes known subcollections)
             try await deleteUserFirestoreData(uid: user.uid)
+
+            // ✅ Delete Auth user
             try await user.delete()
+
+            // ✅ Local cleanup
             performLocalCleanup()
         } catch {
             if isUserCanceledAuth(error) {
@@ -328,41 +334,56 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    // MARK: - Firestore account deletion (Client-side)
+
     private func deleteUserFirestoreData(uid: String) async throws {
         let userDocRef = firestore.collection("users").document(uid)
-        try await deleteDocumentTree(userDocRef)
-    }
 
-    private func deleteDocumentTree(_ document: DocumentReference) async throws {
-        let subcollections = try await fetchSubcollections(from: document)
-        for collection in subcollections {
-            try await deleteCollectionTree(collection)
+        // ✅ IMPORTANT: Update these names to match YOUR Firestore structure exactly.
+        // These are common module names in OnePlace.
+        let subcollections: [String] = [
+            "finance",
+            "organizer",
+            "flow",
+            "split",
+            "talkBoard"
+        ]
+
+        for name in subcollections {
+            let colRef = userDocRef.collection(name)
+            try await deleteCollectionDocuments(colRef, batchSize: 200)
         }
 
-        let snapshot = try await document.getDocument()
-        if snapshot.exists {
-            try await document.delete()
+        let snap = try await userDocRef.getDocument()
+        if snap.exists {
+            try await userDocRef.delete()
         }
     }
 
-    private func deleteCollectionTree(_ collection: CollectionReference) async throws {
-        let snapshot = try await collection.getDocuments()
+    /// Deletes all documents in a collection in pages.
+    /// NOTE: This deletes documents directly under the collection. If you have nested subcollections
+    /// under those documents, iOS cannot auto-discover them; you must delete those known nested paths
+    /// or use a Cloud Function for recursive deletion.
+    private func deleteCollectionDocuments(_ collection: CollectionReference, batchSize: Int) async throws {
+        var lastDoc: DocumentSnapshot? = nil
 
-        for document in snapshot.documents {
-            try await deleteDocumentTree(document.reference)
-        }
-    }
-
-    private func fetchSubcollections(from document: DocumentReference) async throws -> [CollectionReference] {
-        try await withCheckedThrowingContinuation { continuation in
-            document.collections { collections, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                continuation.resume(returning: collections ?? [])
+        while true {
+            var query: Query = collection.limit(to: batchSize)
+            if let lastDoc {
+                query = query.start(afterDocument: lastDoc)
             }
+
+            let snapshot = try await query.getDocuments()
+            if snapshot.documents.isEmpty { break }
+
+            let batch = firestore.batch()
+            for doc in snapshot.documents {
+                batch.deleteDocument(doc.reference)
+            }
+            try await batch.commit()
+
+            lastDoc = snapshot.documents.last
+            if snapshot.documents.count < batchSize { break }
         }
     }
 
