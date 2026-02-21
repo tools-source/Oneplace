@@ -7,6 +7,9 @@ struct SettingsView: View {
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var pendingRequests: [UNNotificationRequest] = []
     @State private var isRefreshing = false
+    @State private var isDeletingAccount = false
+    @State private var showDeleteAccountConfirmation = false
+    @State private var deleteAccountErrorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -27,6 +30,21 @@ struct SettingsView: View {
             }
             .task {
                 await refreshStatus()
+            }
+            .alert("Delete Account", isPresented: $showDeleteAccountConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await handleDeleteAccount()
+                    }
+                }
+            } message: {
+                Text("This action is permanent and cannot be undone. All your data will be deleted.")
+            }
+            .alert("Unable to Delete Account", isPresented: deleteAccountErrorBinding) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteAccountErrorMessage ?? "Please try again.")
             }
         }
     }
@@ -54,7 +72,57 @@ struct SettingsView: View {
             Button("Sign Out", role: .destructive) {
                 authManager.signOut()
             }
+            .disabled(isDeletingAccount)
+
+            Button {
+                showDeleteAccountConfirmation = true
+            } label: {
+                HStack {
+                    Text("Delete Account")
+                        .foregroundStyle(.red)
+                    if isDeletingAccount {
+                        Spacer()
+                        ProgressView()
+                            .tint(.red)
+                    }
+                }
+            }
+            .disabled(isDeletingAccount || !isUserSignedIn)
         }
+    }
+
+    private var isUserSignedIn: Bool {
+        if case .signedIn = authManager.authState { return true }
+        return false
+    }
+
+    private var deleteAccountErrorBinding: Binding<Bool> {
+        Binding(
+            get: { deleteAccountErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    deleteAccountErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    private func handleDeleteAccount() async {
+        guard !isDeletingAccount else { return }
+        isDeletingAccount = true
+        deleteAccountErrorMessage = nil
+
+        do {
+            try await authManager.deleteAccount()
+        } catch {
+            if let errorMessage = authManager.errorMessage, !errorMessage.isEmpty {
+                deleteAccountErrorMessage = errorMessage
+            } else {
+                deleteAccountErrorMessage = error.localizedDescription
+            }
+        }
+
+        isDeletingAccount = false
     }
 
     private var userDisplayText: String {
@@ -159,7 +227,7 @@ struct SettingsView: View {
             }
         }
     }
-    #endif 
+    #endif
 
     private var statusLabel: String {
         switch authorizationStatus {
