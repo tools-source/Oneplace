@@ -99,14 +99,10 @@ struct StatCard: View {
     }
 
     private var backgroundFill: LinearGradient {
-        icon == "plus" ? DesignSystem.highlightedCardGradient : DesignSystem.cardGradient
+        DesignSystem.cardGradient
     }
 
     private var strokeColor: Color {
-        if icon == "plus" {
-            return tint.opacity(colorScheme == .dark ? 0.35 : 0.28)
-        }
-
         return DesignSystem.cardBorderColor
     }
 
