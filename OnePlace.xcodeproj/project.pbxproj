@@ -28,6 +28,22 @@
 		1A0F10012F5B100100ABCD01 /* FinanceEntryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0F10002F5B100100ABCD01 /* FinanceEntryRecord.swift */; };
 		1A0F10032F5B100100ABCD01 /* FinanceRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0F10022F5B100100ABCD01 /* FinanceRepository.swift */; };
 		1A0F10052F5B100100ABCD01 /* FinanceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */; };
+		B1C2D3E40000000000000001 /* FlowItemDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000001 /* FlowItemDraft.swift */; };
+		B1C2D3E40000000000000002 /* TaskItemDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000002 /* TaskItemDraft.swift */; };
+		B1C2D3E40000000000000003 /* SplitExpenseDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000003 /* SplitExpenseDraft.swift */; };
+		B1C2D3E40000000000000004 /* CommsCardDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000004 /* CommsCardDraft.swift */; };
+		B1C2D3E40000000000000005 /* FlowItemRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000005 /* FlowItemRecord.swift */; };
+		B1C2D3E40000000000000006 /* TaskItemRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000006 /* TaskItemRecord.swift */; };
+		B1C2D3E40000000000000007 /* SplitRecords.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000007 /* SplitRecords.swift */; };
+		B1C2D3E40000000000000008 /* CommsCardRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000008 /* CommsCardRecord.swift */; };
+		B1C2D3E40000000000000009 /* FlowRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000009 /* FlowRepository.swift */; };
+		B1C2D3E4000000000000000A /* TaskRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000A /* TaskRepository.swift */; };
+		B1C2D3E4000000000000000B /* SplitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000B /* SplitRepository.swift */; };
+		B1C2D3E4000000000000000C /* CommsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000C /* CommsRepository.swift */; };
+		B1C2D3E4000000000000000D /* FlowViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000D /* FlowViewModel.swift */; };
+		B1C2D3E4000000000000000E /* OrganizerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000E /* OrganizerViewModel.swift */; };
+		B1C2D3E4000000000000000F /* SplitViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000F /* SplitViewModel.swift */; };
+		B1C2D3E40000000000000010 /* CommsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000010 /* CommsViewModel.swift */; };
 		5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */; };
 		5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B6E2B2C8A4E00A1A1A1 /* FinanceEntry.swift */; };
 		5F8A9B712B2C8A4E00A1A1A1 /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B702B2C8A4E00A1A1A1 /* TaskItem.swift */; };
@@ -68,6 +84,22 @@
 		1A0F10002F5B100100ABCD01 /* FinanceEntryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceEntryRecord.swift; sourceTree = "<group>"; };
 		1A0F10022F5B100100ABCD01 /* FinanceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceRepository.swift; sourceTree = "<group>"; };
 		1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceViewModel.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000001 /* FlowItemDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowItemDraft.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000002 /* TaskItemDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemDraft.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000003 /* SplitExpenseDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitExpenseDraft.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000004 /* CommsCardDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommsCardDraft.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000005 /* FlowItemRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowItemRecord.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000006 /* TaskItemRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemRecord.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000007 /* SplitRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitRecords.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000008 /* CommsCardRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommsCardRecord.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000009 /* FlowRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowRepository.swift; sourceTree = "<group>"; };
+		B1C2D3E5000000000000000A /* TaskRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRepository.swift; sourceTree = "<group>"; };
+		B1C2D3E5000000000000000B /* SplitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitRepository.swift; sourceTree = "<group>"; };
+		B1C2D3E5000000000000000C /* CommsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommsRepository.swift; sourceTree = "<group>"; };
+		B1C2D3E5000000000000000D /* FlowViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowViewModel.swift; sourceTree = "<group>"; };
+		B1C2D3E5000000000000000E /* OrganizerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizerViewModel.swift; sourceTree = "<group>"; };
+		B1C2D3E5000000000000000F /* SplitViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitViewModel.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000010 /* CommsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommsViewModel.swift; sourceTree = "<group>"; };
 		5F8A9B5F2B2C8A4E00A1A1A1 /* OnePlace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = OnePlace.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F8A9B6C2B2C8A4E00A1A1A1 /* OnePlaceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceApp.swift; sourceTree = "<group>"; };
 		5F8A9B6E2B2C8A4E00A1A1A1 /* FinanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceEntry.swift; sourceTree = "<group>"; };
@@ -128,6 +160,10 @@
 			isa = PBXGroup;
 			children = (
 				1A0F10002F5B100100ABCD01 /* FinanceEntryRecord.swift */,
+				B1C2D3E50000000000000005 /* FlowItemRecord.swift */,
+				B1C2D3E50000000000000006 /* TaskItemRecord.swift */,
+				B1C2D3E50000000000000007 /* SplitRecords.swift */,
+				B1C2D3E50000000000000008 /* CommsCardRecord.swift */,
 			);
 			path = Firestore;
 			sourceTree = "<group>";
@@ -136,6 +172,10 @@
 			isa = PBXGroup;
 			children = (
 				1A0F10022F5B100100ABCD01 /* FinanceRepository.swift */,
+				B1C2D3E50000000000000009 /* FlowRepository.swift */,
+				B1C2D3E5000000000000000A /* TaskRepository.swift */,
+				B1C2D3E5000000000000000B /* SplitRepository.swift */,
+				B1C2D3E5000000000000000C /* CommsRepository.swift */,
 			);
 			path = Repositories;
 			sourceTree = "<group>";
@@ -177,6 +217,10 @@
 			isa = PBXGroup;
 			children = (
 				0B2D74B52F4073A800B52D14 /* FinanceEntryDraft.swift */,
+				B1C2D3E50000000000000001 /* FlowItemDraft.swift */,
+				B1C2D3E50000000000000002 /* TaskItemDraft.swift */,
+				B1C2D3E50000000000000003 /* SplitExpenseDraft.swift */,
+				B1C2D3E50000000000000004 /* CommsCardDraft.swift */,
 				1A0F10062F5B100100ABCD01 /* Firestore */,
 				5F8A9B6E2B2C8A4E00A1A1A1 /* FinanceEntry.swift */,
 				5F8A9B702B2C8A4E00A1A1A1 /* TaskItem.swift */,
@@ -195,6 +239,7 @@
 				5F8A9B7E2B2C8A4E00A1A1A1 /* RootTabView.swift */,
 				5F8A9B802B2C8A4E00A1A1A1 /* FinanceView.swift */,
 				1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */,
+				B1C2D3E5000000000000000D /* FlowViewModel.swift */,
 				5F8A9B822B2C8A4E00A1A1A1 /* FlowView.swift */,
 				5F8A9B842B2C8A4E00A1A1A1 /* OrganizerView.swift */,
 				5F8A9B862B2C8A4E00A1A1A1 /* SplitView.swift */,
@@ -220,6 +265,9 @@
 				5F8A9B7A2B2C8A4E00A1A1A1 /* AudioRecorder.swift */,
 				5F8A9B7C2B2C8A4E00A1A1A1 /* ImagePicker.swift */,
 				A1B2C3D40000000000000004 /* AuthManager.swift */,
+				B1C2D3E5000000000000000E /* OrganizerViewModel.swift */,
+				B1C2D3E5000000000000000F /* SplitViewModel.swift */,
+				B1C2D3E50000000000000010 /* CommsViewModel.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -308,6 +356,22 @@
 				1A0F10012F5B100100ABCD01 /* FinanceEntryRecord.swift in Sources */,
 				1A0F10032F5B100100ABCD01 /* FinanceRepository.swift in Sources */,
 				1A0F10052F5B100100ABCD01 /* FinanceViewModel.swift in Sources */,
+				B1C2D3E40000000000000001 /* FlowItemDraft.swift in Sources */,
+				B1C2D3E40000000000000002 /* TaskItemDraft.swift in Sources */,
+				B1C2D3E40000000000000003 /* SplitExpenseDraft.swift in Sources */,
+				B1C2D3E40000000000000004 /* CommsCardDraft.swift in Sources */,
+				B1C2D3E40000000000000005 /* FlowItemRecord.swift in Sources */,
+				B1C2D3E40000000000000006 /* TaskItemRecord.swift in Sources */,
+				B1C2D3E40000000000000007 /* SplitRecords.swift in Sources */,
+				B1C2D3E40000000000000008 /* CommsCardRecord.swift in Sources */,
+				B1C2D3E40000000000000009 /* FlowRepository.swift in Sources */,
+				B1C2D3E4000000000000000A /* TaskRepository.swift in Sources */,
+				B1C2D3E4000000000000000B /* SplitRepository.swift in Sources */,
+				B1C2D3E4000000000000000C /* CommsRepository.swift in Sources */,
+				B1C2D3E4000000000000000D /* FlowViewModel.swift in Sources */,
+				B1C2D3E4000000000000000E /* OrganizerViewModel.swift in Sources */,
+				B1C2D3E4000000000000000F /* SplitViewModel.swift in Sources */,
+				B1C2D3E40000000000000010 /* CommsViewModel.swift in Sources */,
 				5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */,
 				5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */,
 				A1B2C3D40000000000000001 /* AppUser.swift in Sources */,

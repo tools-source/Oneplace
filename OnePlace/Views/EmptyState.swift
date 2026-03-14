@@ -25,7 +25,7 @@ public struct EmptyState: View {
         VStack(spacing: 8) {
             Image(systemName: systemImage)
                 .font(.system(size: 40, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(DesignSystem.accentColor)
 
             Text(title)
                 .font(.headline)
@@ -39,10 +39,20 @@ public struct EmptyState: View {
             if let ctaTitle, let onCTATap {
                 Button(ctaTitle, action: onCTATap)
                     .buttonStyle(.borderedProminent)
+                    .tint(DesignSystem.accentColor)
             }
         }
-        .padding()
+        .padding(24)
         .frame(maxWidth: .infinity, alignment: .center)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.largeCardCornerRadius, style: .continuous)
+                .fill(DesignSystem.cardGradient)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.largeCardCornerRadius, style: .continuous)
+                .strokeBorder(DesignSystem.cardBorderColor, lineWidth: 1)
+        )
+        .shadow(color: DesignSystem.shadowColor.opacity(0.08), radius: 12, x: 0, y: 8)
     }
 }
 

@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import SwiftData
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
@@ -42,6 +43,7 @@ struct OnePlaceApp: App {
                 }
             }
             .environmentObject(authManager)
+            .tint(DesignSystem.accentColor)
             .task {
                 await authManager.restoreSessionFromProvider()
             }

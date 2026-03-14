@@ -10,7 +10,15 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color.blue.opacity(0.2), Color.indigo.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(
+                colors: [
+                    DesignSystem.accentColor.opacity(0.18),
+                    DesignSystem.warmAccent.opacity(0.14),
+                    DesignSystem.primaryBackground
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
@@ -19,7 +27,7 @@ struct LoginView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "square.grid.2x2.fill")
                         .font(.system(size: 56))
-                        .foregroundStyle(.indigo)
+                        .foregroundStyle(DesignSystem.accentColor)
                     Text("OnePlace")
                         .font(.largeTitle.bold())
                     Text("Sign in to sync your plans, tasks, and finances across devices.")
@@ -32,11 +40,15 @@ struct LoginView: View {
                 if let errorMessage = authManager.errorMessage {
                     Text(errorMessage)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(DesignSystem.oweColor)
                         .multilineTextAlignment(.center)
                         .padding(12)
                         .frame(maxWidth: .infinity)
-                        .background(.white.opacity(0.9), in: RoundedRectangle(cornerRadius: 12))
+                        .background(DesignSystem.cardGradient, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(DesignSystem.cardBorderColor)
+                        )
                         .padding(.horizontal, 24)
                 }
 

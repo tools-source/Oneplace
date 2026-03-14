@@ -1,28 +1,28 @@
-import SwiftData
 import SwiftUI
 import UserNotifications
 
 struct FlowView: View {
-    let ownerUserId: String
-
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [FlowItem]
+    @StateObject private var vm = FlowViewModel()
 
     @State private var showingAdd = false
-    @State private var editingItem: FlowItem?
+    @State private var editingItem: FlowItemRecord?
     @State private var searchText = ""
 
-    init(ownerUserId: String) {
-        self.ownerUserId = ownerUserId
-        _items = Query(
-            filter: #Predicate<FlowItem> { $0.ownerUserId == ownerUserId },
-            sort: [SortDescriptor(\.nextDueDate)]
-        )
+    private var filteredItems: [FlowItemRecord] {
+        guard !searchText.isEmpty else { return vm.items }
+        return vm.items.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
     }
 
-    private var filteredItems: [FlowItem] {
-        guard !searchText.isEmpty else { return items }
-        return items.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+    private var upcomingItems: [FlowItemRecord] {
+        filteredItems.filter { $0.status == .upcoming }
+    }
+
+    private var paidItems: [FlowItemRecord] {
+        filteredItems.filter { $0.status == .paid }
+    }
+
+    private var upcomingAmount: Double {
+        upcomingItems.reduce(0) { $0 + $1.amount }
     }
 
     var body: some View {
@@ -33,88 +33,124 @@ struct FlowView: View {
                 paidSection
             }
             .listStyle(.plain)
+            .listSectionSeparator(.hidden)
+            .listSectionSpacing(0)
             .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .background(DesignSystem.backgroundGradient.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: DesignSystem.tabBarContentInset)
+            }
             .navigationTitle("Flow")
-            .searchable(text: $searchText, prompt: "Search bills")
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search bills"
+            )
             .toolbar {
-                Button {
-                    showingAdd = true
-                } label: {
-                    Label("Add", systemImage: "plus")
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                 }
             }
             .sheet(isPresented: $showingAdd) {
-                FlowItemEditor(ownerUserId: ownerUserId, item: nil) { item in
-                    modelContext.insert(item)
-                    scheduleReminder(for: item)
+                FlowItemEditorView(item: nil) { draft in
+                    Task { await vm.addItem(draft: draft) }
+                    showingAdd = false
                 }
             }
             .sheet(item: $editingItem) { item in
-                FlowItemEditor(ownerUserId: ownerUserId, item: item) { updatedItem in
-                    scheduleReminder(for: updatedItem)
+                FlowItemEditorView(item: item) { draft in
+                    let updated = FlowItemRecord(
+                        id: item.id,
+                        ownerUserId: item.ownerUserId,
+                        title: draft.title,
+                        amount: draft.amount,
+                        type: draft.type,
+                        frequency: draft.frequency,
+                        nextDueDate: draft.nextDueDate,
+                        status: draft.status,
+                        notes: draft.notes,
+                        reminderEnabled: draft.reminderEnabled,
+                        reminderDate: draft.reminderDate,
+                        reminderHour: draft.reminderHour,
+                        reminderMinute: draft.reminderMinute,
+                        reminderRepeat: draft.reminderRepeat,
+                        reminderOffsetDays: draft.reminderOffsetDays
+                    )
+                    Task { await vm.updateItem(updated) }
+                    editingItem = nil
                 }
             }
+            .alert("Flow Error", isPresented: flowErrorBinding) {
+                Button("OK", role: .cancel) {
+                    vm.errorMessage = nil
+                }
+            } message: {
+                Text(vm.errorMessage ?? "Please try again.")
+            }
+            .task {
+                await vm.refresh()
+            }
         }
+    }
+
+    private var flowErrorBinding: Binding<Bool> {
+        Binding(
+            get: { vm.errorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    vm.errorMessage = nil
+                }
+            }
+        )
     }
 
     private var summarySection: some View {
         Section {
-            LazyVGrid(columns: flowSummaryColumns, alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
                 StatCard(
                     title: "Upcoming",
                     value: upcomingItems.count.formatted(),
-                    subtitle: "Bills",
                     icon: "calendar",
-                    tint: .blue
+                    tint: DesignSystem.accentColor
                 )
                 StatCard(
                     title: "Due Soon",
                     value: StatCard.currencyString(for: upcomingAmount),
-                    subtitle: "Total",
                     icon: "exclamationmark.circle",
-                    tint: .orange
+                    tint: DesignSystem.warmAccent
                 )
             }
+            .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+            .listRowBackground(Color.clear)
         }
-        .listRowBackground(Color(.systemBackground))
     }
 
     private var upcomingSection: some View {
         Section("Upcoming") {
-            if upcomingItems.isEmpty {
-                EmptyState(
-                    title: "No upcoming bills",
-                    message: "Add bills or income to stay ahead of your flow.",
-                    systemImage: "calendar",
-                    ctaTitle: "Add Bill"
-                ) {
-                    showingAdd = true
-                }
-                .listRowBackground(Color(.systemBackground))
+            if vm.isLoading && vm.items.isEmpty {
+                ProgressView("Loading…")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .listRowBackground(Color.clear)
+            } else if upcomingItems.isEmpty {
+                Text("No upcoming bills.")
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
             } else {
                 ForEach(upcomingItems) { item in
-                    FlowRow(item: item)
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                delete(item)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                            Button {
-                                editingItem = item
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            .tint(.blue)
-                            Button {
-                                item.status = .paid
-                                cancelReminder(id: item.notificationId)
-                            } label: {
-                                Label("Mark Paid", systemImage: "checkmark.seal")
-                            }
-                            .tint(.green)
+                    flowItemRow(for: item)
+                        .onTapGesture {
+                            editingItem = item
                         }
+                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             }
         }
@@ -123,136 +159,133 @@ struct FlowView: View {
     private var paidSection: some View {
         Section("Paid") {
             if paidItems.isEmpty {
-                Text("No paid bills yet.")
+                Text("No paid bills.")
                     .foregroundStyle(.secondary)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             } else {
                 ForEach(paidItems) { item in
-                    FlowRow(item: item)
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                delete(item)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                            Button {
-                                editingItem = item
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            .tint(.blue)
-                            Button {
-                                item.status = .upcoming
-                            } label: {
-                                Label("Mark Upcoming", systemImage: "arrow.uturn.backward")
-                            }
-                            .tint(.orange)
+                    flowItemRow(for: item)
+                        .onTapGesture {
+                            editingItem = item
                         }
+                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             }
         }
     }
 
-    private var flowSummaryColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
-    }
+    @ViewBuilder
+    private func flowItemRow(for item: FlowItemRecord) -> some View {
+        AppCard {
+            HStack(spacing: 12) {
+                ItemIconBadge(symbol: flowIcon(for: item), tint: flowAccent(for: item))
 
-    private var upcomingItems: [FlowItem] {
-        filteredItems.filter { $0.status != .paid }
-    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title)
+                        .font(.headline)
 
-    private var paidItems: [FlowItem] {
-        filteredItems.filter { $0.status == .paid }
-    }
+                    Text("\(item.frequency.rawValue.capitalized) · \(item.nextDueDate.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
 
-    private var upcomingAmount: Double {
-        upcomingItems.map(\.amount).reduce(0, +)
-    }
+                    if item.reminderEnabled {
+                        Label(reminderSummary(for: item), systemImage: "bell.badge.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(DesignSystem.accentColor)
+                            .lineLimit(2)
+                    }
+                }
 
-    private func delete(_ item: FlowItem) {
-        cancelReminder(id: item.notificationId)
-        modelContext.delete(item)
-    }
+                Spacer()
 
-    private func scheduleReminder(for item: FlowItem) {
-        cancelReminder(id: item.notificationId)
-        guard item.reminderEnabled, let reminderDate = item.reminderDate else { return }
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(StatCard.currencyString(for: item.amount))
+                        .font(.headline)
+                        .foregroundStyle(item.type == .income ? DesignSystem.gainColor : DesignSystem.warmAccent)
 
-        let formattedAmount = item.amount.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
-        let title = "Bill due soon: \(item.title)"
-        let body = "Amount: \(formattedAmount)"
-        let (repeats, components) = repeatComponents(for: item, baseDate: reminderDate)
+                    Text(item.status.rawValue.capitalized)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(statusTint(for: item.status))
+                }
+            }
+            .opacity(item.status == .paid ? 0.72 : 1)
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button {
+                Task { await vm.toggleStatus(for: item) }
+            } label: {
+                Label(item.status == .paid ? "Mark Upcoming" : "Mark Paid",
+                      systemImage: item.status == .paid ? "arrow.uturn.backward.circle" : "checkmark.circle")
+            }
+            .tint(DesignSystem.gainColor)
+        }
+        .swipeActions(edge: .trailing) {
+            Button {
+                editingItem = item
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .tint(DesignSystem.accentColor)
 
-        let center = UNUserNotificationCenter.current()
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .default
-
-        let triggerComponents = components ?? Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: reminderDate
-        )
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: repeats)
-        let request = UNNotificationRequest(identifier: item.notificationId, content: content, trigger: trigger)
-
-        Task {
-            do {
-                try await center.add(request)
-            } catch {
-                return
+            Button(role: .destructive) {
+                Task { await vm.deleteItem(item) }
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }
 
-    private func cancelReminder(id: String) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
-    }
-
-    private func repeatComponents(for item: FlowItem, baseDate: Date) -> (Bool, DateComponents?) {
-        let calendar = Calendar.current
+    private func reminderSummary(for item: FlowItemRecord) -> String {
+        let reminderDate = item.reminderDate ?? item.nextDueDate
         switch item.reminderRepeat {
         case .none:
-            return (false, nil)
+            return "Reminder \(reminderDate.formatted(date: .abbreviated, time: .shortened))"
         case .daily:
-            let components = calendar.dateComponents([.hour, .minute], from: baseDate)
-            return (true, components)
+            return "Repeats daily"
         case .weekly:
-            let components = calendar.dateComponents([.weekday, .hour, .minute], from: baseDate)
-            return (true, components)
+            return "Repeats weekly"
         case .monthly:
-            let components = calendar.dateComponents([.day, .hour, .minute], from: baseDate)
-            return (true, components)
+            return "Repeats monthly"
+        }
+    }
+
+    private func flowIcon(for item: FlowItemRecord) -> String {
+        switch item.type {
+        case .income:
+            return "arrow.up.right"
+        case .bill:
+            return item.status == .paid ? "checkmark.circle.fill" : "calendar"
+        }
+    }
+
+    private func flowAccent(for item: FlowItemRecord) -> Color {
+        switch item.type {
+        case .income:
+            return DesignSystem.gainColor
+        case .bill:
+            return item.status == .paid ? DesignSystem.accentColor : DesignSystem.warmAccent
+        }
+    }
+
+    private func statusTint(for status: FlowStatus) -> Color {
+        switch status {
+        case .upcoming:
+            return DesignSystem.warmAccent
+        case .paid:
+            return DesignSystem.gainColor
+        case .skipped:
+            return DesignSystem.secondaryTextColor
         }
     }
 }
 
-private struct FlowRow: View {
-    let item: FlowItem
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.title)
-                    .font(.subheadline)
-                Text("\(item.frequency.rawValue.capitalized) · \(item.status.rawValue.capitalized)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(item.amount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                    .font(.subheadline)
-                    .foregroundStyle(item.type == .income ? .green : .orange)
-                Text(item.nextDueDate, style: .date)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-private struct FlowItemEditor: View {
+private struct FlowItemEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String
@@ -263,13 +296,12 @@ private struct FlowItemEditor: View {
     @State private var status: FlowStatus
     @State private var notes: String
     @State private var reminderEnabled: Bool
-    @State private var reminderOffsetDays: Int
+    @State private var reminderDate: Date
     @State private var reminderRepeat: ReminderRepeatRule
-    @State private var reminderTime: Date
 
-    private let item: FlowItem?
-    private let onSave: (FlowItem) -> Void
-    private let ownerUserId: String
+    private let item: FlowItemRecord?
+    private let onSave: (FlowItemDraft) -> Void
+
     private static let amountFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -279,10 +311,10 @@ private struct FlowItemEditor: View {
         return formatter
     }()
 
-    init(ownerUserId: String, item: FlowItem?, onSave: @escaping (FlowItem) -> Void) {
-        self.ownerUserId = ownerUserId
+    init(item: FlowItemRecord?, onSave: @escaping (FlowItemDraft) -> Void) {
         self.item = item
         self.onSave = onSave
+
         _title = State(initialValue: item?.title ?? "")
         if let item {
             let formattedAmount = Self.amountFormatter.string(from: NSNumber(value: item.amount)) ?? ""
@@ -296,9 +328,8 @@ private struct FlowItemEditor: View {
         _status = State(initialValue: item?.status ?? .upcoming)
         _notes = State(initialValue: item?.notes ?? "")
         _reminderEnabled = State(initialValue: item?.reminderEnabled ?? false)
-        _reminderOffsetDays = State(initialValue: item?.reminderOffsetDays ?? 0)
+        _reminderDate = State(initialValue: item?.reminderDate ?? item?.nextDueDate ?? Date())
         _reminderRepeat = State(initialValue: item?.reminderRepeat ?? .none)
-        _reminderTime = State(initialValue: FlowItemEditor.timeFromComponents(item?.reminderTime) ?? Date())
     }
 
     var body: some View {
@@ -326,31 +357,32 @@ private struct FlowItemEditor: View {
                     }
                 }
 
-                Section("Reminder") {
-                    Toggle("Reminder", isOn: $reminderEnabled)
-                    if reminderEnabled {
-                        Picker("Repeat", selection: $reminderRepeat) {
-                            ForEach(ReminderRepeatRule.allCases, id: \.self) { rule in
-                                Text(rule.rawValue.capitalized).tag(rule)
-                            }
-                        }
-                        Picker("Remind me", selection: $reminderOffsetDays) {
-                            Text("Same day").tag(0)
-                            Text("1 day before").tag(1)
-                            Text("2 days before").tag(2)
-                            Text("3 days before").tag(3)
-                            Text("1 week before").tag(7)
-                        }
-                        DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
-                    }
-                }
-
                 Section("Notes") {
                     TextField("Optional notes", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
                 }
+
+                Section("Reminder") {
+                    Toggle("Send notification reminder", isOn: $reminderEnabled)
+
+                    if reminderEnabled {
+                        DatePicker(
+                            "Remind Me",
+                            selection: $reminderDate,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+
+                        Picker("Repeat", selection: $reminderRepeat) {
+                            ForEach(ReminderRepeatRule.allCases, id: \.self) { rule in
+                                Text(ruleLabel(for: rule)).tag(rule)
+                            }
+                        }
+                    }
+                }
             }
-            .navigationTitle(item == nil ? "New Flow Item" : "Edit Flow Item")
+            .scrollContentBackground(.hidden)
+            .background(DesignSystem.backgroundGradient.ignoresSafeArea())
+            .navigationTitle(item == nil ? "New Bill" : "Edit Bill")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
@@ -358,40 +390,25 @@ private struct FlowItemEditor: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
                         guard let amountValue = parsedAmount, amountValue > 0 else { return }
-                        let reminderDate = computedReminderDate()
-                        let reminderTimeComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
-                        if let item {
-                            item.title = title
-                            item.amount = amountValue
-                            item.type = type
-                            item.frequency = frequency
-                            item.nextDueDate = nextDueDate
-                            item.status = status
-                            item.notes = notes.isEmpty ? nil : notes
-                            item.reminderEnabled = reminderEnabled
-                            item.reminderDate = reminderDate
-                            item.reminderTime = reminderEnabled ? reminderTimeComponents : nil
-                            item.reminderRepeat = reminderRepeat
-                            item.reminderOffsetDays = reminderOffsetDays
-                            onSave(item)
-                        } else {
-                            let newItem = FlowItem(
-                                ownerUserId: ownerUserId,
-                                title: title,
-                                amount: amountValue,
-                                type: type,
-                                frequency: frequency,
-                                nextDueDate: nextDueDate,
-                                status: status,
-                                notes: notes.isEmpty ? nil : notes,
-                                reminderEnabled: reminderEnabled,
-                                reminderDate: reminderDate,
-                                reminderTime: reminderEnabled ? reminderTimeComponents : nil,
-                                reminderRepeat: reminderRepeat,
-                                reminderOffsetDays: reminderOffsetDays
-                            )
-                            onSave(newItem)
-                        }
+                        let reminderComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderDate)
+
+                        let draft = FlowItemDraft(
+                            title: title,
+                            amount: amountValue,
+                            type: type,
+                            frequency: frequency,
+                            nextDueDate: nextDueDate,
+                            status: status,
+                            notes: notes.isEmpty ? nil : notes,
+                            reminderEnabled: reminderEnabled,
+                            reminderDate: reminderEnabled ? reminderDate : nil,
+                            reminderHour: reminderEnabled ? reminderComponents.hour : nil,
+                            reminderMinute: reminderEnabled ? reminderComponents.minute : nil,
+                            reminderRepeat: reminderEnabled ? reminderRepeat : .none,
+                            reminderOffsetDays: 0
+                        )
+
+                        onSave(draft)
                         dismiss()
                     }
                     .disabled(isSaveDisabled)
@@ -412,28 +429,16 @@ private struct FlowItemEditor: View {
         return title.isEmpty
     }
 
-    private func computedReminderDate() -> Date? {
-        guard reminderEnabled else { return nil }
-        let calendar = Calendar.current
-        let dueDate = calendar.date(byAdding: .day, value: -reminderOffsetDays, to: nextDueDate) ?? nextDueDate
-        let time = calendar.dateComponents([.hour, .minute], from: reminderTime)
-        var components = calendar.dateComponents([.year, .month, .day], from: dueDate)
-        components.hour = time.hour
-        components.minute = time.minute
-        return calendar.date(from: components)
+    private func ruleLabel(for rule: ReminderRepeatRule) -> String {
+        switch rule {
+        case .none:
+            return "One time"
+        case .daily:
+            return "Daily"
+        case .weekly:
+            return "Weekly"
+        case .monthly:
+            return "Monthly"
+        }
     }
-
-    private static func timeFromComponents(_ components: DateComponents?) -> Date? {
-        guard let components else { return nil }
-        var merged = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        merged.hour = components.hour
-        merged.minute = components.minute
-        return Calendar.current.date(from: merged)
-    }
-}
-
-#Preview {
-    FlowView(ownerUserId: SampleData.previewUserId)
-        .modelContainer(SampleData.makeContainer())
-        .environmentObject(AuthManager())
 }

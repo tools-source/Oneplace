@@ -1,6 +1,13 @@
 import SwiftUI
 import UIKit
 
+private enum FinancePreferenceKey {
+    static let customOrder = "finance.customOrder"
+    static let filterType = "finance.filter.type"
+    static let filterCategory = "finance.filter.category"
+    static let hideCompleted = "finance.filter.hideCompleted"
+}
+
 struct FinanceView: View {
     @StateObject private var vm = FinanceViewModel()
     @Environment(\.editMode) private var editMode
@@ -8,15 +15,38 @@ struct FinanceView: View {
     @State private var showingAdd = false
     @State private var editingEntry: FinanceEntryRecord?
     @State private var searchText = ""
+    @State private var isSelecting = false
+    @State private var selectedEntryIDs = Set<String>()
 
     @State private var showingFilters = false
-    @State private var filters = FinanceFilters()
-    @State private var customOrderIDs: [String] = []
+    @State private var filters: FinanceFilters
+    @State private var customOrderIDs: [String]
+
+    init() {
+        _filters = State(initialValue: Self.loadSavedFilters())
+        _customOrderIDs = State(
+            initialValue: UserDefaults.standard.stringArray(forKey: FinancePreferenceKey.customOrder) ?? []
+        )
+    }
 
     // MARK: - Filtering + Ordering
 
+    private var defaultOrderedEntries: [FinanceEntryRecord] {
+        vm.entries.sorted { lhs, rhs in
+            if lhs.date != rhs.date {
+                return lhs.date > rhs.date
+            }
+
+            return lhs.id > rhs.id
+        }
+    }
+
+    private var displayedEntries: [FinanceEntryRecord] {
+        applyCustomOrder(to: defaultOrderedEntries)
+    }
+
     private var filteredEntries: [FinanceEntryRecord] {
-        var base = vm.entries
+        var base = displayedEntries
 
         // Search
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -36,7 +66,7 @@ struct FinanceView: View {
             return true
         }
 
-        return applyCustomOrder(to: base)
+        return base
     }
 
     private func applyCustomOrder(to entries: [FinanceEntryRecord]) -> [FinanceEntryRecord] {
@@ -66,6 +96,16 @@ struct FinanceView: View {
         gainTotal - oweTotal
     }
 
+    private var selectedEntries: [FinanceEntryRecord] {
+        filteredEntries.filter { selectedEntryIDs.contains($0.id) }
+    }
+
+    private var selectedNetTotal: Double {
+        selectedEntries.reduce(0) { partialResult, entry in
+            partialResult + signedAmount(for: entry)
+        }
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -76,6 +116,14 @@ struct FinanceView: View {
                     summaryCards
                         .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
                         .listRowBackground(Color.clear)
+                }
+
+                if isSelecting {
+                    Section {
+                        selectionSummaryCard
+                            .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 8, trailing: 8))
+                            .listRowBackground(Color.clear)
+                    }
                 }
 
                 // Transactions
@@ -93,6 +141,7 @@ struct FinanceView: View {
                             .padding(.vertical, 24)
                             .frame(maxWidth: .infinity)
                             .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
 
                     } else {
 
@@ -107,7 +156,11 @@ struct FinanceView: View {
                         ForEach(filteredEntries) { entry in
                             transactionRow(for: entry)
                                 .onTapGesture {
-                                    editingEntry = entry
+                                    if isSelecting {
+                                        toggleSelection(for: entry)
+                                    } else {
+                                        editingEntry = entry
+                                    }
                                 }
                                 .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
                                 .listRowBackground(Color.clear)
@@ -121,10 +174,22 @@ struct FinanceView: View {
             .listSectionSeparator(.hidden)
             .listSectionSpacing(0)
             .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .background(DesignSystem.backgroundGradient.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: DesignSystem.tabBarContentInset)
+            }
             .navigationTitle("Finance")
-            .searchable(text: $searchText, prompt: "Search transactions")
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search transactions"
+            )
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(isSelecting ? "Done" : "Select") {
+                        toggleSelectionMode()
+                    }
+                }
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
 
                     Button {
@@ -136,6 +201,7 @@ struct FinanceView: View {
                     }
 
                     EditButton()
+                        .disabled(isSelecting)
 
                     Button {
                         showingAdd = true
@@ -173,20 +239,52 @@ struct FinanceView: View {
                 FinanceFilterSheet(filters: $filters,
                                    categories: Array(Set(vm.entries.map(\.category))).sorted())
             }
+            .alert("Finance Error", isPresented: financeErrorBinding) {
+                Button("OK", role: .cancel) {
+                    vm.clearError()
+                }
+            } message: {
+                Text(vm.errorMessage ?? "Please try again.")
+            }
+            .onChange(of: filters) { _, newFilters in
+                saveFilters(newFilters)
+            }
+            .onChange(of: vm.entries) { _, newEntries in
+                sanitizeCustomOrder(using: newEntries)
+                sanitizeSelection(using: newEntries)
+            }
             .task {
                 await vm.refresh()
-                loadCustomOrder()
+                sanitizeCustomOrder(using: vm.entries)
+                sanitizeSelection(using: vm.entries)
             }
         }
+    }
+
+    private var financeErrorBinding: Binding<Bool> {
+        Binding(
+            get: { vm.errorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    vm.clearError()
+                }
+            }
+        )
     }
 
     // MARK: - Transaction Row
 
     @ViewBuilder
     private func transactionRow(for entry: FinanceEntryRecord) -> some View {
+        let isSelected = selectedEntryIDs.contains(entry.id)
 
         AppCard {
             HStack(spacing: 12) {
+                if isSelecting {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(isSelected ? DesignSystem.accentColor : DesignSystem.secondaryTextColor)
+                }
 
                 FinanceTypeBadge(type: entry.type)
 
@@ -205,9 +303,16 @@ struct FinanceView: View {
 
                 Text(StatCard.currencyString(for: entry.amount))
                     .font(.headline)
-                    .foregroundStyle(entry.type == .gain ? .green : .red)
+                    .foregroundStyle(entry.type == .gain ? DesignSystem.gainColor : DesignSystem.oweColor)
             }
             .opacity(entry.isCompleted ? 0.6 : 1)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: DesignSystem.largeCardCornerRadius, style: .continuous)
+                .strokeBorder(
+                    isSelected ? DesignSystem.accentColor.opacity(0.5) : Color.clear,
+                    lineWidth: 1.4
+                )
         }
         // Swipe Actions (ONLY here — no duplicates)
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -217,7 +322,7 @@ struct FinanceView: View {
                 Label(entry.isCompleted ? "Undo" : "Complete",
                       systemImage: entry.isCompleted ? "arrow.uturn.backward.circle" : "checkmark.circle")
             }
-            .tint(.green)
+            .tint(DesignSystem.gainColor)
         }
         .swipeActions(edge: .trailing) {
             Button {
@@ -225,7 +330,7 @@ struct FinanceView: View {
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
-            .tint(.blue)
+            .tint(DesignSystem.accentColor)
 
             Button(role: .destructive) {
                 Task { await vm.deleteEntry(entry) }
@@ -238,43 +343,142 @@ struct FinanceView: View {
     // MARK: - Reorder
 
     private func moveEntries(from source: IndexSet, to destination: Int) {
-        var items = filteredEntries
-        items.move(fromOffsets: source, toOffset: destination)
-        customOrderIDs = items.map(\.id)
-        UserDefaults.standard.set(customOrderIDs, forKey: "finance.customOrder")
-    }
+        let visibleEntries = filteredEntries
+        var reorderedVisibleEntries = visibleEntries
+        reorderedVisibleEntries.move(fromOffsets: source, toOffset: destination)
 
-    private func loadCustomOrder() {
-        if let saved = UserDefaults.standard.array(forKey: "finance.customOrder") as? [String] {
-            customOrderIDs = saved
+        let visibleIDs = Set(visibleEntries.map(\.id))
+        var reorderedIterator = reorderedVisibleEntries.makeIterator()
+
+        customOrderIDs = displayedEntries.map { entry in
+            guard visibleIDs.contains(entry.id), let reorderedEntry = reorderedIterator.next() else {
+                return entry.id
+            }
+
+            return reorderedEntry.id
         }
+
+        saveCustomOrder()
     }
 
-    // MARK: - Summary Cards
+    private func saveCustomOrder() {
+        UserDefaults.standard.set(customOrderIDs, forKey: FinancePreferenceKey.customOrder)
+    }
+
+    private func sanitizeCustomOrder(using entries: [FinanceEntryRecord]) {
+        let validIDs = Set(entries.map(\.id))
+        let sanitized = customOrderIDs.filter(validIDs.contains)
+
+        guard sanitized != customOrderIDs else { return }
+
+        customOrderIDs = sanitized
+        saveCustomOrder()
+    }
+
+    private func sanitizeSelection(using entries: [FinanceEntryRecord]) {
+        let validIDs = Set(entries.map(\.id))
+        selectedEntryIDs = Set(selectedEntryIDs.filter(validIDs.contains))
+    }
+
+    private func saveFilters(_ filters: FinanceFilters) {
+        let defaults = UserDefaults.standard
+        defaults.set(filters.type?.rawValue ?? "", forKey: FinancePreferenceKey.filterType)
+        defaults.set(filters.category ?? "", forKey: FinancePreferenceKey.filterCategory)
+        defaults.set(filters.hideCompleted, forKey: FinancePreferenceKey.hideCompleted)
+    }
+
+    private static func loadSavedFilters() -> FinanceFilters {
+        let defaults = UserDefaults.standard
+        let type = FinanceType(rawValue: defaults.string(forKey: FinancePreferenceKey.filterType) ?? "")
+        let category = defaults.string(forKey: FinancePreferenceKey.filterCategory)
+        let savedCategory = category?.isEmpty == true ? nil : category
+
+        return FinanceFilters(
+            type: type,
+            category: savedCategory,
+            hideCompleted: defaults.bool(forKey: FinancePreferenceKey.hideCompleted)
+        )
+    }
 
     private var summaryCards: some View {
         HStack(spacing: 10) {
             StatCard(title: "Net",
                      value: StatCard.currencyString(for: netTotal),
                      icon: "plus",
-                     tint: .green)
+                     tint: netTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor)
 
             StatCard(title: "Gain",
                      value: StatCard.currencyString(for: gainTotal),
                      icon: "arrow.up.right",
-                     tint: .green)
+                     tint: DesignSystem.gainColor)
 
             StatCard(title: "Owe",
                      value: StatCard.currencyString(for: oweTotal),
                      icon: "arrow.down.right",
-                     tint: .red)
+                     tint: DesignSystem.oweColor)
         }
+    }
+
+    private var selectionSummaryCard: some View {
+        AppCard {
+            HStack(spacing: 12) {
+                ItemIconBadge(
+                    symbol: selectedEntryIDs.isEmpty ? "checklist.unchecked" : "checkmark.circle.fill",
+                    tint: selectedNetTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor,
+                    size: 42
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Selected Total")
+                        .font(.headline)
+
+                    Text(selectedEntryIDs.isEmpty ? "Tap transactions to add them to the total." : "\(selectedEntryIDs.count) item\(selectedEntryIDs.count == 1 ? "" : "s") selected")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 8) {
+                    Text(StatCard.currencyString(for: selectedNetTotal))
+                        .font(.headline)
+                        .foregroundStyle(selectedNetTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor)
+
+                    if !selectedEntryIDs.isEmpty {
+                        Button("Clear") {
+                            selectedEntryIDs.removeAll()
+                        }
+                        .font(.caption.weight(.semibold))
+                    }
+                }
+            }
+        }
+    }
+
+    private func toggleSelectionMode() {
+        isSelecting.toggle()
+        if !isSelecting {
+            selectedEntryIDs.removeAll()
+        }
+        editMode?.wrappedValue = .inactive
+    }
+
+    private func toggleSelection(for entry: FinanceEntryRecord) {
+        if selectedEntryIDs.contains(entry.id) {
+            selectedEntryIDs.remove(entry.id)
+        } else {
+            selectedEntryIDs.insert(entry.id)
+        }
+    }
+
+    private func signedAmount(for entry: FinanceEntryRecord) -> Double {
+        entry.type == .gain ? entry.amount : -entry.amount
     }
 }
 
 // MARK: - Filters
 
-private struct FinanceFilters {
+private struct FinanceFilters: Equatable {
     var type: FinanceType? = nil
     var category: String? = nil
     var hideCompleted = false
@@ -313,6 +517,8 @@ private struct FinanceFilterSheet: View {
                     Toggle("Hide completed", isOn: $filters.hideCompleted)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .navigationTitle("Filters")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

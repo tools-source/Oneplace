@@ -1,0 +1,54 @@
+[debug] [2026-03-14T06:27:41.799Z] ----------------------------------------------------------------------
+[debug] [2026-03-14T06:27:41.803Z] Command:       /usr/local/bin/node /Users/majdinagi/.npm-global/bin/firebase deploy --only firestore:rules --project oneplace-app-90bce --non-interactive
+[debug] [2026-03-14T06:27:41.803Z] CLI Version:   15.8.0
+[debug] [2026-03-14T06:27:41.803Z] Platform:      darwin
+[debug] [2026-03-14T06:27:41.804Z] Node Version:  v22.12.0
+[debug] [2026-03-14T06:27:41.804Z] Time:          Sat Mar 14 2026 02:27:41 GMT-0400 (Eastern Daylight Time)
+[debug] [2026-03-14T06:27:41.804Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-14T06:27:44.157Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-14T06:27:44.157Z] > authorizing via signed-in user (majdinagi@gmail.com)
+[debug] [2026-03-14T06:27:44.158Z] [iam] checking project oneplace-app-90bce for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-03-14T06:27:44.161Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:44.161Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:44.163Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions [none]
+[debug] [2026-03-14T06:27:44.163Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions  x-goog-user-project=oneplace-app-90bce
+[debug] [2026-03-14T06:27:44.163Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-03-14T06:27:44.729Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions 200
+[debug] [2026-03-14T06:27:44.729Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'oneplace-app-90bce'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-03-14T06:27:44.734Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:44.734Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:44.734Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/oneplace-app-90bce/databases/(default) [none]
+[debug] [2026-03-14T06:27:45.481Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/oneplace-app-90bce/databases/(default) 200
+[debug] [2026-03-14T06:27:45.482Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/oneplace-app-90bce/databases/(default) {"name":"projects/oneplace-app-90bce/databases/(default)","uid":"c73aabe0-c866-4719-a4c1-1471410033fb","createTime":"2026-02-14T07:19:22.056745Z","updateTime":"2026-02-14T07:19:22.056745Z","locationId":"us-east1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-03-14T05:27:45.194528Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"p","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IOHcp6vhnpMDMKjIo/i42JID"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-03-14T06:27:45.486Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:45.486Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:45.486Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce:test [none]
+[debug] [2026-03-14T06:27:45.487Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce:test [omitted]
+[debug] [2026-03-14T06:27:45.821Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce:test 200
+[debug] [2026-03-14T06:27:45.822Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-03-14T06:27:45.826Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:45.826Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:45.826Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases pageSize=10&pageToken=
+[debug] [2026-03-14T06:27:45.998Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases 200
+[debug] [2026-03-14T06:27:45.998Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases {"releases":[{"name":"projects/oneplace-app-90bce/releases/cloud.firestore","rulesetName":"projects/oneplace-app-90bce/rulesets/b822682d-2508-41a3-ad7e-41c6c1d7d5e2","createTime":"2026-02-14T07:19:24.843034Z","updateTime":"2026-03-14T05:54:03.204840Z"}]}
+[debug] [2026-03-14T06:27:45.999Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:45.999Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:46.000Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/rulesets/b822682d-2508-41a3-ad7e-41c6c1d7d5e2 [none]
+[debug] [2026-03-14T06:27:46.237Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/rulesets/b822682d-2508-41a3-ad7e-41c6c1d7d5e2 200
+[debug] [2026-03-14T06:27:46.238Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/rulesets/b822682d-2508-41a3-ad7e-41c6c1d7d5e2 [omitted]
+[info] i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[debug] [2026-03-14T06:27:46.241Z] [rules] releasing cloud.firestore/(default) with ruleset projects/oneplace-app-90bce/rulesets/b822682d-2508-41a3-ad7e-41c6c1d7d5e2
+[debug] [2026-03-14T06:27:46.242Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:46.242Z] Checked if tokens are valid: true, expires at: 1773471239560
+[debug] [2026-03-14T06:27:46.242Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases/cloud.firestore/(default) [none]
+[debug] [2026-03-14T06:27:46.243Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases/cloud.firestore/(default) {"release":{"name":"projects/oneplace-app-90bce/releases/cloud.firestore/(default)","rulesetName":"projects/oneplace-app-90bce/rulesets/b822682d-2508-41a3-ad7e-41c6c1d7d5e2"}}
+[debug] [2026-03-14T06:27:46.598Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases/cloud.firestore/(default) 200

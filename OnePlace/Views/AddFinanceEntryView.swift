@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct AddFinanceEntryView: View {
+    private static let lastCategoryKey = "finance.lastCategory"
+
     let entry: FinanceEntryRecord?
     let onSave: (FinanceEntryDraft) -> Void
 
@@ -16,11 +18,12 @@ struct AddFinanceEntryView: View {
     init(entry: FinanceEntryRecord? = nil, onSave: @escaping (FinanceEntryDraft) -> Void) {
         self.entry = entry
         self.onSave = onSave
+        let initialCategory = Self.initialCategory(for: entry)
         _amountText = State(initialValue: entry.map { String(format: "%.2f", $0.amount) } ?? "")
-        _category = State(initialValue: entry?.category ?? FinanceCategory.expenseRawValues.first ?? "")
+        _category = State(initialValue: initialCategory)
         _entryDescription = State(initialValue: entry?.entryDescription ?? "")
         _date = State(initialValue: entry?.date ?? .now)
-        _type = State(initialValue: entry?.type ?? .owe)
+        _type = State(initialValue: entry?.type ?? Self.type(for: initialCategory))
         _urgency = State(initialValue: entry?.urgency ?? .medium)
     }
 
@@ -54,7 +57,7 @@ struct AddFinanceEntryView: View {
                         Text("Type")
                         Spacer()
                         Label(type == .gain ? "Gain" : "Owe", systemImage: type == .gain ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                            .foregroundStyle(type == .gain ? .green : .red)
+                            .foregroundStyle(type == .gain ? DesignSystem.gainColor : DesignSystem.oweColor)
                     }
 
                     DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
@@ -68,16 +71,17 @@ struct AddFinanceEntryView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .navigationTitle(entry == nil ? "New Transaction" : "Edit Transaction")
             .onAppear {
                 if category.isEmpty {
-                    category = FinanceCategory.expenseRawValues.first ?? ""
+                    category = Self.rememberedCategory()
                 }
                 updateTypeFromCategory()
             }
-            .onChange(of: category) { _, _ in
+            .onChange(of: category) { _, newCategory in
                 updateTypeFromCategory()
+                rememberCategoryIfNeeded(newCategory)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -95,6 +99,7 @@ struct AddFinanceEntryView: View {
                             date: date,
                             urgency: urgency
                         )
+                        rememberCategoryIfNeeded(category)
                         onSave(draft)
                     }
                     .disabled(Double(amountText.replacingOccurrences(of: ",", with: "")) == nil || category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -114,16 +119,39 @@ struct AddFinanceEntryView: View {
         }
         .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.ultraThinMaterial)
+            RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
+                .fill(DesignSystem.cardGradient)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.15))
+            RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
+                .strokeBorder(DesignSystem.cardBorderColor)
         )
     }
 
     private func updateTypeFromCategory() {
-        type = FinanceCategory.incomeRawValues.contains(category) ? .gain : .owe
+        type = Self.type(for: category)
+    }
+
+    private func rememberCategoryIfNeeded(_ category: String) {
+        guard entry == nil, Self.isKnownCategory(category) else { return }
+        UserDefaults.standard.set(category, forKey: Self.lastCategoryKey)
+    }
+
+    private static func initialCategory(for entry: FinanceEntryRecord?) -> String {
+        let candidate = entry?.category ?? rememberedCategory()
+        return isKnownCategory(candidate) ? candidate : (FinanceCategory.expenseRawValues.first ?? "")
+    }
+
+    private static func rememberedCategory() -> String {
+        let saved = UserDefaults.standard.string(forKey: lastCategoryKey) ?? ""
+        return isKnownCategory(saved) ? saved : (FinanceCategory.expenseRawValues.first ?? "")
+    }
+
+    private static func isKnownCategory(_ value: String) -> Bool {
+        (FinanceCategory.incomeRawValues + FinanceCategory.expenseRawValues).contains(value)
+    }
+
+    private static func type(for category: String) -> FinanceType {
+        FinanceCategory.incomeRawValues.contains(category) ? .gain : .owe
     }
 }

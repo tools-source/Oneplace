@@ -5,7 +5,7 @@ import SwiftUI
 final class AudioPlayerManager: NSObject, ObservableObject {
     static let shared = AudioPlayerManager()
 
-    @Published private(set) var currentlyPlayingID: UUID?
+    @Published private(set) var currentlyPlayingID: String?
 
     private var player: AVAudioPlayer?
 
@@ -24,18 +24,18 @@ final class AudioPlayerManager: NSObject, ObservableObject {
         }
     }
 
-    func play(data: Data?, for id: UUID) {
+    func play(data: Data?, for id: String) {
         guard let data else {
             stop()
             return
         }
 
-        // If the same item is tapped again, restart playback from the beginning
         if currentlyPlayingID == id, let player, player.isPlaying {
-            player.stop()
+            return
         }
 
         do {
+            player?.stop()
             let newPlayer = try AVAudioPlayer(data: data)
             newPlayer.delegate = self
             newPlayer.prepareToPlay()

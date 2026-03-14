@@ -63,13 +63,16 @@ struct StatCard: View {
         .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+                .fill(backgroundFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
-                .strokeBorder(borderColor, lineWidth: 1)
+                .strokeBorder(strokeColor, lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.1 : 0.04), radius: 4, x: 0, y: 2)
+        .shadow(color: DesignSystem.shadowColor.opacity(colorScheme == .dark ? 0.18 : 0.08),
+                radius: 10,
+                x: 0,
+                y: 6)
     }
 
     @ViewBuilder
@@ -81,10 +84,10 @@ struct StatCard: View {
         } else {
             ZStack {
                 Circle()
-                    .fill(tint.opacity(0.15))
-                    .frame(width: 24, height: 24)
+                    .fill(tint.opacity(0.16))
+                    .frame(width: 28, height: 28)
                 Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(tint)
             }
         }
@@ -95,8 +98,16 @@ struct StatCard: View {
             ?? amount.formatted(.currency(code: currencyCode))
     }
 
-    private var borderColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06)
+    private var backgroundFill: LinearGradient {
+        icon == "plus" ? DesignSystem.highlightedCardGradient : DesignSystem.cardGradient
+    }
+
+    private var strokeColor: Color {
+        if icon == "plus" {
+            return tint.opacity(colorScheme == .dark ? 0.35 : 0.28)
+        }
+
+        return DesignSystem.cardBorderColor
     }
 
     private static let currencyCode = Locale.current.currency?.identifier ?? "USD"

@@ -1,285 +1,380 @@
-import SwiftData
 import SwiftUI
 import UIKit
 
 struct SplitView: View {
-    let ownerUserId: String
-
-    @Environment(\.modelContext) private var modelContext
-    @Query private var people: [SplitPerson]
-    @Query private var expenses: [SplitExpense]
+    @StateObject private var vm = SplitViewModel()
 
     @State private var showingAddPerson = false
     @State private var showingAddExpense = false
-    @State private var showEditExpenseSheet = false
-    @State private var showCopiedAlert = false
-    @State private var selectedExpense: SplitExpense?
+    @State private var editingExpense: SplitExpenseRecord?
+    @State private var newPersonName = ""
+    @State private var showingCopyAlert = false
 
-    init(ownerUserId: String) {
-        self.ownerUserId = ownerUserId
-        _people = Query(
-            filter: #Predicate<SplitPerson> { $0.ownerUserId == ownerUserId },
-            sort: [SortDescriptor(\.name)]
-        )
-        _expenses = Query(
-            filter: #Predicate<SplitExpense> { $0.ownerUserId == ownerUserId },
-            sort: [SortDescriptor(\.date, order: .reverse)]
-        )
+    private var totalExpensesAmount: Double {
+        vm.expenses.reduce(0) { $0 + $1.amount }
     }
 
     var body: some View {
         NavigationStack {
             List {
+                summarySection
                 peopleSection
-                balancesSection
                 expensesSection
             }
             .listStyle(.plain)
+            .listSectionSeparator(.hidden)
+            .listSectionSpacing(0)
             .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("Split")
-            // ✅ Removed the two confusing top-right buttons
-            .alert("Copied", isPresented: $showCopiedAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Balances copied to clipboard.")
+            .background(DesignSystem.backgroundGradient.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: DesignSystem.tabBarContentInset)
             }
-            .sheet(isPresented: $showingAddPerson) {
-                AddPersonSheet(ownerUserId: ownerUserId) { person in
-                    modelContext.insert(person)
+            .navigationTitle("Split")
+            .toolbar {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button {
+                        showingAddPerson = true
+                    } label: {
+                        Image(systemName: "person.badge.plus")
+                    }
+
+                    Button {
+                        showingAddExpense = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .disabled(vm.people.isEmpty)
+                }
+            }
+            .alert("Add Person", isPresented: $showingAddPerson) {
+                TextField("Name", text: $newPersonName)
+                Button("Add") {
+                    let trimmed = newPersonName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+
+                    Task { await vm.addPerson(name: trimmed) }
+                    newPersonName = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    newPersonName = ""
                 }
             }
             .sheet(isPresented: $showingAddExpense) {
-                AddExpenseSheet(ownerUserId: ownerUserId, people: people) { expense in
-                    modelContext.insert(expense)
+                AddSplitExpenseView(vm: vm) { draft in
+                    Task { await vm.addExpense(draft: draft) }
+                    showingAddExpense = false
                 }
             }
-            .sheet(isPresented: $showEditExpenseSheet, onDismiss: { selectedExpense = nil }) {
-                AddExpenseSheet(ownerUserId: ownerUserId, people: people, expenseToEdit: selectedExpense) { expense in
-                    modelContext.insert(expense)
+            .sheet(item: $editingExpense) { expense in
+                AddSplitExpenseView(vm: vm, expenseToEdit: expense) { draft in
+                    var updated = expense
+                    updated.title = draft.title
+                    updated.amount = draft.amount
+                    updated.date = draft.date
+                    updated.participantIds = draft.participantIds
+                    updated.paidById = draft.paidById
+                    Task { await vm.updateExpense(updated) }
+                    editingExpense = nil
                 }
             }
+            .alert("Split Error", isPresented: splitErrorBinding) {
+                Button("OK", role: .cancel) {
+                    vm.errorMessage = nil
+                }
+            } message: {
+                Text(vm.errorMessage ?? "Please try again.")
+            }
+            .alert("Copied", isPresented: $showingCopyAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("The split summary was copied as text.")
+            }
+            .task {
+                await vm.refresh()
+            }
+        }
+    }
+
+    private var splitErrorBinding: Binding<Bool> {
+        Binding(
+            get: { vm.errorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    vm.errorMessage = nil
+                }
+            }
+        )
+    }
+
+    private var summarySection: some View {
+        Section {
+            HStack(spacing: 10) {
+                StatCard(
+                    title: "People",
+                    value: vm.people.count.formatted(),
+                    icon: "person.2.fill",
+                    tint: DesignSystem.accentColor
+                )
+                StatCard(
+                    title: "Expenses",
+                    value: StatCard.currencyString(for: totalExpensesAmount),
+                    icon: "creditcard.fill",
+                    tint: DesignSystem.warmAccent
+                )
+            }
+            .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+            .listRowBackground(Color.clear)
         }
     }
 
     private var peopleSection: some View {
         Section {
-            if people.isEmpty {
-                Text("Add people to start splitting")
+            if vm.isLoading && vm.people.isEmpty {
+                ProgressView("Loading…")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .listRowBackground(Color.clear)
+            } else if vm.people.isEmpty {
+                Text("Add people to start splitting.")
                     .foregroundStyle(.secondary)
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
             } else {
-                ForEach(people) { person in
-                    Text(person.name)
-                }
-                .onDelete { indexSet in
-                    indexSet.map { people[$0] }.forEach(modelContext.delete)
+                ForEach(vm.people) { person in
+                    personRow(for: person)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             }
         } header: {
             HStack {
                 Text("People")
-                Spacer()
-                Button {
-                    showingAddPerson = true
-                } label: {
-                    Label("Add", systemImage: "person.badge.plus")
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.borderless)
-            }
-            .textCase(nil)
-        }
-    }
 
-    private var balancesSection: some View {
-        Section {
-            if people.isEmpty {
-                Text("Balances will appear here")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(people) { person in
-                    let balance = balanceForPerson(person)
-                    HStack {
-                        Text(person.name)
-                        Spacer()
-                        Text(balance, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                            .foregroundStyle(balance >= 0 ? .green : .orange)
-                    }
-                }
-            }
-        } header: {
-            HStack {
-                Text("Balances")
                 Spacer()
+
                 Button {
-                    copyBalances()
+                    UIPasteboard.general.string = copySummaryText()
+                    showingCopyAlert = true
                 } label: {
                     Label("Copy", systemImage: "doc.on.doc")
-                        .labelStyle(.titleAndIcon)
+                        .font(.subheadline.weight(.semibold))
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
+                .foregroundStyle(DesignSystem.accentColor)
+                .disabled(vm.people.isEmpty && vm.expenses.isEmpty)
             }
-            .textCase(nil)
         }
     }
 
     private var expensesSection: some View {
-        Section {
-            if expenses.isEmpty {
-                Text("No expenses yet")
+        Section("Expenses") {
+            if vm.expenses.isEmpty {
+                Text(vm.people.isEmpty ? "Add people first to record an expense." : "No expenses yet.")
                     .foregroundStyle(.secondary)
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             } else {
-                ForEach(expenses) { expense in
-                    ExpenseRow(expense: expense)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button {
-                                editExpense(expense)
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            .tint(.blue)
-
-                            Button(role: .destructive) {
-                                deleteExpense(expense)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                ForEach(vm.expenses) { expense in
+                    expenseRow(for: expense)
+                        .onTapGesture {
+                            editingExpense = expense
                         }
+                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             }
-        } header: {
-            HStack {
-                Text("Expenses")
+        }
+    }
+
+    @ViewBuilder
+    private func personRow(for person: SplitPersonRecord) -> some View {
+        let balance = vm.getBalance(for: person)
+
+        AppCard {
+            HStack(spacing: 12) {
+                ItemIconBadge(symbol: "person.fill", tint: balance >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(person.name)
+                        .font(.headline)
+
+                    Text(personSubtitle(for: person))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
                 Spacer()
-                Button {
-                    showingAddExpense = true
-                } label: {
-                    Label("Add", systemImage: "plus.circle")
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.borderless)
-                .disabled(people.isEmpty) // optional: prevents expense creation if no people yet
+
+                Text(StatCard.currencyString(for: balance))
+                    .font(.headline)
+                    .foregroundStyle(balance >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor)
             }
-            .textCase(nil)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                Task { await vm.deletePerson(person) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 
-    private func balanceForPerson(_ person: SplitPerson) -> Double {
-        let related = expenses.filter { $0.participants.contains(where: { $0.id == person.id }) }
-        let totalPaid = expenses.filter { $0.paidBy?.id == person.id }.map(\.amount).reduce(0, +)
-        let share = related.reduce(0) { partial, expense in
-            let participantCount = expense.participants.count
-            let count = Double(max(participantCount, 1))
-            return partial + expense.amount / count
+    @ViewBuilder
+    private func expenseRow(for expense: SplitExpenseRecord) -> some View {
+        AppCard {
+            HStack(spacing: 12) {
+                ItemIconBadge(symbol: expense.paidById == nil ? "person.2.fill" : "creditcard.fill", tint: DesignSystem.accentColor)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(expense.title)
+                        .font(.headline)
+
+                    Text(expenseSubtitle(for: expense))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                Text(StatCard.currencyString(for: expense.amount))
+                    .font(.headline)
+                    .foregroundStyle(DesignSystem.accentColor)
+            }
         }
-        return totalPaid - share
-    }
+        .swipeActions(edge: .trailing) {
+            Button {
+                editingExpense = expense
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .tint(DesignSystem.accentColor)
 
-    private func copyBalances() {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-
-        let currencyFormatter = NumberFormatter()
-        currencyFormatter.numberStyle = .currency
-        currencyFormatter.currencyCode = Locale.current.currency?.identifier ?? "USD"
-        currencyFormatter.minimumFractionDigits = 2
-        currencyFormatter.maximumFractionDigits = 2
-
-        let title = "Split balances (\(dateFormatter.string(from: Date())))"
-        let lines = people.map { person -> String in
-            let balance = balanceForPerson(person)
-            let formatted = currencyFormatter.string(from: NSNumber(value: balance)) ?? "\(balance)"
-            return "\(person.name): \(formatted)"
+            Button(role: .destructive) {
+                Task { await vm.deleteExpense(expense) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
-        let text = ([title] + lines).joined(separator: "\n")
-
-        UIPasteboard.general.string = text
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        showCopiedAlert = true
     }
 
-    private func editExpense(_ expense: SplitExpense) {
-        selectedExpense = expense
-        showEditExpenseSheet = true
+    private func personSubtitle(for person: SplitPersonRecord) -> String {
+        let count = vm.expenses.filter { $0.participantIds.contains(person.id) }.count
+        return count == 1 ? "1 shared expense" : "\(count) shared expenses"
     }
 
-    private func deleteExpense(_ expense: SplitExpense) {
-        modelContext.delete(expense)
+    private func expenseSubtitle(for expense: SplitExpenseRecord) -> String {
+        var parts = [expense.date.formatted(date: .abbreviated, time: .omitted)]
+
+        let participantCount = expense.participantIds.count
+        parts.append(participantCount == 1 ? "1 person" : "\(participantCount) people")
+
+        if let paidById = expense.paidById,
+           let payer = vm.people.first(where: { $0.id == paidById }) {
+            parts.append("Paid by \(payer.name)")
+        }
+
+        return parts.joined(separator: " • ")
+    }
+
+    private func copySummaryText() -> String {
+        let balanceLines = vm.people.map { person in
+            let balance = vm.getBalance(for: person)
+            return "\(person.name): \(StatCard.currencyString(for: balance))"
+        }
+
+        let expenseLines = vm.expenses.map { expense in
+            let paidByName = expense.paidById.flatMap { payerID in
+                vm.people.first(where: { $0.id == payerID })?.name
+            } ?? "No payer"
+
+            return "\(expense.title) - \(StatCard.currencyString(for: expense.amount)) on \(expense.date.formatted(date: .abbreviated, time: .omitted)) paid by \(paidByName)"
+        }
+
+        var lines = ["Split Summary", ""]
+        if !balanceLines.isEmpty {
+            lines.append("People")
+            lines.append(contentsOf: balanceLines)
+        }
+        if !expenseLines.isEmpty {
+            if !balanceLines.isEmpty {
+                lines.append("")
+            }
+            lines.append("Expenses")
+            lines.append(contentsOf: expenseLines)
+        }
+
+        return lines.joined(separator: "\n")
     }
 }
 
-private struct AddPersonSheet: View {
+private struct AddSplitExpenseView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-
-    let ownerUserId: String
-    let onSave: (SplitPerson) -> Void
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                TextField("Name", text: $name)
-            }
-            .navigationTitle("New Person")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        onSave(SplitPerson(ownerUserId: ownerUserId, name: name))
-                        dismiss()
-                    }
-                    .disabled(name.isEmpty)
-                }
-            }
-        }
-    }
-}
-
-private struct AddExpenseSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let ownerUserId: String
-    let people: [SplitPerson]
-    let expenseToEdit: SplitExpense?
-    let onSave: (SplitExpense) -> Void
+    @ObservedObject var vm: SplitViewModel
 
     @State private var title = ""
-    @State private var amountText: String = ""
+    @State private var amountText = ""
     @State private var date = Date()
-    @State private var selectedParticipants: Set<UUID> = []
-    @State private var paidBy: SplitPerson?
-    @State private var hasLoaded = false
+    @State private var selectedPaidBy: String? = nil
+    @State private var selectedParticipants: Set<String> = []
 
-    init(
-        ownerUserId: String,
-        people: [SplitPerson],
-        expenseToEdit: SplitExpense? = nil,
-        onSave: @escaping (SplitExpense) -> Void
-    ) {
-        self.ownerUserId = ownerUserId
-        self.people = people
+    private let expenseToEdit: SplitExpenseRecord?
+    private let onSave: (SplitExpenseDraft) -> Void
+
+    private static let amountFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = .current
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
+
+    init(vm: SplitViewModel, expenseToEdit: SplitExpenseRecord? = nil, onSave: @escaping (SplitExpenseDraft) -> Void) {
+        self.vm = vm
         self.expenseToEdit = expenseToEdit
         self.onSave = onSave
+
+        _title = State(initialValue: expenseToEdit?.title ?? "")
+
+        if let expense = expenseToEdit {
+            _amountText = State(initialValue: Self.amountFormatter.string(from: NSNumber(value: expense.amount)) ?? "")
+            _date = State(initialValue: expense.date)
+            _selectedPaidBy = State(initialValue: expense.paidById)
+            _selectedParticipants = State(initialValue: Set(expense.participantIds))
+        }
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Details") {
-                    TextField("Title", text: $title)
+                    TextField("Expense title", text: $title)
                     TextField("Amount", text: $amountText)
                         .keyboardType(.decimalPad)
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                 }
 
+                Section("Paid By") {
+                    Picker("Who paid?", selection: $selectedPaidBy) {
+                        Text("Unassigned").tag(String?.none)
+                        ForEach(vm.people) { person in
+                            Text(person.name).tag(String?.some(person.id))
+                        }
+                    }
+                }
+
                 Section("Participants") {
-                    if people.isEmpty {
+                    if vm.people.isEmpty {
                         Text("Add people first")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(people) { person in
+                        ForEach(vm.people) { person in
                             Toggle(person.name, isOn: Binding(
                                 get: { selectedParticipants.contains(person.id) },
                                 set: { isSelected in
@@ -293,16 +388,9 @@ private struct AddExpenseSheet: View {
                         }
                     }
                 }
-
-                Section("Paid By") {
-                    Picker("Paid By", selection: $paidBy) {
-                        Text("Unassigned").tag(SplitPerson?.none)
-                        ForEach(people) { person in
-                            Text(person.name).tag(SplitPerson?.some(person))
-                        }
-                    }
-                }
             }
+            .scrollContentBackground(.hidden)
+            .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .navigationTitle(expenseToEdit == nil ? "New Expense" : "Edit Expense")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -310,90 +398,33 @@ private struct AddExpenseSheet: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        guard let amountValue = parsedAmount, amountValue > 0 else { return }
-                        let participants = people.filter { selectedParticipants.contains($0.id) }
-                        if let expenseToEdit {
-                            expenseToEdit.title = title
-                            expenseToEdit.amount = amountValue
-                            expenseToEdit.date = date
-                            expenseToEdit.paidBy = paidBy
-                            expenseToEdit.participants = participants
-                        } else {
-                            let expense = SplitExpense(
-                                ownerUserId: ownerUserId,
-                                title: title,
-                                amount: amountValue,
-                                date: date
-                            )
-                            expense.paidBy = paidBy
-                            expense.participants = participants
-                            onSave(expense)
-                        }
+                        guard let amount = parsedAmount, amount > 0 else { return }
+
+                        let draft = SplitExpenseDraft(
+                            title: title,
+                            amount: amount,
+                            date: date,
+                            participantIds: Array(selectedParticipants),
+                            paidById: selectedPaidBy
+                        )
+                        onSave(draft)
                         dismiss()
                     }
                     .disabled(isSaveDisabled)
                 }
             }
         }
-        .onAppear {
-            guard !hasLoaded else { return }
-            hasLoaded = true
-            guard let expenseToEdit else { return }
-            title = expenseToEdit.title
-            amountText = String(format: "%.2f", expenseToEdit.amount)
-            date = expenseToEdit.date
-            selectedParticipants = Set(expenseToEdit.participants.map(\.id))
-            paidBy = expenseToEdit.paidBy
-        }
     }
 
     private var parsedAmount: Double? {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let cleaned = trimmed.replacingOccurrences(of: ",", with: "")
-        return Double(cleaned)
+        return Double(trimmed.replacingOccurrences(of: ",", with: ""))
     }
 
     private var isSaveDisabled: Bool {
-        guard let amountValue = parsedAmount, amountValue > 0 else { return true }
-        return title.isEmpty || people.isEmpty
+        title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        selectedParticipants.isEmpty ||
+        (parsedAmount ?? 0) <= 0
     }
-}
-
-private struct ExpenseRow: View {
-    let expense: SplitExpense
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(expense.title)
-                HStack {
-                    Text(expense.amount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                    Text("• \(expense.date.formatted(date: .abbreviated, time: .omitted))")
-                    if let paidBy = expense.paidBy {
-                        Text("• Paid by \(paidBy.name)")
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-        }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
-        .contentShape(Rectangle())
-        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
-    }
-}
-
-#Preview {
-    SplitView(ownerUserId: SampleData.previewUserId)
-        .modelContainer(SampleData.makeContainer())
-        .environmentObject(AuthManager())
 }
