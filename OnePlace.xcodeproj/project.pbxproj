@@ -28,6 +28,7 @@
 		1A0F10012F5B100100ABCD01 /* FinanceEntryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0F10002F5B100100ABCD01 /* FinanceEntryRecord.swift */; };
 		1A0F10032F5B100100ABCD01 /* FinanceRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0F10022F5B100100ABCD01 /* FinanceRepository.swift */; };
 		1A0F10052F5B100100ABCD01 /* FinanceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */; };
+		2D7C1E4A2F6A120000AD1001 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D7C1E492F6A120000AD1001 /* PurchaseManager.swift */; };
 		B1C2D3E40000000000000001 /* FlowItemDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000001 /* FlowItemDraft.swift */; };
 		B1C2D3E40000000000000002 /* TaskItemDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000002 /* TaskItemDraft.swift */; };
 		B1C2D3E40000000000000003 /* SplitExpenseDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000003 /* SplitExpenseDraft.swift */; };
@@ -64,6 +65,8 @@
 		A1B2C3D40000000000000001 /* AppUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000002 /* AppUser.swift */; };
 		A1B2C3D40000000000000003 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000004 /* AuthManager.swift */; };
 		A1B2C3D40000000000000005 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000006 /* LoginView.swift */; };
+		F3A1B2012F5C930100AD0001 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A1B2002F5C930100AD0001 /* BannerAdView.swift */; };
+		F3A1B2032F5C930100AD0001 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = F3A1B2052F5C930100AD0001 /* GoogleMobileAds */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -84,6 +87,7 @@
 		1A0F10002F5B100100ABCD01 /* FinanceEntryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceEntryRecord.swift; sourceTree = "<group>"; };
 		1A0F10022F5B100100ABCD01 /* FinanceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceRepository.swift; sourceTree = "<group>"; };
 		1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceViewModel.swift; sourceTree = "<group>"; };
+		2D7C1E492F6A120000AD1001 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
 		B1C2D3E50000000000000001 /* FlowItemDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowItemDraft.swift; sourceTree = "<group>"; };
 		B1C2D3E50000000000000002 /* TaskItemDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemDraft.swift; sourceTree = "<group>"; };
 		B1C2D3E50000000000000003 /* SplitExpenseDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitExpenseDraft.swift; sourceTree = "<group>"; };
@@ -122,6 +126,7 @@
 		A1B2C3D40000000000000002 /* AppUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUser.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000004 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000006 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		F3A1B2002F5C930100AD0001 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,6 +139,7 @@
 				0B2D74A82F40362200B52D14 /* GoogleSignIn in Frameworks */,
 				0B2D74A32F4033CD00B52D14 /* FirebaseAuth in Frameworks */,
 				0B2D74A52F4033CD00B52D14 /* FirebaseFirestore in Frameworks */,
+				F3A1B2032F5C930100AD0001 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -236,6 +242,7 @@
 			isa = PBXGroup;
 			children = (
 				0B2D74B32F40717200B52D14 /* AddFinanceEntryView.swift */,
+				F3A1B2002F5C930100AD0001 /* BannerAdView.swift */,
 				5F8A9B7E2B2C8A4E00A1A1A1 /* RootTabView.swift */,
 				5F8A9B802B2C8A4E00A1A1A1 /* FinanceView.swift */,
 				1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */,
@@ -265,6 +272,7 @@
 				5F8A9B7A2B2C8A4E00A1A1A1 /* AudioRecorder.swift */,
 				5F8A9B7C2B2C8A4E00A1A1A1 /* ImagePicker.swift */,
 				A1B2C3D40000000000000004 /* AuthManager.swift */,
+				2D7C1E492F6A120000AD1001 /* PurchaseManager.swift */,
 				B1C2D3E5000000000000000E /* OrganizerViewModel.swift */,
 				B1C2D3E5000000000000000F /* SplitViewModel.swift */,
 				B1C2D3E50000000000000010 /* CommsViewModel.swift */,
@@ -326,6 +334,7 @@
 			packageReferences = (
 				0B2D74A12F4033CD00B52D14 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				0B2D74A62F40362200B52D14 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				F3A1B2042F5C930100AD0001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			productRefGroup = 5F8A9B602B2C8A4E00A1A1A1;
 			projectDirPath = "";
@@ -377,6 +386,7 @@
 				A1B2C3D40000000000000001 /* AppUser.swift in Sources */,
 				0B2D74B42F40717A00B52D14 /* AddFinanceEntryView.swift in Sources */,
 				0C5A1A252F4B200100AA0001 /* AppDataController.swift in Sources */,
+				2D7C1E4A2F6A120000AD1001 /* PurchaseManager.swift in Sources */,
 				0B2D74BE2F408BA300B52D14 /* FinanceTypeBadge.swift in Sources */,
 				0C5A1A272F4B200100AA0001 /* AppSchema.swift in Sources */,
 				0B2D74B62F4073AB00B52D14 /* FinanceEntryDraft.swift in Sources */,
@@ -394,6 +404,7 @@
 				5F8A9B7F2B2C8A4E00A1A1A1 /* RootTabView.swift in Sources */,
 				5F8A9B812B2C8A4E00A1A1A1 /* FinanceView.swift in Sources */,
 				5F8A9B832B2C8A4E00A1A1A1 /* FlowView.swift in Sources */,
+				F3A1B2012F5C930100AD0001 /* BannerAdView.swift in Sources */,
 				5F8A9B852B2C8A4E00A1A1A1 /* OrganizerView.swift in Sources */,
 				0BF9F9862F38666C00E14DC7 /* StatCard.swift in Sources */,
 				0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */,
@@ -594,6 +605,14 @@
 				minimumVersion = 12.9.0;
 			};
 		};
+		F3A1B2042F5C930100AD0001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -621,6 +640,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0B4379B32F40252B00A95976 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
+		};
+		F3A1B2052F5C930100AD0001 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F3A1B2042F5C930100AD0001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

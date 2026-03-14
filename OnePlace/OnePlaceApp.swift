@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import GoogleMobileAds
 import SwiftData
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
@@ -11,6 +12,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         print("📦 plist path =", Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") ?? "NOT FOUND")
 
         FirebaseApp.configure()
+        MobileAds.shared.start()
         return true
     }
 }
@@ -22,12 +24,14 @@ struct OnePlaceApp: App {
 
     @StateObject private var dataController: AppDataController
     @StateObject private var authManager: AuthManager
+    @StateObject private var purchaseManager: PurchaseManager
 
     init() {
         let controller = AppDataController()
         _dataController = StateObject(wrappedValue: controller)
 
         _authManager = StateObject(wrappedValue: AuthManager())
+        _purchaseManager = StateObject(wrappedValue: PurchaseManager())
     }
 
     var body: some Scene {
@@ -43,9 +47,11 @@ struct OnePlaceApp: App {
                 }
             }
             .environmentObject(authManager)
+            .environmentObject(purchaseManager)
             .tint(DesignSystem.accentColor)
             .task {
                 await authManager.restoreSessionFromProvider()
+                await purchaseManager.prepare()
             }
         }
         .modelContainer(dataController.container)

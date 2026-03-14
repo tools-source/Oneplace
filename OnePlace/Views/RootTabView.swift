@@ -38,6 +38,7 @@ struct RootTabView: View {
     let ownerUserId: String
 
     @SceneStorage("root.selectedTab") private var selectedTabValue = RootTab.finance.rawValue
+    @EnvironmentObject private var purchaseManager: PurchaseManager
 
     init(ownerUserId: String) {
         self.ownerUserId = ownerUserId
@@ -47,11 +48,19 @@ struct RootTabView: View {
     var body: some View {
         currentTabView
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                bottomNavigationBar
-                    .padding(.horizontal, 12)
-                    .padding(.top, 10)
-                    .padding(.bottom, 6)
-                    .background(Color.clear)
+                VStack(spacing: 6) {
+                    if !purchaseManager.isAdsRemoved {
+                        BannerAdView()
+                            .frame(height: 56)
+                            .padding(.horizontal, 12)
+                    }
+
+                    bottomNavigationBar
+                        .padding(.horizontal, 12)
+                        .padding(.top, purchaseManager.isAdsRemoved ? 0 : 4)
+                        .padding(.bottom, 6)
+                }
+                .background(Color.clear)
             }
     }
 
@@ -146,4 +155,5 @@ struct RootTabView: View {
 #Preview {
     RootTabView(ownerUserId: SampleData.previewUserId)
         .environmentObject(AuthManager())
+        .environmentObject(PurchaseManager())
 }

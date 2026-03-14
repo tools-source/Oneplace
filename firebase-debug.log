@@ -52,3 +52,228 @@
 [debug] [2026-03-14T06:27:46.242Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases/cloud.firestore/(default) [none]
 [debug] [2026-03-14T06:27:46.243Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases/cloud.firestore/(default) {"release":{"name":"projects/oneplace-app-90bce/releases/cloud.firestore/(default)","rulesetName":"projects/oneplace-app-90bce/rulesets/b822682d-2508-41a3-ad7e-41c6c1d7d5e2"}}
 [debug] [2026-03-14T06:27:46.598Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/oneplace-app-90bce/releases/cloud.firestore/(default) 200
+[debug] [2026-03-14T08:40:15.811Z] ----------------------------------------------------------------------
+[debug] [2026-03-14T08:40:15.816Z] Command:       /usr/local/bin/node /Users/majdinagi/.npm-global/bin/firebase projects:list --json
+[debug] [2026-03-14T08:40:15.817Z] CLI Version:   15.8.0
+[debug] [2026-03-14T08:40:15.817Z] Platform:      darwin
+[debug] [2026-03-14T08:40:15.818Z] Node Version:  v22.12.0
+[debug] [2026-03-14T08:40:15.818Z] Time:          Sat Mar 14 2026 04:40:15 GMT-0400 (Eastern Daylight Time)
+[debug] [2026-03-14T08:40:15.819Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-14T08:40:16.126Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-14T08:40:16.127Z] > authorizing via signed-in user (majdinagi@gmail.com)
+[debug] [2026-03-14T08:40:16.131Z] Checked if tokens are valid: false, expires at: 1773471239560
+[debug] [2026-03-14T08:40:16.131Z] Checked if tokens are valid: false, expires at: 1773471239560
+[debug] [2026-03-14T08:40:16.131Z] > refreshing access token with scopes: []
+[debug] [2026-03-14T08:40:16.134Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-14T08:40:16.134Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-14T08:40:16.464Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-03-14T08:40:16.465Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-14T08:40:16.511Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-03-14T08:40:16.935Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-03-14T08:41:20.883Z] ----------------------------------------------------------------------
+[debug] [2026-03-14T08:41:20.886Z] Command:       /usr/local/bin/node /Users/majdinagi/.npm-global/bin/firebase deploy --only hosting --project oneplace-app-90bce --non-interactive
+[debug] [2026-03-14T08:41:20.887Z] CLI Version:   15.8.0
+[debug] [2026-03-14T08:41:20.887Z] Platform:      darwin
+[debug] [2026-03-14T08:41:20.887Z] Node Version:  v22.12.0
+[debug] [2026-03-14T08:41:20.888Z] Time:          Sat Mar 14 2026 04:41:20 GMT-0400 (Eastern Daylight Time)
+[debug] [2026-03-14T08:41:20.888Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-14T08:41:23.615Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-14T08:41:23.616Z] > authorizing via signed-in user (majdinagi@gmail.com)
+[debug] [2026-03-14T08:41:23.617Z] [iam] checking project oneplace-app-90bce for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-03-14T08:41:23.618Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:23.619Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:23.620Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions [none]
+[debug] [2026-03-14T08:41:23.620Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions  x-goog-user-project=oneplace-app-90bce
+[debug] [2026-03-14T08:41:23.621Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-03-14T08:41:24.189Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions 200
+[debug] [2026-03-14T08:41:24.190Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/oneplace-app-90bce:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-03-14T08:41:24.190Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:24.191Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:24.191Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/oneplace-app-90bce [none]
+[debug] [2026-03-14T08:41:24.602Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/oneplace-app-90bce 200
+[debug] [2026-03-14T08:41:24.602Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/oneplace-app-90bce {"projectId":"oneplace-app-90bce","projectNumber":"74585403015","displayName":"OnePlace App","name":"projects/oneplace-app-90bce","resources":{"hostingSite":"oneplace-app-90bce"},"state":"ACTIVE","etag":"1_ecd464af-c9a8-4d69-b89c-dd8152b7e54a"}
+[info] 
+[info] === Deploying to 'oneplace-app-90bce'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-03-14T08:41:24.609Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:24.610Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:24.610Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/versions [none]
+[debug] [2026-03-14T08:41:24.610Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2026-03-14T08:41:26.255Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/versions 200
+[debug] [2026-03-14T08:41:26.256Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/versions {"name":"projects/74585403015/sites/oneplace-app-90bce/versions/48fadad5900bfb22","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[oneplace-app-90bce]: beginning deploy... 
+[info] i  hosting[oneplace-app-90bce]: found 21 files in hosting 
+[debug] [2026-03-14T08:41:26.280Z] [hosting] uploading with 200 concurrency
+[debug] [2026-03-14T08:41:26.282Z] [hosting] hash cache [aG9zdGluZw] not populated
+[debug] [2026-03-14T08:41:26.316Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.316Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.318Z] [hosting] hash cache [aG9zdGluZw] stored for 21 files
+[debug] [2026-03-14T08:41:26.319Z] [hosting][hash queue][FINAL] {"max":32,"min":16,"avg":20.619047619047624,"active":0,"complete":21,"success":21,"errored":0,"retried":0,"total":21,"elapsed":37}
+[debug] [2026-03-14T08:41:26.320Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/74585403015/sites/oneplace-app-90bce/versions/48fadad5900bfb22:populateFiles [none]
+[debug] [2026-03-14T08:41:26.320Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/74585403015/sites/oneplace-app-90bce/versions/48fadad5900bfb22:populateFiles {"files":{"/sw.js":"d3e0607f20ee0aa523bbe67d5609039c95b8e57f91f9ea2334b5d209ff8a585e","/assets/logo.svg":"a6c3016e5bb8057436f29c9f7ecc231642e6c8d0e9ecf3bc64338b5522d6d301","/manifest.webmanifest":"842436d154d2f29ea70aeefa8f630ea47b63ab929f176d04db5103d895a25b0d","/app-ads.txt":"2a5fd71d43e054150155f002d3393392b6706245563ff50d3adc262cb3fe977c","/privacy.html":"e882c1146702e7063ffd6e2a1223ccfb7232f3d2aa384f23edaff3ad473cbfe2","/assets/icons/icon-72.png":"e861e63b5c66eb5c55882d5e6d7924fdbb8501de4d5b3b03a6de8b6058b59044","/assets/icons/icon-96.png":"123efe496ab567df2c54382ec12747f36ccb44f2d6f6f2d6e11d8efb7a62052b","/assets/icons/splash-828x1792.png":"af3584a7cde83fffcbaf9d1648d1b189cda2516def1a19ed1afb8760676dda9b","/assets/icons/splash-2048x2732.png":"775615c756de4c376f66d7028fbe24efbde54442d3018a9192563ddfdc1ae12b","/assets/icons/icon-192.png":"b898d0d971cef0e62f7528bcbf12c86e5be5d442ddfa0a3ea445fc99910ac117","/assets/icons/splash-1668x2224.png":"194f1d8b81676930aa714adbc76d550c55cb2e78a6e7fadb17d5add93954366c","/assets/icons/icon-180.png":"4211aacc3a71d6631151b4a72a7baa6507b3393c238bd73aac4b00d1dd61fd82","/assets/icons/splash-1125x2436.png":"9f48550ca08253bcdb1e23b0b097ab019f304aa252bf5ba67e83284aa78223d5","/assets/icons/icon-152.png":"f87011dc4435116d1e2e1ba167394ac0832108d5ee4fec8a1953602cacd8ee0d","/assets/icons/icon-144.png":"84c9a7fbc0ddedb3a61e345d63b3c2ce1a0e7d04ad0d920ac4af9dd62dcaf0ca","/assets/icons/splash-1536x2048.png":"7c8dc9a50b52099ffad984c258fbb11ebfaea97780023cb66c9ff9025f037a2c","/assets/icons/icon-167.png":"c457c5b2d167f12c49e3ac7512d57fe6ee86c5c0d053dc57e671b601838a3033","/assets/icons/icon-128.png":"aeed3d8a9fa62a2da741decdeabb8ed0d02b89f6d5b654385b5b9de0f8080332","/assets/icons/icon-512.png":"04a856eb9b29ab3db31d8a795394cb5db2c0af18cbed1ac75b5c3d04997c5756","/index.html":"3088929d7e1f339979af0710b30ab8d2c04868ecf36f548ecc62d1a9717b7b45","/app.js":"3a45ba99a4efb94155d04c28997c03d4810b0a090f69a7b48092476865513931"}}
+[debug] [2026-03-14T08:41:26.665Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/74585403015/sites/oneplace-app-90bce/versions/48fadad5900bfb22:populateFiles 200
+[debug] [2026-03-14T08:41:26.665Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/74585403015/sites/oneplace-app-90bce/versions/48fadad5900bfb22:populateFiles {"uploadRequiredHashes":["9f48550ca08253bcdb1e23b0b097ab019f304aa252bf5ba67e83284aa78223d5","c457c5b2d167f12c49e3ac7512d57fe6ee86c5c0d053dc57e671b601838a3033","84c9a7fbc0ddedb3a61e345d63b3c2ce1a0e7d04ad0d920ac4af9dd62dcaf0ca","e861e63b5c66eb5c55882d5e6d7924fdbb8501de4d5b3b03a6de8b6058b59044","775615c756de4c376f66d7028fbe24efbde54442d3018a9192563ddfdc1ae12b","af3584a7cde83fffcbaf9d1648d1b189cda2516def1a19ed1afb8760676dda9b","2a5fd71d43e054150155f002d3393392b6706245563ff50d3adc262cb3fe977c","04a856eb9b29ab3db31d8a795394cb5db2c0af18cbed1ac75b5c3d04997c5756","3a45ba99a4efb94155d04c28997c03d4810b0a090f69a7b48092476865513931","aeed3d8a9fa62a2da741decdeabb8ed0d02b89f6d5b654385b5b9de0f8080332","4211aacc3a71d6631151b4a72a7baa6507b3393c238bd73aac4b00d1dd61fd82","3088929d7e1f339979af0710b30ab8d2c04868ecf36f548ecc62d1a9717b7b45","a6c3016e5bb8057436f29c9f7ecc231642e6c8d0e9ecf3bc64338b5522d6d301","e882c1146702e7063ffd6e2a1223ccfb7232f3d2aa384f23edaff3ad473cbfe2","f87011dc4435116d1e2e1ba167394ac0832108d5ee4fec8a1953602cacd8ee0d","842436d154d2f29ea70aeefa8f630ea47b63ab929f176d04db5103d895a25b0d","194f1d8b81676930aa714adbc76d550c55cb2e78a6e7fadb17d5add93954366c","7c8dc9a50b52099ffad984c258fbb11ebfaea97780023cb66c9ff9025f037a2c","123efe496ab567df2c54382ec12747f36ccb44f2d6f6f2d6e11d8efb7a62052b","d3e0607f20ee0aa523bbe67d5609039c95b8e57f91f9ea2334b5d209ff8a585e","b898d0d971cef0e62f7528bcbf12c86e5be5d442ddfa0a3ea445fc99910ac117"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files"}
+[debug] [2026-03-14T08:41:26.666Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.666Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.666Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.666Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.666Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.667Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.667Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.667Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.667Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.667Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.667Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.667Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.668Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.668Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.668Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.668Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.668Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.668Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.668Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.669Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.669Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.669Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.669Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.669Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.670Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.670Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.670Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.670Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.670Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.670Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.670Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.671Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.672Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.672Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:26.672Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/9f48550ca08253bcdb1e23b0b097ab019f304aa252bf5ba67e83284aa78223d5 [none]
+[debug] [2026-03-14T08:41:26.672Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/9f48550ca08253bcdb1e23b0b097ab019f304aa252bf5ba67e83284aa78223d5 [stream]
+[debug] [2026-03-14T08:41:26.674Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/c457c5b2d167f12c49e3ac7512d57fe6ee86c5c0d053dc57e671b601838a3033 [none]
+[debug] [2026-03-14T08:41:26.674Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/c457c5b2d167f12c49e3ac7512d57fe6ee86c5c0d053dc57e671b601838a3033 [stream]
+[debug] [2026-03-14T08:41:26.675Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/84c9a7fbc0ddedb3a61e345d63b3c2ce1a0e7d04ad0d920ac4af9dd62dcaf0ca [none]
+[debug] [2026-03-14T08:41:26.675Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/84c9a7fbc0ddedb3a61e345d63b3c2ce1a0e7d04ad0d920ac4af9dd62dcaf0ca [stream]
+[debug] [2026-03-14T08:41:26.677Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/e861e63b5c66eb5c55882d5e6d7924fdbb8501de4d5b3b03a6de8b6058b59044 [none]
+[debug] [2026-03-14T08:41:26.678Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/e861e63b5c66eb5c55882d5e6d7924fdbb8501de4d5b3b03a6de8b6058b59044 [stream]
+[debug] [2026-03-14T08:41:26.679Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/775615c756de4c376f66d7028fbe24efbde54442d3018a9192563ddfdc1ae12b [none]
+[debug] [2026-03-14T08:41:26.679Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/775615c756de4c376f66d7028fbe24efbde54442d3018a9192563ddfdc1ae12b [stream]
+[debug] [2026-03-14T08:41:26.680Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/af3584a7cde83fffcbaf9d1648d1b189cda2516def1a19ed1afb8760676dda9b [none]
+[debug] [2026-03-14T08:41:26.680Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/af3584a7cde83fffcbaf9d1648d1b189cda2516def1a19ed1afb8760676dda9b [stream]
+[debug] [2026-03-14T08:41:26.682Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/2a5fd71d43e054150155f002d3393392b6706245563ff50d3adc262cb3fe977c [none]
+[debug] [2026-03-14T08:41:26.682Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/2a5fd71d43e054150155f002d3393392b6706245563ff50d3adc262cb3fe977c [stream]
+[debug] [2026-03-14T08:41:26.683Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/04a856eb9b29ab3db31d8a795394cb5db2c0af18cbed1ac75b5c3d04997c5756 [none]
+[debug] [2026-03-14T08:41:26.684Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/04a856eb9b29ab3db31d8a795394cb5db2c0af18cbed1ac75b5c3d04997c5756 [stream]
+[debug] [2026-03-14T08:41:26.685Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/3a45ba99a4efb94155d04c28997c03d4810b0a090f69a7b48092476865513931 [none]
+[debug] [2026-03-14T08:41:26.685Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/3a45ba99a4efb94155d04c28997c03d4810b0a090f69a7b48092476865513931 [stream]
+[debug] [2026-03-14T08:41:26.686Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/aeed3d8a9fa62a2da741decdeabb8ed0d02b89f6d5b654385b5b9de0f8080332 [none]
+[debug] [2026-03-14T08:41:26.686Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/aeed3d8a9fa62a2da741decdeabb8ed0d02b89f6d5b654385b5b9de0f8080332 [stream]
+[debug] [2026-03-14T08:41:26.687Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/4211aacc3a71d6631151b4a72a7baa6507b3393c238bd73aac4b00d1dd61fd82 [none]
+[debug] [2026-03-14T08:41:26.687Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/4211aacc3a71d6631151b4a72a7baa6507b3393c238bd73aac4b00d1dd61fd82 [stream]
+[debug] [2026-03-14T08:41:26.689Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/3088929d7e1f339979af0710b30ab8d2c04868ecf36f548ecc62d1a9717b7b45 [none]
+[debug] [2026-03-14T08:41:26.689Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/3088929d7e1f339979af0710b30ab8d2c04868ecf36f548ecc62d1a9717b7b45 [stream]
+[debug] [2026-03-14T08:41:26.690Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/a6c3016e5bb8057436f29c9f7ecc231642e6c8d0e9ecf3bc64338b5522d6d301 [none]
+[debug] [2026-03-14T08:41:26.690Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/a6c3016e5bb8057436f29c9f7ecc231642e6c8d0e9ecf3bc64338b5522d6d301 [stream]
+[debug] [2026-03-14T08:41:26.691Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/e882c1146702e7063ffd6e2a1223ccfb7232f3d2aa384f23edaff3ad473cbfe2 [none]
+[debug] [2026-03-14T08:41:26.691Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/e882c1146702e7063ffd6e2a1223ccfb7232f3d2aa384f23edaff3ad473cbfe2 [stream]
+[debug] [2026-03-14T08:41:26.692Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/f87011dc4435116d1e2e1ba167394ac0832108d5ee4fec8a1953602cacd8ee0d [none]
+[debug] [2026-03-14T08:41:26.692Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/f87011dc4435116d1e2e1ba167394ac0832108d5ee4fec8a1953602cacd8ee0d [stream]
+[debug] [2026-03-14T08:41:26.693Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/842436d154d2f29ea70aeefa8f630ea47b63ab929f176d04db5103d895a25b0d [none]
+[debug] [2026-03-14T08:41:26.693Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/842436d154d2f29ea70aeefa8f630ea47b63ab929f176d04db5103d895a25b0d [stream]
+[debug] [2026-03-14T08:41:26.694Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/194f1d8b81676930aa714adbc76d550c55cb2e78a6e7fadb17d5add93954366c [none]
+[debug] [2026-03-14T08:41:26.694Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/194f1d8b81676930aa714adbc76d550c55cb2e78a6e7fadb17d5add93954366c [stream]
+[debug] [2026-03-14T08:41:26.695Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/7c8dc9a50b52099ffad984c258fbb11ebfaea97780023cb66c9ff9025f037a2c [none]
+[debug] [2026-03-14T08:41:26.695Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/7c8dc9a50b52099ffad984c258fbb11ebfaea97780023cb66c9ff9025f037a2c [stream]
+[debug] [2026-03-14T08:41:26.696Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/123efe496ab567df2c54382ec12747f36ccb44f2d6f6f2d6e11d8efb7a62052b [none]
+[debug] [2026-03-14T08:41:26.696Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/123efe496ab567df2c54382ec12747f36ccb44f2d6f6f2d6e11d8efb7a62052b [stream]
+[debug] [2026-03-14T08:41:26.697Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/d3e0607f20ee0aa523bbe67d5609039c95b8e57f91f9ea2334b5d209ff8a585e [none]
+[debug] [2026-03-14T08:41:26.697Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/d3e0607f20ee0aa523bbe67d5609039c95b8e57f91f9ea2334b5d209ff8a585e [stream]
+[debug] [2026-03-14T08:41:26.703Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/b898d0d971cef0e62f7528bcbf12c86e5be5d442ddfa0a3ea445fc99910ac117 [none]
+[debug] [2026-03-14T08:41:26.703Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/b898d0d971cef0e62f7528bcbf12c86e5be5d442ddfa0a3ea445fc99910ac117 [stream]
+[debug] [2026-03-14T08:41:26.706Z] [hosting][populate queue][FINAL] {"max":356,"min":356,"avg":356,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":390}
+[debug] [2026-03-14T08:41:26.706Z] [hosting] uploads queued: 21
+[debug] [2026-03-14T08:41:27.425Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/84c9a7fbc0ddedb3a61e345d63b3c2ce1a0e7d04ad0d920ac4af9dd62dcaf0ca 200
+[debug] [2026-03-14T08:41:27.425Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/84c9a7fbc0ddedb3a61e345d63b3c2ce1a0e7d04ad0d920ac4af9dd62dcaf0ca [stream]
+[debug] [2026-03-14T08:41:27.488Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/7c8dc9a50b52099ffad984c258fbb11ebfaea97780023cb66c9ff9025f037a2c 200
+[debug] [2026-03-14T08:41:27.489Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/7c8dc9a50b52099ffad984c258fbb11ebfaea97780023cb66c9ff9025f037a2c [stream]
+[debug] [2026-03-14T08:41:27.498Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/04a856eb9b29ab3db31d8a795394cb5db2c0af18cbed1ac75b5c3d04997c5756 200
+[debug] [2026-03-14T08:41:27.498Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/04a856eb9b29ab3db31d8a795394cb5db2c0af18cbed1ac75b5c3d04997c5756 [stream]
+[debug] [2026-03-14T08:41:27.499Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/a6c3016e5bb8057436f29c9f7ecc231642e6c8d0e9ecf3bc64338b5522d6d301 200
+[debug] [2026-03-14T08:41:27.500Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/a6c3016e5bb8057436f29c9f7ecc231642e6c8d0e9ecf3bc64338b5522d6d301 [stream]
+[debug] [2026-03-14T08:41:27.527Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/9f48550ca08253bcdb1e23b0b097ab019f304aa252bf5ba67e83284aa78223d5 200
+[debug] [2026-03-14T08:41:27.528Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/9f48550ca08253bcdb1e23b0b097ab019f304aa252bf5ba67e83284aa78223d5 [stream]
+[debug] [2026-03-14T08:41:27.574Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/b898d0d971cef0e62f7528bcbf12c86e5be5d442ddfa0a3ea445fc99910ac117 200
+[debug] [2026-03-14T08:41:27.574Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/b898d0d971cef0e62f7528bcbf12c86e5be5d442ddfa0a3ea445fc99910ac117 [stream]
+[debug] [2026-03-14T08:41:27.579Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/194f1d8b81676930aa714adbc76d550c55cb2e78a6e7fadb17d5add93954366c 200
+[debug] [2026-03-14T08:41:27.579Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/194f1d8b81676930aa714adbc76d550c55cb2e78a6e7fadb17d5add93954366c [stream]
+[debug] [2026-03-14T08:41:27.580Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/af3584a7cde83fffcbaf9d1648d1b189cda2516def1a19ed1afb8760676dda9b 200
+[debug] [2026-03-14T08:41:27.580Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/af3584a7cde83fffcbaf9d1648d1b189cda2516def1a19ed1afb8760676dda9b [stream]
+[debug] [2026-03-14T08:41:27.675Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/3088929d7e1f339979af0710b30ab8d2c04868ecf36f548ecc62d1a9717b7b45 200
+[debug] [2026-03-14T08:41:27.675Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/3088929d7e1f339979af0710b30ab8d2c04868ecf36f548ecc62d1a9717b7b45 [stream]
+[debug] [2026-03-14T08:41:27.677Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/c457c5b2d167f12c49e3ac7512d57fe6ee86c5c0d053dc57e671b601838a3033 200
+[debug] [2026-03-14T08:41:27.677Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/c457c5b2d167f12c49e3ac7512d57fe6ee86c5c0d053dc57e671b601838a3033 [stream]
+[debug] [2026-03-14T08:41:27.678Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/775615c756de4c376f66d7028fbe24efbde54442d3018a9192563ddfdc1ae12b 200
+[debug] [2026-03-14T08:41:27.678Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/775615c756de4c376f66d7028fbe24efbde54442d3018a9192563ddfdc1ae12b [stream]
+[debug] [2026-03-14T08:41:27.679Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/f87011dc4435116d1e2e1ba167394ac0832108d5ee4fec8a1953602cacd8ee0d 200
+[debug] [2026-03-14T08:41:27.679Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/f87011dc4435116d1e2e1ba167394ac0832108d5ee4fec8a1953602cacd8ee0d [stream]
+[debug] [2026-03-14T08:41:27.680Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/123efe496ab567df2c54382ec12747f36ccb44f2d6f6f2d6e11d8efb7a62052b 200
+[debug] [2026-03-14T08:41:27.680Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/123efe496ab567df2c54382ec12747f36ccb44f2d6f6f2d6e11d8efb7a62052b [stream]
+[debug] [2026-03-14T08:41:27.681Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/842436d154d2f29ea70aeefa8f630ea47b63ab929f176d04db5103d895a25b0d 200
+[debug] [2026-03-14T08:41:27.681Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/842436d154d2f29ea70aeefa8f630ea47b63ab929f176d04db5103d895a25b0d [stream]
+[debug] [2026-03-14T08:41:27.682Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/e861e63b5c66eb5c55882d5e6d7924fdbb8501de4d5b3b03a6de8b6058b59044 200
+[debug] [2026-03-14T08:41:27.682Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/e861e63b5c66eb5c55882d5e6d7924fdbb8501de4d5b3b03a6de8b6058b59044 [stream]
+[debug] [2026-03-14T08:41:27.682Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/4211aacc3a71d6631151b4a72a7baa6507b3393c238bd73aac4b00d1dd61fd82 200
+[debug] [2026-03-14T08:41:27.682Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/4211aacc3a71d6631151b4a72a7baa6507b3393c238bd73aac4b00d1dd61fd82 [stream]
+[debug] [2026-03-14T08:41:27.683Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/d3e0607f20ee0aa523bbe67d5609039c95b8e57f91f9ea2334b5d209ff8a585e 200
+[debug] [2026-03-14T08:41:27.683Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/d3e0607f20ee0aa523bbe67d5609039c95b8e57f91f9ea2334b5d209ff8a585e [stream]
+[debug] [2026-03-14T08:41:27.734Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/e882c1146702e7063ffd6e2a1223ccfb7232f3d2aa384f23edaff3ad473cbfe2 200
+[debug] [2026-03-14T08:41:27.734Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/e882c1146702e7063ffd6e2a1223ccfb7232f3d2aa384f23edaff3ad473cbfe2 [stream]
+[debug] [2026-03-14T08:41:27.736Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/2a5fd71d43e054150155f002d3393392b6706245563ff50d3adc262cb3fe977c 200
+[debug] [2026-03-14T08:41:27.736Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/2a5fd71d43e054150155f002d3393392b6706245563ff50d3adc262cb3fe977c [stream]
+[debug] [2026-03-14T08:41:27.756Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/aeed3d8a9fa62a2da741decdeabb8ed0d02b89f6d5b654385b5b9de0f8080332 200
+[debug] [2026-03-14T08:41:27.756Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/aeed3d8a9fa62a2da741decdeabb8ed0d02b89f6d5b654385b5b9de0f8080332 [stream]
+[debug] [2026-03-14T08:41:27.911Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/3a45ba99a4efb94155d04c28997c03d4810b0a090f69a7b48092476865513931 200
+[debug] [2026-03-14T08:41:27.911Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/oneplace-app-90bce/versions/48fadad5900bfb22/files/3a45ba99a4efb94155d04c28997c03d4810b0a090f69a7b48092476865513931 [stream]
+[debug] [2026-03-14T08:41:27.911Z] [hosting][upload queue][FINAL] {"max":1243,"min":759,"avg":970.9047619047619,"active":0,"complete":21,"success":21,"errored":0,"retried":0,"total":21,"elapsed":1246}
+[info] i  hosting: upload complete 
+[info] ✔  hosting[oneplace-app-90bce]: file upload complete 
+[debug] [2026-03-14T08:41:27.914Z] [hosting] deploy completed after 1655ms
+[debug] [2026-03-14T08:41:27.915Z] [
+  {
+    "config": {
+      "public": "hosting",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "site": "oneplace-app-90bce"
+    },
+    "version": "projects/74585403015/sites/oneplace-app-90bce/versions/48fadad5900bfb22"
+  }
+]
+[info] i  hosting[oneplace-app-90bce]: finalizing version... 
+[debug] [2026-03-14T08:41:27.922Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:27.923Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:27.924Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/versions/48fadad5900bfb22 updateMask=status%2Cconfig
+[debug] [2026-03-14T08:41:27.924Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/versions/48fadad5900bfb22 {"status":"FINALIZED","config":{}}
+[debug] [2026-03-14T08:41:28.462Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/versions/48fadad5900bfb22 200
+[debug] [2026-03-14T08:41:28.462Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/versions/48fadad5900bfb22 {"name":"projects/74585403015/sites/oneplace-app-90bce/versions/48fadad5900bfb22","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-03-14T08:41:25.166346Z","createUser":{"email":"majdinagi@gmail.com"},"finalizeTime":"2026-03-14T08:41:28.364466Z","finalizeUser":{"email":"majdinagi@gmail.com"}}
+[debug] [2026-03-14T08:41:28.462Z] [hosting] finalized version for oneplace-app-90bce:[object Object]
+[info] ✔  hosting[oneplace-app-90bce]: version finalized 
+[info] i  hosting[oneplace-app-90bce]: releasing new version... 
+[debug] [2026-03-14T08:41:28.463Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:28.463Z] Checked if tokens are valid: true, expires at: 1773481215465
+[debug] [2026-03-14T08:41:28.463Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/channels/live/releases versionName=projects%2F74585403015%2Fsites%2Foneplace-app-90bce%2Fversions%2F48fadad5900bfb22
+[debug] [2026-03-14T08:41:28.463Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/channels/live/releases {}
+[debug] [2026-03-14T08:41:28.964Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/oneplace-app-90bce/channels/live/releases 200
