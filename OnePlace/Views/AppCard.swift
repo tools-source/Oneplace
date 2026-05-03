@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct AppCard<Content: View>: View {
     private let content: () -> Content
@@ -19,23 +20,18 @@ public struct AppCard<Content: View>: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.largeCardCornerRadius, style: .continuous)
-                .strokeBorder(strokeColor, lineWidth: 1)
+                .strokeBorder(DesignSystem.cardBorderColor, lineWidth: 1)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 4)
-        .shadow(color: DesignSystem.shadowColor.opacity(colorScheme == .dark ? 0.22 : 0.12),
-                radius: DesignSystem.cardShadowRadius,
-                x: 0,
-                y: 10)
-        .shadow(color: DesignSystem.accentColor.opacity(colorScheme == .dark ? 0.08 : 0.04),
-                radius: 24,
-                x: 0,
-                y: 14)
+        .padding(.vertical, 3)
+        .shadow(
+            color: DesignSystem.shadowColor.opacity(colorScheme == .dark ? 0.20 : 0.10),
+            radius: DesignSystem.cardShadowRadius,
+            x: 0, y: 8
+        )
     }
 
-    private var strokeColor: Color {
-        DesignSystem.cardBorderColor
-    }
+
 }
 
 struct ItemIconBadge: View {
@@ -79,6 +75,163 @@ struct ItemIconBadge: View {
             Circle()
                 .strokeBorder(tint.opacity(0.22), lineWidth: 1)
         )
+    }
+}
+
+enum OnePlaceAITab {
+    case finance
+    case flow
+    case organizer
+    case split
+    case talk
+    case settings
+}
+
+enum OnePlacePromptClassifier {
+    static func isCommand(_ prompt: String, in tab: OnePlaceAITab) -> Bool {
+        let lowered = prompt.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !lowered.isEmpty else { return false }
+
+        switch tab {
+        case .finance:
+            return hasCommandVerb(lowered) || (hasAmount(lowered) && containsLetters(lowered)) || hasDebtPhrase(lowered)
+        case .flow:
+            return hasCommandVerb(lowered) || hasFlowSignal(lowered) || (hasAmount(lowered) && hasRecurringSignal(lowered))
+        case .organizer:
+            // Accept any non-trivial input — the search bar doubles as task creation,
+            // so treat any text with letters as a potential task.
+            return lowered.rangeOfCharacter(from: .letters) != nil
+        case .split:
+            return lowered.hasPrefix("add ") || lowered.contains("split") || lowered.contains("paid by") || hasAmount(lowered)
+        case .talk:
+            return hasCommandVerb(lowered) ||
+                lowered.contains("talk card") ||
+                lowered.contains("card that says") ||
+                lowered.contains("saying ") ||
+                lowered.hasPrefix("i need ") ||
+                lowered.hasPrefix("i want ") ||
+                lowered.hasPrefix("help ")
+        case .settings:
+            return true
+        }
+    }
+
+    private static func hasCommandVerb(_ prompt: String) -> Bool {
+        let commandWords = [
+            "add", "create", "make", "log", "record", "track", "schedule", "set",
+            "remind", "mark", "pay", "paid", "split"
+        ]
+
+        return commandWords.contains { word in
+            prompt.hasPrefix("\(word) ") || prompt.contains(" \(word) ")
+        }
+    }
+
+    private static func hasAmount(_ prompt: String) -> Bool {
+        prompt.range(of: #"\$?\d+(?:\.\d{1,2})?\b"#, options: .regularExpression) != nil
+    }
+
+    private static func containsLetters(_ prompt: String) -> Bool {
+        prompt.rangeOfCharacter(from: .letters) != nil
+    }
+
+    private static func hasDebtPhrase(_ prompt: String) -> Bool {
+        [
+            "owes me", "owe me", "i owe", "pay me back", "reimburse me", "paid me back"
+        ].contains(where: prompt.contains)
+    }
+
+    private static func hasFlowSignal(_ prompt: String) -> Bool {
+        [
+            "bill", "bowl", "income", "salary", "paycheck", "due", "reminder",
+            "remind", "subscription", "credit card", "rent", "electric", "water"
+        ].contains(where: prompt.contains)
+    }
+
+    private static func hasRecurringSignal(_ prompt: String) -> Bool {
+        [
+            "monthly", "weekly", "biweekly", "quarterly", "yearly", "annual",
+            "every month", "every week", "repeats"
+        ].contains(where: prompt.contains)
+    }
+}
+
+struct OnePlaceAISearchBar: View {
+    @Binding var text: String
+    let placeholder: String
+    let isProcessing: Bool
+    let onSubmit: () -> Void
+
+    @StateObject private var speechRecognizer = FinanceSpeechRecognizer()
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            TextField(placeholder, text: $text)
+                .textInputAutocapitalization(.sentences)
+                .submitLabel(.search)
+                .onSubmit(submit)
+
+            if isProcessing {
+                ProgressView()
+                    .tint(DesignSystem.accentColor)
+            }
+
+            Button(action: toggleVoiceCapture) {
+                Image(systemName: speechRecognizer.isRecording ? "stop.fill" : "mic.fill")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(speechRecognizer.isRecording ? DesignSystem.oweColor : DesignSystem.accentColor)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        Circle()
+                            .fill(speechRecognizer.isRecording ? DesignSystem.oweColor.opacity(0.16) : DesignSystem.accentSoft)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(isProcessing)
+            .accessibilityLabel(speechRecognizer.isRecording ? "Stop voice command" : "Start voice command")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(DesignSystem.secondaryBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(DesignSystem.cardBorderColor, lineWidth: 1)
+        )
+        .onChange(of: speechRecognizer.transcript) { _, newValue in
+            guard speechRecognizer.isRecording else { return }
+            text = newValue
+        }
+        .onChange(of: speechRecognizer.isRecording) { oldValue, newValue in
+            guard oldValue, !newValue else { return }
+            let transcript = speechRecognizer.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !transcript.isEmpty else { return }
+            text = transcript
+            submit()
+        }
+    }
+
+    private func submit() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        onSubmit()
+    }
+
+    private func toggleVoiceCapture() {
+        if speechRecognizer.isRecording {
+            speechRecognizer.stopRecording()
+            return
+        }
+
+        speechRecognizer.clearTranscript()
+        Task {
+            await speechRecognizer.startRecording()
+        }
     }
 }
 

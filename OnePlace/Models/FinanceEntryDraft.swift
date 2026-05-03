@@ -1,6 +1,6 @@
 import Foundation
 
-struct FinanceEntryDraft {
+struct FinanceEntryDraft: Equatable {
     var amount: Double
     var type: FinanceType
     var category: String

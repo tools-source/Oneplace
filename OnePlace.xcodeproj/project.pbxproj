@@ -64,6 +64,7 @@
 		B1C2D3E4000000000000000E /* OrganizerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000E /* OrganizerViewModel.swift */; };
 		B1C2D3E4000000000000000F /* SplitViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000F /* SplitViewModel.swift */; };
 		B1C2D3E40000000000000010 /* CommsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000010 /* CommsViewModel.swift */; };
+		CC0001AA2F5C100100LOGO01 /* OnePlaceLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001AB2F5C100100LOGO01 /* OnePlaceLogo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -81,6 +82,7 @@
 		0C5A1A212F4B200100AA0001 /* AppDataController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataController.swift; sourceTree = "<group>"; };
 		0C5A1A232F4B200100AA0001 /* OnePlace.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePlace.entitlements; sourceTree = "<group>"; };
 		0C5A1A282F4B200100AA0001 /* AppSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchema.swift; sourceTree = "<group>"; };
+		C0A1B2C32F50000100AA0001 /* OnePlace.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = OnePlace.xcconfig; sourceTree = "<group>"; };
 		1A0F10002F5B100100ABCD01 /* FinanceEntryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceEntryRecord.swift; sourceTree = "<group>"; };
 		1A0F10022F5B100100ABCD01 /* FinanceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceRepository.swift; sourceTree = "<group>"; };
 		1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceViewModel.swift; sourceTree = "<group>"; };
@@ -122,6 +124,7 @@
 		B1C2D3E5000000000000000E /* OrganizerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizerViewModel.swift; sourceTree = "<group>"; };
 		B1C2D3E5000000000000000F /* SplitViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitViewModel.swift; sourceTree = "<group>"; };
 		B1C2D3E50000000000000010 /* CommsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommsViewModel.swift; sourceTree = "<group>"; };
+		CC0001AB2F5C100100LOGO01 /* OnePlaceLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceLogo.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,6 +157,14 @@
 				0B2D74BB2F408B8100B52D14 /* DesignSystem.swift */,
 			);
 			path = Design;
+			sourceTree = "<group>";
+		};
+		C0A1B2C32F50000100AA0002 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				C0A1B2C32F50000100AA0001 /* OnePlace.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		1A0F10062F5B100100ABCD01 /* Firestore */ = {
@@ -202,6 +213,7 @@
 				0C5A1A232F4B200100AA0001 /* OnePlace.entitlements */,
 				5F8A9B8E2B2C8A4E00A1A1A1 /* Info.plist */,
 				0B2D74BA2F408B4800B52D14 /* Design */,
+				C0A1B2C32F50000100AA0002 /* Config */,
 				0B2D74B92F408B2E00B52D14 /* Components */,
 				5F8A9B622B2C8A4E00A1A1A1 /* Models */,
 				5F8A9B632B2C8A4E00A1A1A1 /* Views */,
@@ -252,6 +264,7 @@
 				0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */,
 				0BF9F9852F38666C00E14DC7 /* StatCard.swift */,
 				A1B2C3D40000000000000006 /* LoginView.swift */,
+				CC0001AB2F5C100100LOGO01 /* OnePlaceLogo.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -399,6 +412,7 @@
 				0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */,
 				A1B2C3D40000000000000003 /* AuthManager.swift in Sources */,
 				A1B2C3D40000000000000005 /* LoginView.swift in Sources */,
+				CC0001AA2F5C100100LOGO01 /* OnePlaceLogo.swift in Sources */,
 				5F8A9B872B2C8A4E00A1A1A1 /* SplitView.swift in Sources */,
 				0BF9F97C2F383B6400E14DC7 /* EmptyState.swift in Sources */,
 				5F8A9B892B2C8A4E00A1A1A1 /* CommsView.swift in Sources */,
@@ -411,6 +425,7 @@
 /* Begin XCBuildConfiguration section */
 		5F8A9B982B2C8A4E00A1A1A1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0A1B2C32F50000100AA0001 /* OnePlace.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -427,6 +442,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -437,6 +453,7 @@
 		};
 		5F8A9B992B2C8A4E00A1A1A1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0A1B2C32F50000100AA0001 /* OnePlace.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -453,6 +470,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";

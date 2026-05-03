@@ -9,14 +9,41 @@ struct SplitView: View {
     @State private var editingExpense: SplitExpenseRecord?
     @State private var newPersonName = ""
     @State private var showingCopyAlert = false
+    @State private var searchText = ""
 
     private var totalExpensesAmount: Double {
         vm.expenses.reduce(0) { $0 + $1.amount }
     }
 
+    private var filteredPeople: [SplitPersonRecord] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return vm.people }
+        return vm.people.filter { $0.name.localizedCaseInsensitiveContains(query) }
+    }
+
+    private var filteredExpenses: [SplitExpenseRecord] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return vm.expenses }
+        return vm.expenses.filter { expense in
+            expense.title.localizedCaseInsensitiveContains(query) ||
+            expenseSubtitle(for: expense).localizedCaseInsensitiveContains(query)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    OnePlaceAISearchBar(
+                        text: $searchText,
+                        placeholder: "Search or ask OnePlace",
+                        isProcessing: vm.isLoading,
+                        onSubmit: handleSearchSubmit
+                    )
+                    .listRowInsets(EdgeInsets(top: 10, leading: 8, bottom: 4, trailing: 8))
+                    .listRowBackground(Color.clear)
+                }
+
                 summarySection
                 peopleSection
                 expensesSection
@@ -141,7 +168,7 @@ struct SplitView: View {
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
             } else {
-                ForEach(vm.people) { person in
+                ForEach(filteredPeople) { person in
                     personRow(for: person)
                         .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
                         .listRowBackground(Color.clear)
@@ -170,7 +197,7 @@ struct SplitView: View {
 
     private var expensesSection: some View {
         Section("Expenses") {
-            if vm.expenses.isEmpty {
+            if filteredExpenses.isEmpty {
                 Text(vm.people.isEmpty ? "Add people first to record an expense." : "No expenses yet.")
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 24)
@@ -178,7 +205,7 @@ struct SplitView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             } else {
-                ForEach(vm.expenses) { expense in
+                ForEach(filteredExpenses) { expense in
                     expenseRow(for: expense)
                         .onTapGesture {
                             editingExpense = expense
@@ -264,8 +291,33 @@ struct SplitView: View {
         }
     }
 
+    private func handleSearchSubmit() {
+        let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty,
+              OnePlacePromptClassifier.isCommand(prompt, in: .split) else { return }
+
+        if let name = SplitPromptInterpreter.personName(from: prompt) {
+            Task {
+                await vm.addPerson(name: name)
+                await MainActor.run { searchText = "" }
+            }
+            return
+        }
+
+        guard let draft = SplitPromptInterpreter.expenseDraft(from: prompt, people: vm.people) else {
+            return
+        }
+
+        Task {
+            await vm.addExpense(draft: draft)
+            await MainActor.run { searchText = "" }
+        }
+    }
+
     private func personSubtitle(for person: SplitPersonRecord) -> String {
-        let count = vm.expenses.filter { $0.participantIds.contains(person.id) }.count
+        let count = vm.expenses.filter { expense in
+            expense.participantIds.contains(person.id) || expense.paidById == person.id
+        }.count
         return count == 1 ? "1 shared expense" : "\(count) shared expenses"
     }
 
@@ -311,6 +363,90 @@ struct SplitView: View {
         }
 
         return lines.joined(separator: "\n")
+    }
+}
+
+enum SplitPromptInterpreter {
+    static func personName(from prompt: String) -> String? {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowered = trimmed.lowercased()
+        guard extractAmount(from: prompt) == nil,
+              lowered.hasPrefix("add person ") || lowered.hasPrefix("add ") else {
+            return nil
+        }
+
+        let name = trimmed
+            .replacingOccurrences(of: #"(?i)^add\s+(?:person\s+)?"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return name.isEmpty ? nil : name
+    }
+
+    static func expenseDraft(from prompt: String, people: [SplitPersonRecord]) -> SplitExpenseDraft? {
+        guard let amount = extractAmount(from: prompt), amount > 0, !people.isEmpty else {
+            return nil
+        }
+
+        let title = title(from: prompt, amount: amount)
+        let lowered = prompt.lowercased()
+        let paidBy = people.first { person in
+            lowered.contains("paid by \(person.name.lowercased())") ||
+            lowered.contains("\(person.name.lowercased()) paid")
+        } ?? people.first
+
+        let mentionedParticipantIds = people
+            .filter { person in
+                let name = person.name.lowercased()
+                return lowered.contains(name) && person.id != paidBy?.id
+            }
+            .map(\.id)
+
+        let participantIds = mentionedParticipantIds.isEmpty
+            ? people.map(\.id)
+            : mentionedParticipantIds
+
+        return SplitExpenseDraft(
+            title: title,
+            amount: amount,
+            date: detectedDate(in: prompt) ?? Date(),
+            participantIds: participantIds,
+            paidById: paidBy?.id
+        )
+    }
+
+    private static func extractAmount(from prompt: String) -> Double? {
+        let pattern = #"(?:^|[\s])\$?(\d+(?:\.\d{1,2})?)\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)
+        guard let match = regex.firstMatch(in: prompt, range: range),
+              let amountRange = Range(match.range(at: 1), in: prompt) else {
+            return nil
+        }
+
+        return Double(prompt[amountRange])
+    }
+
+    private static func detectedDate(in prompt: String) -> Date? {
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+        let range = NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)
+        return detector?.matches(in: prompt, range: range).first?.date
+    }
+
+    private static func title(from prompt: String, amount: Double) -> String {
+        var value = prompt
+        let amountText = amount.rounded() == amount ? String(Int(amount)) : String(amount)
+        value = value.replacingOccurrences(of: "$\(amountText)", with: "", options: .caseInsensitive)
+        value = value.replacingOccurrences(of: amountText, with: "", options: .caseInsensitive)
+        value = value.replacingOccurrences(of: #"(?i)\b(add|split|expense|paid by|paid|with|for|between|today|yesterday|tomorrow)\b"#, with: " ", options: .regularExpression)
+        value = value.replacingOccurrences(of: #"[^A-Za-z0-9'&\s]"#, with: " ", options: .regularExpression)
+        value = value.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !value.isEmpty else { return "Shared Expense" }
+        return value.split(whereSeparator: \.isWhitespace)
+            .prefix(4)
+            .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+            .joined(separator: " ")
     }
 }
 

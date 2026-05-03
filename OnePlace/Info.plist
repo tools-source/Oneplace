@@ -17,7 +17,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -32,7 +32,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>google</string>
@@ -41,13 +41,19 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Record short audio clips for communication cards.</string>
+	<string>Use the microphone to record audio and add transactions by voice.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select an image for communication cards.</string>
 	<key>NSServices</key>
 	<array>
 		<dict/>
 	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Convert your voice into text so OnePlace can capture transactions hands-free.</string>
+	<key>OPENAI_API_KEY</key>
+	<string>$(OPENAI_API_KEY)</string>
+	<key>OPENAI_MODEL_ID</key>
+	<string>$(OPENAI_MODEL_ID)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

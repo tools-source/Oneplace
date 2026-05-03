@@ -13,23 +13,34 @@ private enum RootTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .finance: return "Finance"
-        case .flow: return "Flow"
-        case .organizer: return "Organizer"
-        case .split: return "Split"
-        case .talk: return "Talk"
-        case .settings: return "Settings"
+        case .finance:   return "Finance"
+        case .flow:      return "Flow"
+        case .organizer: return "Tasks"
+        case .split:     return "Split"
+        case .talk:      return "Talk"
+        case .settings:  return "Settings"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .finance: return "banknote"
-        case .flow: return "calendar.badge.clock"
+        case .finance:   return "dollarsign.circle"
+        case .flow:      return "calendar.badge.clock"
         case .organizer: return "checklist"
-        case .split: return "person.2.fill"
-        case .talk: return "waveform"
-        case .settings: return "gearshape"
+        case .split:     return "person.2"
+        case .talk:      return "bubble.left.and.bubble.right"
+        case .settings:  return "gearshape"
+        }
+    }
+
+    var selectedSystemImage: String {
+        switch self {
+        case .finance:   return "dollarsign.circle.fill"
+        case .flow:      return "calendar.badge.clock"
+        case .organizer: return "checklist"
+        case .split:     return "person.2.fill"
+        case .talk:      return "bubble.left.and.bubble.right.fill"
+        case .settings:  return "gearshape.fill"
         }
     }
 }
@@ -37,7 +48,7 @@ private enum RootTab: String, CaseIterable, Identifiable {
 struct RootTabView: View {
     let ownerUserId: String
 
-    @SceneStorage("root.selectedTab") private var selectedTabValue = RootTab.finance.rawValue
+    @AppStorage("root.selectedTab") private var selectedTabValue = RootTab.finance.rawValue
 
     init(ownerUserId: String) {
         self.ownerUserId = ownerUserId
@@ -48,9 +59,9 @@ struct RootTabView: View {
         currentTabView
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 bottomNavigationBar
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 14)
                     .padding(.top, 10)
-                    .padding(.bottom, 6)
+                    .padding(.bottom, 8)
                     .background(Color.clear)
             }
     }
@@ -58,67 +69,74 @@ struct RootTabView: View {
     @ViewBuilder
     private var currentTabView: some View {
         switch selectedTab {
-        case .finance:
-            FinanceView()
-        case .flow:
-            FlowView()
-        case .organizer:
-            OrganizerView()
-        case .split:
-            SplitView()
-        case .talk:
-            CommsView()
-        case .settings:
-            SettingsView()
+        case .finance:   FinanceView()
+        case .flow:      FlowView()
+        case .organizer: OrganizerView()
+        case .split:     SplitView()
+        case .talk:      CommsView()
+        case .settings:  SettingsView()
         }
     }
 
     private var bottomNavigationBar: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             ForEach(RootTab.allCases) { tab in
-                Button {
-                    guard selectedTab != tab else { return }
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    select(tab)
-                } label: {
-                    VStack(spacing: 5) {
-                        Image(systemName: tab.systemImage)
-                            .font(.system(size: 17, weight: selectedTab == tab ? .semibold : .medium))
-                            .frame(height: 18)
-
-                        Text(tab.title)
-                            .font(.system(size: 10, weight: selectedTab == tab ? .semibold : .medium))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
-                    }
-                    .foregroundStyle(selectedTab == tab ? DesignSystem.accentColor : DesignSystem.secondaryTextColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(selectedTab == tab ? DesignSystem.accentSoft : Color.clear)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(
-                                selectedTab == tab ? DesignSystem.cardBorderColor : Color.clear,
-                                lineWidth: 1
-                            )
-                    )
-                }
-                .buttonStyle(.plain)
+                tabButton(for: tab)
             }
         }
-        .padding(8)
+        .padding(6)
         .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(DesignSystem.tabBarBackground)
+                .shadow(color: DesignSystem.shadowColor.opacity(0.28), radius: 20, x: 0, y: 8)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .strokeBorder(DesignSystem.cardBorderColor, lineWidth: 1)
         )
-        .shadow(color: DesignSystem.shadowColor.opacity(0.22), radius: 18, x: 0, y: 8)
+    }
+
+    private func tabButton(for tab: RootTab) -> some View {
+        let isSelected = selectedTab == tab
+
+        return Button {
+            guard !isSelected else { return }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            select(tab)
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: isSelected ? tab.selectedSystemImage : tab.systemImage)
+                    .font(.system(size: 18, weight: isSelected ? .semibold : .medium))
+                    .frame(height: 20)
+                    .scaleEffect(isSelected ? 1.08 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+
+                Text(tab.title)
+                    .font(.system(size: 9.5, weight: isSelected ? .semibold : .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.80)
+            }
+            .foregroundStyle(
+                isSelected
+                    ? DesignSystem.accentColor
+                    : DesignSystem.secondaryTextColor
+            )
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(
+                Group {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(DesignSystem.accentSoft)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .strokeBorder(DesignSystem.accentColor.opacity(0.22), lineWidth: 1)
+                            )
+                    }
+                }
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var selectedTab: RootTab {
@@ -135,7 +153,10 @@ struct RootTabView: View {
         appearance.backgroundColor = UIColor.clear
         appearance.shadowColor = .clear
         appearance.titleTextAttributes = [.foregroundColor: UIColor.label]
-        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.label]
+        appearance.largeTitleTextAttributes = [
+            .foregroundColor: UIColor.label,
+            .font: UIFont.systemFont(ofSize: 34, weight: .bold)
+        ]
 
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance

@@ -97,15 +97,13 @@ final class SplitRepository {
         var balance = 0.0
 
         for expense in expenses {
-            guard expense.participantIds.contains(personId) else { continue }
-
             let splitAmount = expense.amount / Double(max(1, expense.participantIds.count))
 
             if expense.paidById == personId {
-                // This person paid - they're owed money
-                balance += (expense.amount - splitAmount)
-            } else {
-                // This person owes money
+                balance += expense.amount
+            }
+
+            if expense.participantIds.contains(personId) {
                 balance -= splitAmount
             }
         }

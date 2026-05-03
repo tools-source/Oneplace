@@ -7,8 +7,6 @@ struct StatCard: View {
     let icon: String
     let tint: Color
     let minHeight: CGFloat
-    let horizontalPadding: CGFloat
-    let verticalPadding: CGFloat
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -18,9 +16,7 @@ struct StatCard: View {
         subtitle: String? = nil,
         icon: String,
         tint: Color,
-        minHeight: CGFloat = 96,
-        horizontalPadding: CGFloat = DesignSystem.cardPadding,
-        verticalPadding: CGFloat = DesignSystem.cardPadding
+        minHeight: CGFloat = 100
     ) {
         self.title = title
         self.value = value
@@ -28,51 +24,47 @@ struct StatCard: View {
         self.icon = icon
         self.tint = tint
         self.minHeight = minHeight
-        self.horizontalPadding = horizontalPadding
-        self.verticalPadding = verticalPadding
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
                 iconBadge
-
                 Text(title)
-                    .font(.caption)
-                    .foregroundStyle(DesignSystem.secondaryTextColor)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(tint)
                     .lineLimit(1)
-
                 Spacer(minLength: 0)
             }
 
             Text(value)
-                .font(.title3.weight(.semibold))
+                .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
                 .monospacedDigit()
                 .lineLimit(1)
+                .minimumScaleFactor(0.70)
 
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(DesignSystem.secondaryTextColor)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, horizontalPadding)
-        .padding(.vertical, verticalPadding)
+        .padding(DesignSystem.cardPadding)
         .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
-                .fill(backgroundFill)
+                .fill(DesignSystem.cardGradient)
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
-                .strokeBorder(strokeColor, lineWidth: 1)
+                .strokeBorder(tint.opacity(0.20), lineWidth: 1)
         )
-        .shadow(color: DesignSystem.shadowColor.opacity(colorScheme == .dark ? 0.18 : 0.08),
-                radius: 10,
-                x: 0,
-                y: 6)
+        .shadow(
+            color: tint.opacity(colorScheme == .dark ? 0.12 : 0.06),
+            radius: 10, x: 0, y: 6
+        )
     }
 
     @ViewBuilder
@@ -83,11 +75,11 @@ struct StatCard: View {
             FinanceTypeBadge(type: .owe)
         } else {
             ZStack {
-                Circle()
-                    .fill(tint.opacity(0.16))
-                    .frame(width: 28, height: 28)
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(tint.opacity(0.14))
+                    .frame(width: 26, height: 26)
                 Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(tint)
             }
         }
@@ -96,14 +88,6 @@ struct StatCard: View {
     static func currencyString(for amount: Double) -> String {
         currencyFormatter.string(from: NSNumber(value: amount))
             ?? amount.formatted(.currency(code: currencyCode))
-    }
-
-    private var backgroundFill: LinearGradient {
-        DesignSystem.cardGradient
-    }
-
-    private var strokeColor: Color {
-        return DesignSystem.cardBorderColor
     }
 
     private static let currencyCode = Locale.current.currency?.identifier ?? "USD"
@@ -119,9 +103,10 @@ struct StatCard: View {
 }
 
 #Preview {
-    VStack(spacing: 12) {
-        StatCard(title: "Upcoming", value: "3", subtitle: "Bills", icon: "calendar", tint: .blue)
-        StatCard(title: "Due Soon", value: StatCard.currencyString(for: 250), subtitle: "Total", icon: "exclamationmark.circle", tint: .orange)
+    HStack(spacing: 10) {
+        StatCard(title: "Net", value: StatCard.currencyString(for: 1250), subtitle: "Positive runway", icon: "plus", tint: .teal)
+        StatCard(title: "Gain", value: StatCard.currencyString(for: 3200), subtitle: "Open income", icon: "arrow.up.right", tint: .green)
+        StatCard(title: "Owe", value: StatCard.currencyString(for: 1950), subtitle: "Pending", icon: "arrow.down.left", tint: .red)
     }
     .padding()
 }

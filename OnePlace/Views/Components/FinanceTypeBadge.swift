@@ -23,37 +23,35 @@ struct FinanceTypeBadge: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(tint.opacity(0.18))
+                .fill(tint.opacity(0.15))
                 .frame(width: size, height: size)
+                .overlay(
+                    Circle()
+                        .strokeBorder(tint.opacity(0.22), lineWidth: 1)
+                )
 
             Image(systemName: symbol)
-                .font(.system(size: size * 0.48, weight: .semibold))
+                .font(.system(size: size * 0.44, weight: .semibold))
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(tint)
-                .frame(width: size, height: size)
         }
         .frame(width: size, height: size)
     }
 
     private var symbol: String {
         switch kind {
-        case .gain:
-            return "arrow.down"
-        case .owe:
-            return "arrow.up"
-        case let .net(isPositive):
-            return isPositive ? "arrow.up.right" : "arrow.down.right"
+        case .gain:              return "arrow.up.right"
+        case .owe:               return "arrow.down.left"
+        case .net(true):         return "plus"
+        case .net(false):        return "minus"
         }
     }
 
     private var tint: Color {
         switch kind {
-        case .gain:
-            return .green
-        case .owe:
-            return .red
-        case let .net(isPositive):
-            return isPositive ? .blue : .red
+        case .gain:              return DesignSystem.gainColor
+        case .owe:               return DesignSystem.oweColor
+        case .net(let positive): return positive ? DesignSystem.accentColor : DesignSystem.oweColor
         }
     }
 }

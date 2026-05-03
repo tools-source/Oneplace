@@ -1,0 +1,12 @@
+# Local developer secrets
+OnePlace/Config/Secrets.local.xcconfig
+OnePlace/Info.plist.local
+
+# Xcode and macOS noise
+.DS_Store
+**/.DS_Store
+OnePlace.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# Local logs
+firebase-debug.log

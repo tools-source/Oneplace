@@ -28,7 +28,7 @@ final class FinanceRepository {
 
     // MARK: - Create
 
-    func createEntry(for uid: String, draft: FinanceEntryDraft) async throws {
+    func createEntry(for uid: String, draft: FinanceEntryDraft) async throws -> FinanceEntryRecord {
         let documentRef = transactionsCollection(for: uid).document()
 
         let record = FinanceEntryRecord(
@@ -44,6 +44,7 @@ final class FinanceRepository {
         )
 
         try await documentRef.setData(encode(record: record), merge: false)
+        return record
     }
 
     // MARK: - Update

@@ -28,6 +28,17 @@ struct FlowView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    OnePlaceAISearchBar(
+                        text: $searchText,
+                        placeholder: "Search or ask OnePlace",
+                        isProcessing: vm.isLoading,
+                        onSubmit: handleSearchSubmit
+                    )
+                    .listRowInsets(EdgeInsets(top: 10, leading: 8, bottom: 4, trailing: 8))
+                    .listRowBackground(Color.clear)
+                }
+
                 summarySection
                 upcomingSection
                 paidSection
@@ -41,11 +52,6 @@ struct FlowView: View {
                 Color.clear.frame(height: DesignSystem.tabBarContentInset)
             }
             .navigationTitle("Flow")
-            .searchable(
-                text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Search bills"
-            )
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button {
@@ -264,6 +270,20 @@ struct FlowView: View {
         }
     }
 
+    private func handleSearchSubmit() {
+        let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty,
+              OnePlacePromptClassifier.isCommand(prompt, in: .flow),
+              let draft = FlowPromptInterpreter.interpret(prompt) else { return }
+
+        Task {
+            await vm.addItem(draft: draft)
+            await MainActor.run {
+                searchText = ""
+            }
+        }
+    }
+
     private func flowAccent(for item: FlowItemRecord) -> Color {
         switch item.type {
         case .income:
@@ -282,6 +302,254 @@ struct FlowView: View {
         case .skipped:
             return DesignSystem.secondaryTextColor
         }
+    }
+}
+
+enum FlowPromptInterpreter {
+    static func interpret(_ prompt: String, now: Date = .now) -> FlowItemDraft? {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let normalizedPrompt = normalizeSpeech(trimmed)
+        let lowered = normalizedPrompt.lowercased()
+        let amount = extractAmount(from: normalizedPrompt) ?? 0
+        let frequency = extractFrequency(from: lowered)
+        let type = extractType(from: lowered)
+        let dueDate = extractDate(from: normalizedPrompt, lowered: lowered, frequency: frequency, now: now)
+        let reminderDate = reminderDate(from: normalizedPrompt, lowered: lowered, dueDate: dueDate, now: now)
+        let repeatsReminder = reminderDate != nil && isRecurring(lowered)
+
+        return FlowItemDraft(
+            title: title(from: normalizedPrompt, amount: amount),
+            amount: amount,
+            type: type,
+            frequency: frequency,
+            nextDueDate: dueDate,
+            status: .upcoming,
+            notes: nil,
+            reminderEnabled: reminderDate != nil || lowered.contains("remind"),
+            reminderDate: reminderDate,
+            reminderHour: reminderDate.map { Calendar.current.component(.hour, from: $0) },
+            reminderMinute: reminderDate.map { Calendar.current.component(.minute, from: $0) },
+            reminderRepeat: repeatsReminder || lowered.contains("repeat") ? reminderRepeat(for: frequency) : .none,
+            reminderOffsetDays: 0
+        )
+    }
+
+    private static func normalizeSpeech(_ prompt: String) -> String {
+        prompt
+            .replacingOccurrences(of: #"\bbowl\b"#, with: "bill", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\bbowls\b"#, with: "bills", options: [.regularExpression, .caseInsensitive])
+    }
+
+    private static func extractAmount(from prompt: String) -> Double? {
+        let pattern = #"(?:^|[\s])\$?(\d+(?:\.\d{1,2})?)\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)
+        guard let match = regex.firstMatch(in: prompt, range: range),
+              let amountRange = Range(match.range(at: 1), in: prompt) else {
+            return nil
+        }
+
+        return Double(prompt[amountRange])
+    }
+
+    private static func extractFrequency(from prompt: String) -> FlowFrequency {
+        if prompt.contains("biweekly") || prompt.contains("every two weeks") {
+            return .biweekly
+        }
+
+        if prompt.contains("weekly") || prompt.contains("every week") {
+            return .weekly
+        }
+
+        if prompt.contains("quarterly") {
+            return .quarterly
+        }
+
+        if prompt.contains("yearly") || prompt.contains("annual") || prompt.contains("every year") {
+            return .yearly
+        }
+
+        return .monthly
+    }
+
+    private static func extractType(from prompt: String) -> FlowType {
+        let incomeWords = ["income", "salary", "paycheck", "paid", "deposit", "freelance", "client"]
+        return incomeWords.contains(where: prompt.contains) ? .income : .bill
+    }
+
+    private static func extractDate(
+        from prompt: String,
+        lowered: String,
+        frequency: FlowFrequency,
+        now: Date
+    ) -> Date {
+        let calendar = Calendar.autoupdatingCurrent
+
+        if lowered.contains("tomorrow"),
+           let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) {
+            return tomorrow
+        }
+
+        if let day = dayOfMonth(in: lowered) {
+            return dateFromDay(day, now: now, hour: 9, minute: 0)
+        }
+
+        if let detectedDate = detectedDate(in: prompt) {
+            return detectedDate
+        }
+
+        let defaultOffset: Int
+        switch frequency {
+        case .weekly:
+            defaultOffset = 7
+        case .biweekly:
+            defaultOffset = 14
+        case .monthly:
+            defaultOffset = 30
+        case .quarterly:
+            defaultOffset = 90
+        case .yearly:
+            defaultOffset = 365
+        }
+
+        return calendar.date(byAdding: .day, value: defaultOffset, to: now) ?? now
+    }
+
+    private static func detectedDate(in prompt: String) -> Date? {
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+        let range = NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)
+        return detector?.matches(in: prompt, range: range).first?.date
+    }
+
+    private static func dayOfMonth(in prompt: String) -> Int? {
+        let pattern = #"\b(?:on|due|for|every|the|reminder\s+for|remind\s+me\s+on)\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b|\b(\d{1,2})(?:st|nd|rd|th)\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return nil
+        }
+
+        let range = NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)
+        guard let match = regex.firstMatch(in: prompt, range: range) else {
+            return nil
+        }
+
+        let firstRange = match.range(at: 1)
+        let secondRange = match.range(at: 2)
+        let selectedRange = firstRange.location != NSNotFound ? firstRange : secondRange
+        guard let dayRange = Range(selectedRange, in: prompt) else { return nil }
+        return Int(prompt[dayRange]).map { min(max($0, 1), 28) }
+    }
+
+    private static func reminderDate(from prompt: String, lowered: String, dueDate: Date, now: Date) -> Date? {
+        guard lowered.contains("remind") || lowered.contains("reminder") else {
+            return nil
+        }
+
+        if let day = dayOfMonth(in: lowered) {
+            return dateFromDay(day, now: now, hour: 9, minute: 0)
+        }
+
+        return detectedDate(in: prompt) ?? dueDate
+    }
+
+    private static func dateFromDay(_ day: Int, now: Date, hour: Int, minute: Int) -> Date {
+        let calendar = Calendar.autoupdatingCurrent
+        var components = calendar.dateComponents([.year, .month], from: now)
+        components.day = min(max(day, 1), 28)
+        components.hour = hour
+        components.minute = minute
+        let candidate = calendar.date(from: components) ?? now
+        if calendar.startOfDay(for: candidate) < calendar.startOfDay(for: now),
+           let nextMonth = calendar.date(byAdding: .month, value: 1, to: candidate) {
+            return nextMonth
+        }
+
+        return candidate
+    }
+
+    private static func isRecurring(_ prompt: String) -> Bool {
+        [
+            "monthly", "weekly", "biweekly", "quarterly", "yearly", "annual",
+            "every month", "every week", "every year", "repeats", "repeat"
+        ].contains(where: prompt.contains)
+    }
+
+    private static func reminderRepeat(for frequency: FlowFrequency) -> ReminderRepeatRule {
+        switch frequency {
+        case .weekly, .biweekly:
+            return .weekly
+        case .monthly, .quarterly, .yearly:
+            return .monthly
+        }
+    }
+
+    private static func title(from prompt: String, amount: Double) -> String {
+        if let subject = subjectTitle(from: prompt) {
+            return subject
+        }
+
+        var value = prompt
+
+        if amount > 0 {
+            let amountText = amount.rounded() == amount ? String(Int(amount)) : String(amount)
+            value = value.replacingOccurrences(of: "$\(amountText)", with: "", options: .caseInsensitive)
+            value = value.replacingOccurrences(of: amountText, with: "", options: .caseInsensitive)
+        }
+
+        let disposableTerms = [
+            "add", "log", "record", "track", "bill", "income", "monthly", "weekly",
+            "biweekly", "quarterly", "yearly", "annual", "reminder", "remind", "repeat",
+            "due", "on", "the", "every", "for", "next", "tomorrow", "today", "with",
+            "amount", "set", "my", "a", "an", "of", "month"
+        ]
+
+        let words = value
+            .replacingOccurrences(of: #"[^A-Za-z0-9'&\s]"#, with: " ", options: .regularExpression)
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+            .filter { word in
+                let lowered = word.lowercased()
+                return !disposableTerms.contains(lowered) && lowered.rangeOfCharacter(from: .decimalDigits) == nil
+            }
+
+        guard !words.isEmpty else { return "New Flow Item" }
+        return words.prefix(4).map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }.joined(separator: " ")
+    }
+
+    private static func subjectTitle(from prompt: String) -> String? {
+        let patterns = [
+            #"\bfor\s+(?:my\s+|the\s+|a\s+|an\s+)?(.+?)(?:\s+with\s+(?:the\s+)?amount|\s+amount|\s+and\s+set|\s+set\s+a\s+reminder|\s+reminder|\s+due|\s+on\s+the\s+\d|\s*$)"#,
+            #"\b(?:bill|income)\s+(?:for\s+)?(?:my\s+|the\s+|a\s+|an\s+)?(.+?)(?:\s+with\s+(?:the\s+)?amount|\s+amount|\s+and\s+set|\s+set\s+a\s+reminder|\s+reminder|\s+due|\s*$)"#
+        ]
+
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+                continue
+            }
+
+            let range = NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)
+            guard let match = regex.firstMatch(in: prompt, range: range),
+                  let captureRange = Range(match.range(at: 1), in: prompt) else {
+                continue
+            }
+
+            let cleaned = String(prompt[captureRange])
+                .replacingOccurrences(of: #"\$?\d+(?:\.\d{1,2})?\b"#, with: " ", options: .regularExpression)
+                .replacingOccurrences(of: #"[^A-Za-z0-9'&\s]"#, with: " ", options: .regularExpression)
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if !cleaned.isEmpty {
+                return cleaned
+                    .split(whereSeparator: \.isWhitespace)
+                    .prefix(4)
+                    .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+                    .joined(separator: " ")
+            }
+        }
+
+        return nil
     }
 }
 

@@ -8,101 +8,113 @@ enum DesignSystem {
     static let primaryBackground = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.05, green: 0.08, blue: 0.09, alpha: 1)
-                : UIColor(red: 0.97, green: 0.98, blue: 0.97, alpha: 1)
+                ? UIColor(red: 0.04, green: 0.07, blue: 0.10, alpha: 1)
+                : UIColor(red: 0.97, green: 0.98, blue: 0.99, alpha: 1)
         }
     )
     static let secondaryBackground = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.08, green: 0.12, blue: 0.14, alpha: 1)
-                : UIColor(red: 0.94, green: 0.96, blue: 0.95, alpha: 1)
+                ? UIColor(red: 0.07, green: 0.11, blue: 0.15, alpha: 1)
+                : UIColor(red: 0.93, green: 0.95, blue: 0.97, alpha: 1)
         }
     )
     static let accentColor = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.35, green: 0.80, blue: 0.88, alpha: 1)
-                : UIColor(red: 0.03, green: 0.45, blue: 0.55, alpha: 1)
+                ? UIColor(red: 0.20, green: 0.82, blue: 0.90, alpha: 1)
+                : UIColor(red: 0.05, green: 0.58, blue: 0.69, alpha: 1)
         }
     )
-    static let accentSoft = accentColor.opacity(0.16)
+    static let accentSoft = accentColor.opacity(0.14)
+
+    static let secondaryAccent = Color(
+        uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0.60, green: 0.56, blue: 1.00, alpha: 1)
+                : UIColor(red: 0.36, green: 0.28, blue: 0.85, alpha: 1)
+        }
+    )
+
     static let warmAccent = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.96, green: 0.73, blue: 0.37, alpha: 1)
-                : UIColor(red: 0.78, green: 0.45, blue: 0.08, alpha: 1)
+                ? UIColor(red: 1.00, green: 0.76, blue: 0.36, alpha: 1)
+                : UIColor(red: 0.82, green: 0.48, blue: 0.06, alpha: 1)
         }
     )
     static let cardBackground = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.09, green: 0.15, blue: 0.18, alpha: 1)
-                : UIColor(red: 1, green: 1, blue: 1, alpha: 1)
+                ? UIColor(red: 0.09, green: 0.14, blue: 0.19, alpha: 1)
+                : UIColor(red: 1.00, green: 1.00, blue: 1.00, alpha: 1)
         }
     )
     static let elevatedCardBackground = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.11, green: 0.18, blue: 0.21, alpha: 1)
-                : UIColor(red: 0.99, green: 0.99, blue: 0.98, alpha: 1)
+                ? UIColor(red: 0.11, green: 0.17, blue: 0.22, alpha: 1)
+                : UIColor(red: 0.99, green: 1.00, blue: 1.00, alpha: 1)
         }
     )
 
     static let primaryTextColor = Color.primary
     static let secondaryTextColor = Color.secondary
+
     static let gainColor = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.31, green: 0.88, blue: 0.59, alpha: 1)
-                : UIColor(red: 0.10, green: 0.55, blue: 0.28, alpha: 1)
+                ? UIColor(red: 0.24, green: 0.90, blue: 0.58, alpha: 1)
+                : UIColor(red: 0.07, green: 0.57, blue: 0.30, alpha: 1)
         }
     )
     static let oweColor = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.98, green: 0.53, blue: 0.48, alpha: 1)
-                : UIColor(red: 0.82, green: 0.22, blue: 0.19, alpha: 1)
+                ? UIColor(red: 1.00, green: 0.48, blue: 0.44, alpha: 1)
+                : UIColor(red: 0.85, green: 0.18, blue: 0.15, alpha: 1)
         }
     )
 
     static let borderColor = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor.white.withAlphaComponent(0.10)
-                : UIColor.black.withAlphaComponent(0.08)
+                ? UIColor.white.withAlphaComponent(0.09)
+                : UIColor.black.withAlphaComponent(0.07)
         }
     )
     static let cardBorderColor = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor.white.withAlphaComponent(0.12)
-                : UIColor(red: 0.03, green: 0.45, blue: 0.55, alpha: 0.10)
+                ? UIColor.white.withAlphaComponent(0.11)
+                : UIColor(red: 0.05, green: 0.58, blue: 0.69, alpha: 0.12)
         }
     )
     static let tabBarBackground = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.07, green: 0.11, blue: 0.13, alpha: 0.94)
-                : UIColor(red: 0.98, green: 0.98, blue: 0.97, alpha: 0.94)
+                ? UIColor(red: 0.06, green: 0.09, blue: 0.13, alpha: 0.96)
+                : UIColor(red: 0.99, green: 1.00, blue: 1.00, alpha: 0.96)
         }
     )
-    static let shadowColor = Color.black.opacity(0.08)
+    static let shadowColor = Color.black.opacity(0.10)
+
+    // MARK: - Gradients
 
     static let backgroundGradient = LinearGradient(
         colors: [
             Color(
                 uiColor: UIColor { traits in
                     traits.userInterfaceStyle == .dark
-                        ? UIColor(red: 0.04, green: 0.07, blue: 0.08, alpha: 1)
-                        : UIColor(red: 0.96, green: 0.98, blue: 0.97, alpha: 1)
+                        ? UIColor(red: 0.04, green: 0.07, blue: 0.10, alpha: 1)
+                        : UIColor(red: 0.96, green: 0.98, blue: 1.00, alpha: 1)
                 }
             ),
             Color(
                 uiColor: UIColor { traits in
                     traits.userInterfaceStyle == .dark
-                        ? UIColor(red: 0.07, green: 0.11, blue: 0.13, alpha: 1)
-                        : UIColor(red: 0.95, green: 0.96, blue: 0.94, alpha: 1)
+                        ? UIColor(red: 0.06, green: 0.10, blue: 0.14, alpha: 1)
+                        : UIColor(red: 0.94, green: 0.96, blue: 0.98, alpha: 1)
                 }
             ),
             secondaryBackground
@@ -114,7 +126,7 @@ enum DesignSystem {
     static let cardGradient = LinearGradient(
         colors: [
             elevatedCardBackground,
-            cardBackground.opacity(0.98)
+            cardBackground.opacity(0.97)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -122,9 +134,27 @@ enum DesignSystem {
 
     static let highlightedCardGradient = LinearGradient(
         colors: [
-            accentColor.opacity(0.22),
-            warmAccent.opacity(0.12),
+            accentColor.opacity(0.18),
+            secondaryAccent.opacity(0.08),
             elevatedCardBackground
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static let logoGradient = LinearGradient(
+        colors: [
+            Color(red: 0.05, green: 0.58, blue: 0.68),
+            Color(red: 0.18, green: 0.38, blue: 0.82)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static let heroBannerGradient = LinearGradient(
+        colors: [
+            accentColor.opacity(0.22),
+            secondaryAccent.opacity(0.10)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -136,14 +166,14 @@ enum DesignSystem {
     static let mediumSpacing: CGFloat = 10
     static let largeSpacing: CGFloat = 16
 
-    static let cardPadding: CGFloat = 14
-    static let rowHeight: CGFloat = 52
-    static let cardShadowRadius: CGFloat = 12
-    static let badgeSize: CGFloat = 30
+    static let cardPadding: CGFloat = 16
+    static let rowHeight: CGFloat = 54
+    static let cardShadowRadius: CGFloat = 14
+    static let badgeSize: CGFloat = 32
     static let tabBarContentInset: CGFloat = 132
 
     // MARK: - Corner Radius
 
-    static let cardCornerRadius: CGFloat = 16
-    static let largeCardCornerRadius: CGFloat = 24
+    static let cardCornerRadius: CGFloat = 18
+    static let largeCardCornerRadius: CGFloat = 22
 }

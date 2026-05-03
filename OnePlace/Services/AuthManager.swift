@@ -75,20 +75,14 @@ final class AuthManager: ObservableObject {
             return
         }
 
-        do {
-            let providerID = user.providerData.first?.providerID
-            let provider: String
-            switch providerID {
-            case "apple.com": provider = "apple"
-            case "google.com": provider = "google"
-            default: provider = "unknown"
-            }
+        let provider = providerName(for: user)
+        authState = .signedIn(makeAppUser(from: user, provider: provider))
+        errorMessage = nil
 
-            let appUser = try await ensureUserRecordExists(firebaseUser: user, provider: provider)
-            authState = .signedIn(appUser)
+        do {
+            try await syncUserRecord(firebaseUser: user, provider: provider)
         } catch {
-            authState = .signedOut
-            errorMessage = "Could not restore your session. \(error.localizedDescription)"
+            print("Session restore sync warning: \(error.localizedDescription)")
         }
     }
 
@@ -123,9 +117,14 @@ final class AuthManager: ObservableObject {
             let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
 
             let authResult = try await auth.signIn(with: credential)
-            let user = try await ensureUserRecordExists(firebaseUser: authResult.user, provider: "google")
+            let user = makeAppUser(from: authResult.user, provider: "google")
             authState = .signedIn(user)
             requestNotificationsIfNeeded()
+            do {
+                try await syncUserRecord(firebaseUser: authResult.user, provider: "google")
+            } catch {
+                print("Google sign-in sync warning: \(error.localizedDescription)")
+            }
         } catch {
             // If user cancels sign-in, don’t show an "error" toast/alert.
             if isUserCanceledAuth(error) {
@@ -159,9 +158,14 @@ final class AuthManager: ObservableObject {
                 case .success(let credential):
                     do {
                         let authResult = try await self.auth.signIn(with: credential)
-                        let user = try await self.ensureUserRecordExists(firebaseUser: authResult.user, provider: "apple")
+                        let user = self.makeAppUser(from: authResult.user, provider: "apple")
                         self.authState = .signedIn(user)
                         self.requestNotificationsIfNeeded()
+                        do {
+                            try await self.syncUserRecord(firebaseUser: authResult.user, provider: "apple")
+                        } catch {
+                            print("Apple sign-in sync warning: \(error.localizedDescription)")
+                        }
                     } catch {
                         if self.isUserCanceledAuth(error) {
                             self.authState = .signedOut
@@ -271,30 +275,33 @@ final class AuthManager: ObservableObject {
 
     // MARK: - User record
 
-    func ensureUserRecordExists(firebaseUser: FirebaseAuth.User, provider: String) async throws -> AppUser {
+    func syncUserRecord(firebaseUser: FirebaseAuth.User, provider: String) async throws {
         let userRef = firestore.collection("users").document(firebaseUser.uid)
-        let snapshot = try await userRef.getDocument()
+        try await userRef.setData([
+            "uid": firebaseUser.uid,
+            "email": firebaseUser.email as Any,
+            "fullName": firebaseUser.displayName as Any,
+            "provider": provider,
+            "lastLoginAt": FieldValue.serverTimestamp()
+        ], merge: true)
+    }
 
-        if snapshot.exists {
-            try await userRef.setData([
-                "lastLoginAt": FieldValue.serverTimestamp(),
-                "provider": provider
-            ], merge: true)
-        } else {
-            try await userRef.setData([
-                "uid": firebaseUser.uid,
-                "email": firebaseUser.email as Any,
-                "fullName": firebaseUser.displayName as Any,
-                "provider": provider,
-                "createdAt": FieldValue.serverTimestamp(),
-                "lastLoginAt": FieldValue.serverTimestamp()
-            ])
+    private func providerName(for user: FirebaseAuth.User) -> String {
+        switch user.providerData.first?.providerID {
+        case "apple.com":
+            return "apple"
+        case "google.com":
+            return "google"
+        default:
+            return "unknown"
         }
+    }
 
-        return AppUser(
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            fullName: firebaseUser.displayName,
+    private func makeAppUser(from user: FirebaseAuth.User, provider: String) -> AppUser {
+        AppUser(
+            uid: user.uid,
+            email: user.email,
+            fullName: user.displayName,
             provider: provider
         )
     }

@@ -59,6 +59,17 @@ struct OrganizerView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    OnePlaceAISearchBar(
+                        text: $searchText,
+                        placeholder: "Search or ask OnePlace",
+                        isProcessing: vm.isLoading,
+                        onSubmit: handleSearchSubmit
+                    )
+                    .listRowInsets(EdgeInsets(top: 10, leading: 8, bottom: 4, trailing: 8))
+                    .listRowBackground(Color.clear)
+                }
+
                 summarySection
                 filterSection
                 tasksSection
@@ -71,12 +82,7 @@ struct OrganizerView: View {
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: DesignSystem.tabBarContentInset)
             }
-            .navigationTitle("Organizer")
-            .searchable(
-                text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Search tasks"
-            )
+            .navigationTitle("Tasks")
             .animation(.easeInOut(duration: 0.2), value: selectedSegment)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -259,6 +265,21 @@ struct OrganizerView: View {
         }
     }
 
+    private func handleSearchSubmit() {
+        let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty,
+              OnePlacePromptClassifier.isCommand(prompt, in: .organizer) else { return }
+
+        let draft = OrganizerPromptInterpreter.interpret(prompt)
+        Task {
+            await vm.addTask(draft: draft)
+            await MainActor.run {
+                searchText = ""
+                selectedSegment = draft.dueDate.map { Calendar.current.isDateInToday($0) ? .today : .upcoming } ?? .today
+            }
+        }
+    }
+
     private func taskSubtitle(for task: TaskItemRecord) -> String {
         var parts: [String] = []
 
@@ -315,6 +336,72 @@ struct OrganizerView: View {
         case .low:
             return DesignSystem.secondaryTextColor
         }
+    }
+}
+
+enum OrganizerPromptInterpreter {
+    static func interpret(_ prompt: String, now: Date = .now) -> TaskItemDraft {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowered = trimmed.lowercased()
+        let today = Calendar.current.startOfDay(for: now)
+        let dueDate = extractDate(from: trimmed, lowered: lowered, now: now) ?? today
+        let reminderDate = lowered.contains("remind") ? dueDate : nil
+
+        return TaskItemDraft(
+            title: title(from: trimmed),
+            notes: nil,
+            priority: priority(from: lowered),
+            dueDate: dueDate,
+            completed: false,
+            reminderEnabled: reminderDate != nil,
+            reminderDate: reminderDate
+        )
+    }
+
+    private static func priority(from prompt: String) -> TaskPriority {
+        if ["urgent", "asap", "important", "high priority"].contains(where: prompt.contains) {
+            return .high
+        }
+
+        if ["low priority", "someday", "later"].contains(where: prompt.contains) {
+            return .low
+        }
+
+        return .normal
+    }
+
+    private static func extractDate(from prompt: String, lowered: String, now: Date) -> Date? {
+        let calendar = Calendar.autoupdatingCurrent
+
+        if lowered.contains("today") {
+            return now
+        }
+
+        if lowered.contains("tomorrow") {
+            return calendar.date(byAdding: .day, value: 1, to: now)
+        }
+
+        if lowered.contains("next week") {
+            return calendar.date(byAdding: .day, value: 7, to: now)
+        }
+
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+        let range = NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)
+        return detector?.matches(in: prompt, range: range).first?.date
+    }
+
+    private static func title(from prompt: String) -> String {
+        var value = prompt
+            .replacingOccurrences(of: #"(?i)\b(remind me to|add a task to|add task to|add todo to|add|create|make|task|todo|to do|remind|today|tomorrow|next week|urgent|asap|important|high priority|low priority|please)\b"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"[^A-Za-z0-9'&\s]"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if value.isEmpty {
+            value = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return value.isEmpty ? "New Task" : value
     }
 }
 

@@ -22,27 +22,45 @@ public struct EmptyState: View {
     }
 
     public var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: systemImage)
-                .font(.system(size: 40, weight: .semibold))
-                .foregroundStyle(DesignSystem.accentColor)
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.accentColor.opacity(0.10))
+                    .frame(width: 72, height: 72)
+                Image(systemName: systemImage)
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(DesignSystem.accentColor)
+            }
 
-            Text(title)
-                .font(.headline)
-                .multilineTextAlignment(.center)
+            VStack(spacing: 6) {
+                Text(title)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
 
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if let ctaTitle, let onCTATap {
-                Button(ctaTitle, action: onCTATap)
-                    .buttonStyle(.borderedProminent)
-                    .tint(DesignSystem.accentColor)
+                Button(action: onCTATap) {
+                    Text(ctaTitle)
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(DesignSystem.accentColor)
+                        )
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(24)
+        .padding(.vertical, 28)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity, alignment: .center)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.largeCardCornerRadius, style: .continuous)
@@ -52,24 +70,21 @@ public struct EmptyState: View {
             RoundedRectangle(cornerRadius: DesignSystem.largeCardCornerRadius, style: .continuous)
                 .strokeBorder(DesignSystem.cardBorderColor, lineWidth: 1)
         )
-        .shadow(color: DesignSystem.shadowColor.opacity(0.08), radius: 12, x: 0, y: 8)
     }
 }
 
 #Preview {
     VStack(spacing: 20) {
         EmptyState(
-            title: "No Items",
-            message: "You have no items in your list.",
-            systemImage: "tray",
-            ctaTitle: "Add Item"
-        ) {
-            print("Add Item tapped")
-        }
+            title: "No transactions yet",
+            message: "Type a transaction into the search bar, or tap + to add one.",
+            systemImage: "sparkles.rectangle.stack",
+            ctaTitle: "Add Transaction"
+        ) {}
         EmptyState(
-            title: "No Results",
-            message: "Try adjusting your search.",
-            systemImage: "magnifyingglass"
+            title: "All caught up",
+            message: "No upcoming tasks for today.",
+            systemImage: "checkmark.circle"
         )
     }
     .padding()

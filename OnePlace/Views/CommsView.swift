@@ -7,25 +7,43 @@ struct CommsView: View {
     @State private var showingEditor = false
     @State private var editingCard: CommsCardRecord?
     @State private var deletingCard: CommsCardRecord?
+    @State private var searchText = ""
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
         GridItem(.flexible(), spacing: 12)
     ]
 
+    private var filteredCards: [CommsCardRecord] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return vm.cards }
+
+        return vm.cards.filter { card in
+            card.title.localizedCaseInsensitiveContains(query) ||
+            card.phrase.localizedCaseInsensitiveContains(query)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    OnePlaceAISearchBar(
+                        text: $searchText,
+                        placeholder: "Search or ask OnePlace",
+                        isProcessing: vm.isLoading,
+                        onSubmit: handleSearchSubmit
+                    )
+
                     if vm.isLoading && vm.cards.isEmpty {
                         ProgressView("Loading…")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 24)
-                    } else if vm.cards.isEmpty {
+                    } else if filteredCards.isEmpty {
                         emptyState
                     } else {
                         LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(vm.cards) { card in
+                            ForEach(filteredCards) { card in
                                 cardTile(for: card)
                             }
                         }
@@ -242,6 +260,60 @@ struct CommsView: View {
     private func displayEmoji(for card: CommsCardRecord) -> String {
         let trimmed = card.emoji?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? "💬" : trimmed
+    }
+
+    private func handleSearchSubmit() {
+        let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty,
+              OnePlacePromptClassifier.isCommand(prompt, in: .talk) else { return }
+
+        let draft = TalkPromptInterpreter.interpret(prompt)
+        Task {
+            await vm.addCard(draft: draft)
+            await MainActor.run {
+                searchText = ""
+            }
+        }
+    }
+}
+
+enum TalkPromptInterpreter {
+    static func interpret(_ prompt: String) -> CommsCardDraft {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let phrase = phraseText(from: trimmed)
+
+        return CommsCardDraft(
+            title: title(from: trimmed, phrase: phrase),
+            phrase: phrase,
+            emoji: emoji(for: trimmed),
+            hasImage: false,
+            hasAudio: false,
+            audioData: nil
+        )
+    }
+
+    private static func phraseText(from prompt: String) -> String {
+        let cleaned = prompt
+            .replacingOccurrences(of: #"(?i)^(add|create|make)\s+(?:a\s+)?(?:talk\s+)?(?:card\s+)?(?:that\s+says\s+|saying\s+)?"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return cleaned.isEmpty ? prompt : cleaned
+    }
+
+    private static func title(from prompt: String, phrase: String) -> String {
+        let words = phrase.split(whereSeparator: \.isWhitespace).prefix(4)
+        guard !words.isEmpty else { return "Talk Card" }
+        return words.joined(separator: " ")
+    }
+
+    private static func emoji(for prompt: String) -> String {
+        let lowered = prompt.lowercased()
+        if lowered.contains("help") { return "🆘" }
+        if lowered.contains("food") || lowered.contains("hungry") { return "🍽️" }
+        if lowered.contains("water") || lowered.contains("drink") { return "💧" }
+        if lowered.contains("happy") || lowered.contains("thank") { return "😊" }
+        if lowered.contains("sad") || lowered.contains("hurt") { return "💙" }
+        return "💬"
     }
 }
 

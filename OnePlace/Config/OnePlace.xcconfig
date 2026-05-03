@@ -1,0 +1,6 @@
+OPENAI_API_KEY =
+OPENAI_MODEL_ID = gpt-5.4-mini
+
+// Optional private overrides live only on your machine.
+// Create OnePlace/Config/Secrets.local.xcconfig and keep it untracked.
+#include? "Secrets.local.xcconfig"
