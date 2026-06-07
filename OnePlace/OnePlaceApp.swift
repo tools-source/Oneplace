@@ -261,7 +261,7 @@ struct StartTasksLiveActivityIntent: AppIntent {
 
 struct SyncOrganizerRemindersIntent: AppIntent {
     static var title: LocalizedStringResource = "Sync Organizer Reminders"
-    static var description = IntentDescription("Sync OnePlace Organizer tasks with the OnePlace Tasks list in Apple Reminders.")
+    static var description = IntentDescription("Sync OnePlace Organizer tasks with the OnePlace Tasks list in Reminders.")
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -471,7 +471,7 @@ private enum OnePlaceSiriWriter {
         do {
             _ = try signedInUserId()
             try await OnePlaceTaskSyncCoordinator.syncCurrentUserTasks()
-            return "Synced Organizer with Apple Reminders."
+            return "Synced Organizer with Reminders."
         } catch {
             return failureMessage(for: error)
         }
