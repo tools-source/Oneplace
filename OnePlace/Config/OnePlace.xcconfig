@@ -1,5 +1,8 @@
-OPENAI_API_KEY =
-OPENAI_MODEL_ID = gpt-5.4-mini
+// API key for the AI assistant.
+// Do NOT put real keys here — this file is committed.
+// Set the real value in OnePlace/Config/Secrets.local.xcconfig (gitignored),
+// which is included below and overrides this placeholder.
+ANTHROPIC_API_KEY =
 
 // Optional private overrides live only on your machine.
 // Create OnePlace/Config/Secrets.local.xcconfig and keep it untracked.

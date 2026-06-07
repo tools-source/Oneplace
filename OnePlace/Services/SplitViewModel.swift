@@ -132,6 +132,26 @@ final class SplitViewModel: ObservableObject {
         }
     }
 
+    func clearAll() async {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            errorMessage = "You're not signed in."
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            try await repo.deleteAllExpenses(for: uid)
+            try await repo.deleteAllPeople(for: uid)
+            expenses = []
+            people = []
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Calculations
 
     func getBalance(for person: SplitPersonRecord) -> Double {

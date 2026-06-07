@@ -3,11 +3,13 @@ import SwiftUI
 struct CommsView: View {
     @StateObject private var vm = CommsViewModel()
     @StateObject private var audioPlayer = AudioPlayerManager.shared
+    @EnvironmentObject private var aiAssistant: AIAssistantManager
 
     @State private var showingEditor = false
     @State private var editingCard: CommsCardRecord?
     @State private var deletingCard: CommsCardRecord?
     @State private var searchText = ""
+    @State private var lastRefreshToken: UUID?
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -108,6 +110,11 @@ struct CommsView: View {
             .task {
                 await vm.refresh()
             }
+            .onChange(of: aiAssistant.pendingActionsToken) { _, newToken in
+                guard lastRefreshToken != newToken else { return }
+                lastRefreshToken = newToken
+                Task { await vm.refresh() }
+            }
         }
     }
 
@@ -134,26 +141,13 @@ struct CommsView: View {
     }
 
     private var emptyState: some View {
-        AppCard {
-            VStack(spacing: 12) {
-                ItemIconBadge(symbol: "waveform", tint: DesignSystem.accentColor, size: 52)
-
-                Text("Voice Cards")
-                    .font(.headline)
-
-                Text("Create square talk cards with an emoji and a recorded voice message.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-
-                Button("Create Card") {
-                    showingEditor = true
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.top, 8)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
+        EmptyState(
+            title: "Voice Cards",
+            message: "Create square talk cards with an emoji and a recorded voice message.",
+            systemImage: "waveform",
+            ctaTitle: "Create Card"
+        ) {
+            showingEditor = true
         }
     }
 
@@ -266,6 +260,18 @@ struct CommsView: View {
         let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty,
               OnePlacePromptClassifier.isCommand(prompt, in: .talk) else { return }
+
+        let lowered = prompt.lowercased()
+        if lowered.contains("delete") || lowered.contains("remove") || lowered.contains("erase") {
+            aiAssistant.openChatFresh(area: .talk, voice: false)
+            aiAssistant.userSaid(prompt)
+            searchText = ""
+            Task {
+                _ = await OnePlaceAICommandExecutor.handleImmediateCommand(text: prompt, assistant: aiAssistant)
+                await vm.refresh()
+            }
+            return
+        }
 
         let draft = TalkPromptInterpreter.interpret(prompt)
         Task {

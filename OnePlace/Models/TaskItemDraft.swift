@@ -1,6 +1,6 @@
 import Foundation
 
-struct TaskItemDraft {
+struct TaskItemDraft: Sendable {
     var title: String = ""
     var notes: String? = nil
     var priority: TaskPriority = .normal
@@ -8,4 +8,5 @@ struct TaskItemDraft {
     var completed: Bool = false
     var reminderEnabled: Bool = false
     var reminderDate: Date? = nil
+    var reminderRepeat: ReminderRepeat = .oneTime
 }

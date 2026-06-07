@@ -30,6 +30,16 @@
 				<string>com.googleusercontent.apps.74585403015-410mbc5d7ta8qt5npa38psf2e3t25qs9</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.oneplace.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>oneplace</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
@@ -44,18 +54,33 @@
 	<string>Use the microphone to record audio and add transactions by voice.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select an image for communication cards.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>OnePlace needs full Reminders access to sync Organizer tasks with your OnePlace Tasks list.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>OnePlace syncs Organizer tasks with your OnePlace Tasks list in Apple Reminders.</string>
 	<key>NSServices</key>
 	<array>
 		<dict/>
 	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Convert your voice into text so OnePlace can capture transactions hands-free.</string>
 	<key>OPENAI_API_KEY</key>
 	<string>$(OPENAI_API_KEY)</string>
 	<key>OPENAI_MODEL_ID</key>
 	<string>$(OPENAI_MODEL_ID)</string>
+	<key>ANTHROPIC_API_KEY</key>
+	<string>$(ANTHROPIC_API_KEY)</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.one-place.app.tasks.refresh</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
 	<key>UILaunchScreen</key>

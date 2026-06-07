@@ -64,8 +64,47 @@
 		B1C2D3E4000000000000000E /* OrganizerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000E /* OrganizerViewModel.swift */; };
 		B1C2D3E4000000000000000F /* SplitViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E5000000000000000F /* SplitViewModel.swift */; };
 		B1C2D3E40000000000000010 /* CommsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000010 /* CommsViewModel.swift */; };
+		B1C2D3E40000000000000011 /* ClaudeAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000011 /* ClaudeAIService.swift */; };
+		B1C2D3E40000000000000012 /* ClaudeAIChatResponder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E50000000000000012 /* ClaudeAIChatResponder.swift */; };
 		CC0001AA2F5C100100LOGO01 /* OnePlaceLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0001AB2F5C100100LOGO01 /* OnePlaceLogo.swift */; };
+		D4E5F6002F6A000100AI0001 /* OnePlaceAICommandExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6012F6A000100AI0001 /* OnePlaceAICommandExecutor.swift */; };
+		E10000012F70000100000001 /* OnePlaceActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001012F70000100000001 /* OnePlaceActivityAttributes.swift */; };
+		E10000022F70000100000002 /* OnePlaceTaskCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001022F70000100000002 /* OnePlaceTaskCache.swift */; };
+		E10000032F70000100000003 /* ToggleOnePlaceTaskIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001032F70000100000003 /* ToggleOnePlaceTaskIntent.swift */; };
+		E10000042F70000100000004 /* OnePlaceLiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001042F70000100000004 /* OnePlaceLiveActivityController.swift */; };
+		E10000052F70000100000005 /* OnePlaceRemindersSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001052F70000100000005 /* OnePlaceRemindersSync.swift */; };
+		E10000062F70000100000017 /* OnePlaceTaskSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100010B2F7000010000000B /* OnePlaceTaskSyncCoordinator.swift */; };
+		E10000112F70000100000011 /* OnePlaceActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001012F70000100000001 /* OnePlaceActivityAttributes.swift */; };
+		E10000122F70000100000012 /* OnePlaceTaskCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001022F70000100000002 /* OnePlaceTaskCache.swift */; };
+		E10000132F70000100000013 /* ToggleOnePlaceTaskIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001032F70000100000003 /* ToggleOnePlaceTaskIntent.swift */; };
+		E10000142F70000100000014 /* OnePlaceWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001072F70000100000007 /* OnePlaceWidgetBundle.swift */; };
+		E10000152F70000100000015 /* OnePlaceLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10001082F70000100000008 /* OnePlaceLiveActivity.swift */; };
+		E10000162F70000100000016 /* OnePlaceWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = E10001062F70000100000006 /* OnePlaceWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E10005022F70000100000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5F8A9B542B2C8A4E00A1A1A1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E10004012F70000100000001;
+			remoteInfo = OnePlaceWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E10003042F70000100000004 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				E10000162F70000100000016 /* OnePlaceWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0B2D74B12F4056DE00B52D14 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -82,7 +121,6 @@
 		0C5A1A212F4B200100AA0001 /* AppDataController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataController.swift; sourceTree = "<group>"; };
 		0C5A1A232F4B200100AA0001 /* OnePlace.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePlace.entitlements; sourceTree = "<group>"; };
 		0C5A1A282F4B200100AA0001 /* AppSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSchema.swift; sourceTree = "<group>"; };
-		C0A1B2C32F50000100AA0001 /* OnePlace.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = OnePlace.xcconfig; sourceTree = "<group>"; };
 		1A0F10002F5B100100ABCD01 /* FinanceEntryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceEntryRecord.swift; sourceTree = "<group>"; };
 		1A0F10022F5B100100ABCD01 /* FinanceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceRepository.swift; sourceTree = "<group>"; };
 		1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceViewModel.swift; sourceTree = "<group>"; };
@@ -124,7 +162,22 @@
 		B1C2D3E5000000000000000E /* OrganizerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizerViewModel.swift; sourceTree = "<group>"; };
 		B1C2D3E5000000000000000F /* SplitViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitViewModel.swift; sourceTree = "<group>"; };
 		B1C2D3E50000000000000010 /* CommsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommsViewModel.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000011 /* ClaudeAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAIService.swift; sourceTree = "<group>"; };
+		B1C2D3E50000000000000012 /* ClaudeAIChatResponder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAIChatResponder.swift; sourceTree = "<group>"; };
+		C0A1B2C32F50000100AA0001 /* OnePlace.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = OnePlace.xcconfig; sourceTree = "<group>"; };
 		CC0001AB2F5C100100LOGO01 /* OnePlaceLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceLogo.swift; sourceTree = "<group>"; };
+		D4E5F6012F6A000100AI0001 /* OnePlaceAICommandExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceAICommandExecutor.swift; sourceTree = "<group>"; };
+		E10001012F70000100000001 /* OnePlaceActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceActivityAttributes.swift; sourceTree = "<group>"; };
+		E10001022F70000100000002 /* OnePlaceTaskCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceTaskCache.swift; sourceTree = "<group>"; };
+		E10001032F70000100000003 /* ToggleOnePlaceTaskIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToggleOnePlaceTaskIntent.swift; sourceTree = "<group>"; };
+		E10001042F70000100000004 /* OnePlaceLiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceLiveActivityController.swift; sourceTree = "<group>"; };
+		E10001052F70000100000005 /* OnePlaceRemindersSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceRemindersSync.swift; sourceTree = "<group>"; };
+		E10001062F70000100000006 /* OnePlaceWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OnePlaceWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E10001072F70000100000007 /* OnePlaceWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceWidgetBundle.swift; sourceTree = "<group>"; };
+		E10001082F70000100000008 /* OnePlaceLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceLiveActivity.swift; sourceTree = "<group>"; };
+		E10001092F70000100000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E100010A2F7000010000000A /* OnePlaceWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePlaceWidget.entitlements; sourceTree = "<group>"; };
+		E100010B2F7000010000000B /* OnePlaceTaskSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceTaskSyncCoordinator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,6 +190,13 @@
 				0B2D74A82F40362200B52D14 /* GoogleSignIn in Frameworks */,
 				0B2D74A32F4033CD00B52D14 /* FirebaseAuth in Frameworks */,
 				0B2D74A52F4033CD00B52D14 /* FirebaseFirestore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E10003022F70000100000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -157,14 +217,6 @@
 				0B2D74BB2F408B8100B52D14 /* DesignSystem.swift */,
 			);
 			path = Design;
-			sourceTree = "<group>";
-		};
-		C0A1B2C32F50000100AA0002 /* Config */ = {
-			isa = PBXGroup;
-			children = (
-				C0A1B2C32F50000100AA0001 /* OnePlace.xcconfig */,
-			);
-			path = Config;
 			sourceTree = "<group>";
 		};
 		1A0F10062F5B100100ABCD01 /* Firestore */ = {
@@ -195,6 +247,7 @@
 			isa = PBXGroup;
 			children = (
 				5F8A9B612B2C8A4E00A1A1A1 /* OnePlace */,
+				E10002042F70000100000004 /* OnePlaceWidget */,
 				5F8A9B602B2C8A4E00A1A1A1,
 			);
 			sourceTree = "<group>";
@@ -203,6 +256,7 @@
 			isa = PBXGroup;
 			children = (
 				5F8A9B5F2B2C8A4E00A1A1A1 /* OnePlace.app */,
+				E10001062F70000100000006 /* OnePlaceWidget.appex */,
 			);
 			sourceTree = "<group>";
 		};
@@ -214,6 +268,7 @@
 				5F8A9B8E2B2C8A4E00A1A1A1 /* Info.plist */,
 				0B2D74BA2F408B4800B52D14 /* Design */,
 				C0A1B2C32F50000100AA0002 /* Config */,
+				E10002012F70000100000001 /* Shared */,
 				0B2D74B92F408B2E00B52D14 /* Components */,
 				5F8A9B622B2C8A4E00A1A1A1 /* Models */,
 				5F8A9B632B2C8A4E00A1A1A1 /* Views */,
@@ -265,6 +320,8 @@
 				0BF9F9852F38666C00E14DC7 /* StatCard.swift */,
 				A1B2C3D40000000000000006 /* LoginView.swift */,
 				CC0001AB2F5C100100LOGO01 /* OnePlaceLogo.swift */,
+				B1C2D3E50000000000000012 /* ClaudeAIChatResponder.swift */,
+				D4E5F6012F6A000100AI0001 /* OnePlaceAICommandExecutor.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -274,6 +331,8 @@
 			children = (
 				0C5A1A282F4B200100AA0001 /* AppSchema.swift */,
 				0C5A1A212F4B200100AA0001 /* AppDataController.swift */,
+				E10002022F70000100000002 /* LiveActivity */,
+				E10002032F70000100000003 /* Sync */,
 				5F8A9B782B2C8A4E00A1A1A1 /* SampleData.swift */,
 				5F8A9B7A2B2C8A4E00A1A1A1 /* AudioRecorder.swift */,
 				5F8A9B7C2B2C8A4E00A1A1A1 /* ImagePicker.swift */,
@@ -281,6 +340,7 @@
 				B1C2D3E5000000000000000E /* OrganizerViewModel.swift */,
 				B1C2D3E5000000000000000F /* SplitViewModel.swift */,
 				B1C2D3E50000000000000010 /* CommsViewModel.swift */,
+				B1C2D3E50000000000000011 /* ClaudeAIService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -289,6 +349,68 @@
 			isa = PBXGroup;
 			children = (
 				5F8A9B8C2B2C8A4E00A1A1A1 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		C0A1B2C32F50000100AA0002 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				C0A1B2C32F50000100AA0001 /* OnePlace.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		E10002012F70000100000001 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				E10001012F70000100000001 /* OnePlaceActivityAttributes.swift */,
+				E10001022F70000100000002 /* OnePlaceTaskCache.swift */,
+				E10001032F70000100000003 /* ToggleOnePlaceTaskIntent.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		E10002022F70000100000002 /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				E10001042F70000100000004 /* OnePlaceLiveActivityController.swift */,
+			);
+			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		E10002032F70000100000003 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				E10001052F70000100000005 /* OnePlaceRemindersSync.swift */,
+				E100010B2F7000010000000B /* OnePlaceTaskSyncCoordinator.swift */,
+			);
+			path = Sync;
+			sourceTree = "<group>";
+		};
+		E10002042F70000100000004 /* OnePlaceWidget */ = {
+			isa = PBXGroup;
+			children = (
+				E10002052F70000100000005 /* Sources */,
+				E10002062F70000100000006 /* Resources */,
+			);
+			path = OnePlaceWidget;
+			sourceTree = "<group>";
+		};
+		E10002052F70000100000005 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				E10001072F70000100000007 /* OnePlaceWidgetBundle.swift */,
+				E10001082F70000100000008 /* OnePlaceLiveActivity.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		E10002062F70000100000006 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E10001092F70000100000009 /* Info.plist */,
+				E100010A2F7000010000000A /* OnePlaceWidget.entitlements */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -303,15 +425,34 @@
 				5F8A9B5B2B2C8A4E00A1A1A1 /* Sources */,
 				5F8A9B5C2B2C8A4E00A1A1A1 /* Frameworks */,
 				5F8A9B5D2B2C8A4E00A1A1A1 /* Resources */,
+				E10003042F70000100000004 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				E10005012F70000100000001 /* PBXTargetDependency */,
 			);
 			name = OnePlace;
 			productName = OnePlace;
 			productReference = 5F8A9B5F2B2C8A4E00A1A1A1 /* OnePlace.app */;
 			productType = "com.apple.product-type.application";
+		};
+		E10004012F70000100000001 /* OnePlaceWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E10006032F70000100000003 /* Build configuration list for PBXNativeTarget "OnePlaceWidget" */;
+			buildPhases = (
+				E10003012F70000100000001 /* Sources */,
+				E10003022F70000100000002 /* Frameworks */,
+				E10003032F70000100000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OnePlaceWidget;
+			productName = OnePlaceWidget;
+			productReference = E10001062F70000100000006 /* OnePlaceWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -324,6 +465,9 @@
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					5F8A9B5E2B2C8A4E00A1A1A1 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					E10004012F70000100000001 = {
 						CreatedOnToolsVersion = 15.0;
 					};
 				};
@@ -345,6 +489,7 @@
 			projectRoot = "";
 			targets = (
 				5F8A9B5E2B2C8A4E00A1A1A1 /* OnePlace */,
+				E10004012F70000100000001 /* OnePlaceWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -356,6 +501,13 @@
 			files = (
 				5F8A9B8D2B2C8A4E00A1A1A1 /* Assets.xcassets in Resources */,
 				0B2D74B22F4056DE00B52D14 /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E10003032F70000100000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -385,6 +537,12 @@
 				B1C2D3E4000000000000000E /* OrganizerViewModel.swift in Sources */,
 				B1C2D3E4000000000000000F /* SplitViewModel.swift in Sources */,
 				B1C2D3E40000000000000010 /* CommsViewModel.swift in Sources */,
+				E10000012F70000100000001 /* OnePlaceActivityAttributes.swift in Sources */,
+				E10000022F70000100000002 /* OnePlaceTaskCache.swift in Sources */,
+				E10000032F70000100000003 /* ToggleOnePlaceTaskIntent.swift in Sources */,
+				E10000042F70000100000004 /* OnePlaceLiveActivityController.swift in Sources */,
+				E10000052F70000100000005 /* OnePlaceRemindersSync.swift in Sources */,
+				E10000062F70000100000017 /* OnePlaceTaskSyncCoordinator.swift in Sources */,
 				5F8A9B6D2B2C8A4E00A1A1A1 /* OnePlaceApp.swift in Sources */,
 				5F8A9B6F2B2C8A4E00A1A1A1 /* FinanceEntry.swift in Sources */,
 				A1B2C3D40000000000000001 /* AppUser.swift in Sources */,
@@ -413,6 +571,9 @@
 				A1B2C3D40000000000000003 /* AuthManager.swift in Sources */,
 				A1B2C3D40000000000000005 /* LoginView.swift in Sources */,
 				CC0001AA2F5C100100LOGO01 /* OnePlaceLogo.swift in Sources */,
+				B1C2D3E40000000000000011 /* ClaudeAIService.swift in Sources */,
+				B1C2D3E40000000000000012 /* ClaudeAIChatResponder.swift in Sources */,
+				D4E5F6002F6A000100AI0001 /* OnePlaceAICommandExecutor.swift in Sources */,
 				5F8A9B872B2C8A4E00A1A1A1 /* SplitView.swift in Sources */,
 				0BF9F97C2F383B6400E14DC7 /* EmptyState.swift in Sources */,
 				5F8A9B892B2C8A4E00A1A1A1 /* CommsView.swift in Sources */,
@@ -420,7 +581,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E10003012F70000100000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E10000112F70000100000011 /* OnePlaceActivityAttributes.swift in Sources */,
+				E10000122F70000100000012 /* OnePlaceTaskCache.swift in Sources */,
+				E10000132F70000100000013 /* ToggleOnePlaceTaskIntent.swift in Sources */,
+				E10000142F70000100000014 /* OnePlaceWidgetBundle.swift in Sources */,
+				E10000152F70000100000015 /* OnePlaceLiveActivity.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E10005012F70000100000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E10004012F70000100000001 /* OnePlaceWidget */;
+			targetProxy = E10005022F70000100000002 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		5F8A9B982B2C8A4E00A1A1A1 /* Debug */ = {
@@ -442,7 +623,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.0;
+				MARKETING_VERSION = 5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -470,7 +651,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.0;
+				MARKETING_VERSION = 5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -564,6 +745,60 @@
 			};
 			name = Release;
 		};
+		E10006012F70000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = OnePlaceWidget/Resources/OnePlaceWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OnePlaceWidget/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 4.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		E10006022F70000100000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_ENTITLEMENTS = OnePlaceWidget/Resources/OnePlaceWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OnePlaceWidget/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 4.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -581,6 +816,15 @@
 			buildConfigurations = (
 				5F8A9B982B2C8A4E00A1A1A1 /* Debug */,
 				5F8A9B992B2C8A4E00A1A1A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E10006032F70000100000003 /* Build configuration list for PBXNativeTarget "OnePlaceWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E10006012F70000100000001 /* Debug */,
+				E10006022F70000100000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

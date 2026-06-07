@@ -28,7 +28,8 @@ final class FlowRepository {
 
     // MARK: - Create
 
-    func createItem(for uid: String, draft: FlowItemDraft) async throws {
+    @discardableResult
+    func createItem(for uid: String, draft: FlowItemDraft) async throws -> FlowItemRecord {
         let documentRef = flowCollection(for: uid).document()
 
         let record = FlowItemRecord(
@@ -50,6 +51,7 @@ final class FlowRepository {
         )
 
         try await documentRef.setData(encode(record: record), merge: false)
+        return record
     }
 
     // MARK: - Update

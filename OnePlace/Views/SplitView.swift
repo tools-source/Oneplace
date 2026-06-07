@@ -3,13 +3,16 @@ import UIKit
 
 struct SplitView: View {
     @StateObject private var vm = SplitViewModel()
+    @EnvironmentObject private var aiAssistant: AIAssistantManager
 
     @State private var showingAddPerson = false
     @State private var showingAddExpense = false
     @State private var editingExpense: SplitExpenseRecord?
     @State private var newPersonName = ""
     @State private var showingCopyAlert = false
+    @State private var showingClearConfirm = false
     @State private var searchText = ""
+    @State private var lastRefreshToken: UUID?
 
     private var totalExpensesAmount: Double {
         vm.expenses.reduce(0) { $0 + $1.amount }
@@ -72,6 +75,13 @@ struct SplitView: View {
                     }
                     .disabled(vm.people.isEmpty)
                 }
+
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Clear All", role: .destructive) {
+                        showingClearConfirm = true
+                    }
+                    .disabled(vm.people.isEmpty && vm.expenses.isEmpty)
+                }
             }
             .alert("Add Person", isPresented: $showingAddPerson) {
                 TextField("Name", text: $newPersonName)
@@ -79,8 +89,10 @@ struct SplitView: View {
                     let trimmed = newPersonName.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmed.isEmpty else { return }
 
-                    Task { await vm.addPerson(name: trimmed) }
-                    newPersonName = ""
+                    Task {
+                        await vm.addPerson(name: trimmed)
+                        newPersonName = ""
+                    }
                 }
                 Button("Cancel", role: .cancel) {
                     newPersonName = ""
@@ -88,8 +100,10 @@ struct SplitView: View {
             }
             .sheet(isPresented: $showingAddExpense) {
                 AddSplitExpenseView(vm: vm) { draft in
-                    Task { await vm.addExpense(draft: draft) }
-                    showingAddExpense = false
+                    Task {
+                        await vm.addExpense(draft: draft)
+                        showingAddExpense = false
+                    }
                 }
             }
             .sheet(item: $editingExpense) { expense in
@@ -116,8 +130,21 @@ struct SplitView: View {
             } message: {
                 Text("The split summary was copied as text.")
             }
+            .alert("Clear All?", isPresented: $showingClearConfirm) {
+                Button("Clear All", role: .destructive) {
+                    Task { await vm.clearAll() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete all people and expenses.")
+            }
             .task {
                 await vm.refresh()
+            }
+            .onChange(of: aiAssistant.pendingActionsToken) { _, newToken in
+                guard lastRefreshToken != newToken else { return }
+                lastRefreshToken = newToken
+                Task { await vm.refresh() }
             }
         }
     }
@@ -162,11 +189,29 @@ struct SplitView: View {
                     .padding(.vertical, 24)
                     .listRowBackground(Color.clear)
             } else if vm.people.isEmpty {
-                Text("Add people to start splitting.")
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 24)
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
+                EmptyState(
+                    title: "Add people to start",
+                    message: "Create people first, then record shared expenses and balances.",
+                    systemImage: "person.badge.plus",
+                    ctaTitle: "Add Person"
+                ) {
+                    showingAddPerson = true
+                }
+                .padding(.vertical, 10)
+                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            } else if filteredPeople.isEmpty {
+                EmptyState(
+                    title: "No matching people",
+                    message: "Try a different search term.",
+                    systemImage: "magnifyingglass",
+                    ctaTitle: nil
+                )
+                .padding(.vertical, 10)
+                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } else {
                 ForEach(filteredPeople) { person in
                     personRow(for: person)
@@ -198,12 +243,22 @@ struct SplitView: View {
     private var expensesSection: some View {
         Section("Expenses") {
             if filteredExpenses.isEmpty {
-                Text(vm.people.isEmpty ? "Add people first to record an expense." : "No expenses yet.")
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 24)
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                EmptyState(
+                    title: vm.people.isEmpty ? "Add people first" : "No expenses yet",
+                    message: vm.people.isEmpty ? "Once people are added, you can split expenses between them." : "Record a shared cost and OnePlace will calculate balances.",
+                    systemImage: vm.people.isEmpty ? "person.2" : "creditcard",
+                    ctaTitle: vm.people.isEmpty ? "Add Person" : "Add Expense"
+                ) {
+                    if vm.people.isEmpty {
+                        showingAddPerson = true
+                    } else {
+                        showingAddExpense = true
+                    }
+                }
+                .padding(.vertical, 10)
+                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } else {
                 ForEach(filteredExpenses) { expense in
                     expenseRow(for: expense)
@@ -291,26 +346,38 @@ struct SplitView: View {
         }
     }
 
-    private func handleSearchSubmit() {
+    private func handleSearchSubmit(wasVoice: Bool) {
         let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty,
-              OnePlacePromptClassifier.isCommand(prompt, in: .split) else { return }
+              OnePlacePromptClassifier.isCommand(prompt, in: .split) else {
+            if wasVoice {
+                aiAssistant.openVoiceMode(area: .split)
+            }
+            return
+        }
 
-        if let name = SplitPromptInterpreter.personName(from: prompt) {
+        if let names = SplitPromptInterpreter.personNames(from: prompt), !names.isEmpty {
             Task {
-                await vm.addPerson(name: name)
+                for name in names {
+                    await vm.addPerson(name: name)
+                }
                 await MainActor.run { searchText = "" }
             }
             return
         }
 
-        guard let draft = SplitPromptInterpreter.expenseDraft(from: prompt, people: vm.people) else {
-            return
+        aiAssistant.contextPeople = vm.people
+        if wasVoice {
+            aiAssistant.openVoiceMode(area: .split)
+        } else {
+            aiAssistant.openChatFresh(area: .split, voice: false)
         }
+        aiAssistant.userSaid(prompt)
+        searchText = ""
 
         Task {
-            await vm.addExpense(draft: draft)
-            await MainActor.run { searchText = "" }
+            await AIChatResponder.handleUserInput(text: prompt, assistant: aiAssistant)
+            await vm.refresh()
         }
     }
 
@@ -368,6 +435,10 @@ struct SplitView: View {
 
 enum SplitPromptInterpreter {
     static func personName(from prompt: String) -> String? {
+        personNames(from: prompt)?.first
+    }
+
+    static func personNames(from prompt: String) -> [String]? {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let lowered = trimmed.lowercased()
         guard extractAmount(from: prompt) == nil,
@@ -375,11 +446,20 @@ enum SplitPromptInterpreter {
             return nil
         }
 
-        let name = trimmed
-            .replacingOccurrences(of: #"(?i)^add\s+(?:person\s+)?"#, with: "", options: .regularExpression)
+        let value = trimmed
+            .replacingOccurrences(of: #"(?i)^add\s+(?:(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+)?(?:person|people|persons)\s*|^add\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\b(to|in)\s+split\b"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\bpeople\b|\bpersons\b|\bperson\b"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\band\b"#, with: ",", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return name.isEmpty ? nil : name
+        let names = value
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression) }
+            .filter { !$0.isEmpty }
+
+        return names.isEmpty ? nil : names
     }
 
     static func expenseDraft(from prompt: String, people: [SplitPersonRecord]) -> SplitExpenseDraft? {

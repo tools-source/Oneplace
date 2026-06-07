@@ -3,14 +3,24 @@ import UserNotifications
 
 struct FlowView: View {
     @StateObject private var vm = FlowViewModel()
+    @EnvironmentObject private var aiAssistant: AIAssistantManager
 
     @State private var showingAdd = false
     @State private var editingItem: FlowItemRecord?
     @State private var searchText = ""
+    @State private var statusFilter: FlowStatus? = nil
+    @State private var lastRefreshToken: UUID?
+    @State private var showingClearPaidConfirm = false
 
     private var filteredItems: [FlowItemRecord] {
-        guard !searchText.isEmpty else { return vm.items }
-        return vm.items.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return vm.items }
+        return vm.items.filter {
+            $0.title.localizedCaseInsensitiveContains(query) ||
+            $0.type.rawValue.localizedCaseInsensitiveContains(query) ||
+            $0.frequency.rawValue.localizedCaseInsensitiveContains(query) ||
+            ($0.notes?.localizedCaseInsensitiveContains(query) ?? false)
+        }
     }
 
     private var upcomingItems: [FlowItemRecord] {
@@ -21,8 +31,8 @@ struct FlowView: View {
         filteredItems.filter { $0.status == .paid }
     }
 
-    private var upcomingAmount: Double {
-        upcomingItems.reduce(0) { $0 + $1.amount }
+    private var allPaidItems: [FlowItemRecord] {
+        vm.items.filter { $0.status == .paid }
     }
 
     var body: some View {
@@ -63,8 +73,10 @@ struct FlowView: View {
             }
             .sheet(isPresented: $showingAdd) {
                 FlowItemEditorView(item: nil) { draft in
-                    Task { await vm.addItem(draft: draft) }
-                    showingAdd = false
+                    Task {
+                        await vm.addItem(draft: draft)
+                        showingAdd = false
+                    }
                 }
             }
             .sheet(item: $editingItem) { item in
@@ -97,8 +109,22 @@ struct FlowView: View {
             } message: {
                 Text(vm.errorMessage ?? "Please try again.")
             }
+            .alert("Clear Paid Items?", isPresented: $showingClearPaidConfirm) {
+                Button("Clear All", role: .destructive) {
+                    Task { await vm.clearPaidItems() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes every item marked paid from Flow.")
+            }
             .task {
                 await vm.refresh()
+            }
+            .onChange(of: aiAssistant.pendingActionsToken) { _, newToken in
+                if lastRefreshToken != newToken {
+                    lastRefreshToken = newToken
+                    Task { await vm.refresh() }
+                }
             }
         }
     }
@@ -117,18 +143,31 @@ struct FlowView: View {
     private var summarySection: some View {
         Section {
             HStack(spacing: 10) {
-                StatCard(
-                    title: "Upcoming",
-                    value: upcomingItems.count.formatted(),
-                    icon: "calendar",
-                    tint: DesignSystem.accentColor
-                )
-                StatCard(
-                    title: "Due Soon",
-                    value: StatCard.currencyString(for: upcomingAmount),
-                    icon: "exclamationmark.circle",
-                    tint: DesignSystem.warmAccent
-                )
+                Button {
+                    withAnimation { statusFilter = statusFilter == .upcoming ? nil : .upcoming }
+                } label: {
+                    StatCard(
+                        title: "Upcoming",
+                        value: upcomingItems.count.formatted(),
+                        icon: "calendar",
+                        tint: DesignSystem.accentColor,
+                        isSelected: statusFilter == .upcoming
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    withAnimation { statusFilter = statusFilter == .paid ? nil : .paid }
+                } label: {
+                    StatCard(
+                        title: "Paid",
+                        value: paidItems.count.formatted(),
+                        icon: "checkmark.circle.fill",
+                        tint: DesignSystem.gainColor,
+                        isSelected: statusFilter == .paid
+                    )
+                }
+                .buttonStyle(.plain)
             }
             .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
             .listRowBackground(Color.clear)
@@ -137,17 +176,26 @@ struct FlowView: View {
 
     private var upcomingSection: some View {
         Section("Upcoming") {
-            if vm.isLoading && vm.items.isEmpty {
+            if statusFilter == .paid {
+                EmptyView()
+            } else if vm.isLoading && vm.items.isEmpty {
                 ProgressView("Loading…")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
                     .listRowBackground(Color.clear)
             } else if upcomingItems.isEmpty {
-                Text("No upcoming bills.")
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 24)
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
+                EmptyState(
+                    title: searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "No upcoming bills" : "No matching upcoming bills",
+                    message: "Add a bill or income item, or ask OnePlace to schedule it for you.",
+                    systemImage: "calendar.badge.plus",
+                    ctaTitle: "Add Flow Item"
+                ) {
+                    showingAdd = true
+                }
+                .padding(.vertical, 10)
+                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } else {
                 ForEach(upcomingItems) { item in
                     flowItemRow(for: item)
@@ -164,25 +212,61 @@ struct FlowView: View {
 
     private var paidSection: some View {
         Section("Paid") {
-            if paidItems.isEmpty {
-                Text("No paid bills.")
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+            if statusFilter == .upcoming {
+                EmptyView()
             } else {
-                ForEach(paidItems) { item in
-                    flowItemRow(for: item)
-                        .onTapGesture {
-                            editingItem = item
-                        }
-                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                if !allPaidItems.isEmpty {
+                    paidSectionActions
+                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
+
+                if paidItems.isEmpty {
+                    EmptyState(
+                        title: searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Nothing marked paid" : "No matching paid items",
+                        message: "Swipe a row to mark it paid when it is handled.",
+                        systemImage: "checkmark.circle",
+                        ctaTitle: nil
+                    )
+                    .padding(.vertical, 8)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                } else {
+                    ForEach(paidItems) { item in
+                        flowItemRow(for: item)
+                            .onTapGesture {
+                                editingItem = item
+                            }
+                            .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+                }
             }
         }
+    }
+
+    private var paidSectionActions: some View {
+        HStack {
+            Label("\(allPaidItems.count) paid", systemImage: "checkmark.circle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button(role: .destructive) {
+                showingClearPaidConfirm = true
+            } label: {
+                Label("Clear All", systemImage: "trash")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(vm.isLoading)
+        }
+        .padding(.horizontal, 4)
     }
 
     @ViewBuilder
@@ -270,17 +354,27 @@ struct FlowView: View {
         }
     }
 
-    private func handleSearchSubmit() {
+    private func handleSearchSubmit(wasVoice: Bool) {
         let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty,
-              OnePlacePromptClassifier.isCommand(prompt, in: .flow),
-              let draft = FlowPromptInterpreter.interpret(prompt) else { return }
+              OnePlacePromptClassifier.isCommand(prompt, in: .flow) else {
+            if wasVoice {
+                aiAssistant.openVoiceMode(area: .flow)
+            }
+            return
+        }
+
+        if wasVoice {
+            aiAssistant.openVoiceMode(area: .flow)
+        } else {
+            aiAssistant.openChatFresh(area: .flow, voice: false)
+        }
+        aiAssistant.userSaid(prompt)
+        searchText = ""
 
         Task {
-            await vm.addItem(draft: draft)
-            await MainActor.run {
-                searchText = ""
-            }
+            await AIChatResponder.handleUserInput(text: prompt, assistant: aiAssistant)
+            await vm.refresh()
         }
     }
 

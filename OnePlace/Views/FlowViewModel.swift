@@ -91,22 +91,58 @@ final class FlowViewModel: ObservableObject {
         }
     }
 
+    func clearPaidItems() async {
+        let paidItems = items.filter { $0.status == .paid }
+        guard !paidItems.isEmpty else { return }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            for item in paidItems {
+                try await repo.deleteItem(item)
+                notificationCenter.removePendingNotificationRequests(withIdentifiers: [reminderIdentifier(for: item)])
+            }
+
+            items.removeAll { $0.status == .paid }
+        } catch {
+            errorMessage = error.localizedDescription
+            if let uid = Auth.auth().currentUser?.uid {
+                items = (try? await repo.fetchItems(for: uid)) ?? items
+            }
+        }
+    }
+
     func toggleStatus(for item: FlowItemRecord) async {
         errorMessage = nil
 
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
-        let original = items[index]
+        let originalItems = items
+
         if items[index].status == .paid {
             items[index].status = .upcoming
         } else {
-            items[index] = advancedAfterPayment(items[index], now: .now)
+            items[index].status = .paid
         }
 
         do {
             try await repo.updateItem(items[index])
-            await syncReminder(for: items[index])
+            let updatedItemID = items[index].id
+            if items[index].status == .paid {
+                let nextDraft = nextOccurrenceDraft(afterPaying: item, now: .now)
+                if !hasExistingUpcomingOccurrence(matching: nextDraft, excludingID: item.id) {
+                    let nextItem = try await repo.createItem(for: item.ownerUserId, draft: nextDraft)
+                    items.append(nextItem)
+                    await syncReminder(for: nextItem)
+                }
+            }
+            sortItems()
+            if let updatedItem = items.first(where: { $0.id == updatedItemID }) {
+                await syncReminder(for: updatedItem)
+            }
         } catch {
-            items[index] = original
+            items = originalItems
             errorMessage = error.localizedDescription
         }
     }
@@ -139,6 +175,8 @@ final class FlowViewModel: ObservableObject {
     }
 
     private func normalizedRecurringItem(_ item: FlowItemRecord, now: Date) -> FlowItemRecord {
+        guard item.status != .paid else { return item }
+
         let calendar = Calendar.autoupdatingCurrent
         let dueDay = calendar.startOfDay(for: item.nextDueDate)
         let today = calendar.startOfDay(for: now)
@@ -169,6 +207,48 @@ final class FlowViewModel: ObservableObject {
         }
 
         return updated
+    }
+
+    private func nextOccurrenceDraft(afterPaying item: FlowItemRecord, now: Date) -> FlowItemDraft {
+        let nextItem = advancedAfterPayment(item, now: now)
+        return FlowItemDraft(
+            title: nextItem.title,
+            amount: nextItem.amount,
+            type: nextItem.type,
+            frequency: nextItem.frequency,
+            nextDueDate: nextItem.nextDueDate,
+            status: .upcoming,
+            notes: nextItem.notes,
+            reminderEnabled: nextItem.reminderEnabled,
+            reminderDate: nextItem.reminderDate,
+            reminderHour: nextItem.reminderHour,
+            reminderMinute: nextItem.reminderMinute,
+            reminderRepeat: nextItem.reminderRepeat,
+            reminderOffsetDays: nextItem.reminderOffsetDays
+        )
+    }
+
+    private func hasExistingUpcomingOccurrence(matching draft: FlowItemDraft, excludingID: String) -> Bool {
+        let calendar = Calendar.autoupdatingCurrent
+        return items.contains { item in
+            item.id != excludingID &&
+            item.status == .upcoming &&
+            item.title.caseInsensitiveCompare(draft.title) == .orderedSame &&
+            item.type == draft.type &&
+            item.frequency == draft.frequency &&
+            item.amount == draft.amount &&
+            calendar.isDate(item.nextDueDate, inSameDayAs: draft.nextDueDate)
+        }
+    }
+
+    private func sortItems() {
+        items.sort {
+            if $0.nextDueDate != $1.nextDueDate {
+                return $0.nextDueDate < $1.nextDueDate
+            }
+
+            return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
     }
 
     private func nextOccurrence(

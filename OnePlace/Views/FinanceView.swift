@@ -10,6 +10,7 @@ private enum FinancePreferenceKey {
 
 struct FinanceView: View {
     @StateObject private var vm = FinanceViewModel()
+    @EnvironmentObject private var aiAssistant: AIAssistantManager
 
     @Environment(\.editMode) private var editMode
 
@@ -27,6 +28,9 @@ struct FinanceView: View {
     @State private var showingFilters = false
     @State private var filters: FinanceFilters
     @State private var customOrderIDs: [String]
+    @State private var lastRefreshToken: UUID?
+    @State private var showingClearCompletedConfirm = false
+    @State private var showingDeleteSelectedConfirm = false
 
     init() {
         let initialDraft = FinanceDraftDefaults.blankDraft()
@@ -94,6 +98,18 @@ struct FinanceView: View {
         filteredEntries.filter { selectedEntryIDs.contains($0.id) }
     }
 
+    private var selectedVisibleIDs: Set<String> {
+        Set(selectedEntries.map(\.id))
+    }
+
+    private var allVisibleEntriesSelected: Bool {
+        !filteredEntries.isEmpty && filteredEntries.allSatisfy { selectedEntryIDs.contains($0.id) }
+    }
+
+    private var completedEntries: [FinanceEntryRecord] {
+        vm.entries.filter(\.isCompleted)
+    }
+
     private var selectedNetTotal: Double {
         selectedEntries.reduce(0) { partialResult, entry in
             partialResult + signedAmount(for: entry)
@@ -150,7 +166,7 @@ struct FinanceView: View {
                                 title: "No transactions yet",
                                 message: "Type a transaction into search and press return, or tap + to add one manually.",
                                 systemImage: "sparkles.rectangle.stack",
-                                ctaTitle: "Open Details"
+                                ctaTitle: "Add Transaction"
                             ) {
                                 presentEditorForNewTransaction()
                             }
@@ -230,6 +246,22 @@ struct FinanceView: View {
                 } message: {
                     Text(vm.errorMessage ?? "Please try again.")
                 }
+                .alert("Clear Completed Transactions?", isPresented: $showingClearCompletedConfirm) {
+                    Button("Clear All", role: .destructive) {
+                        Task { await vm.clearCompletedEntries() }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This permanently deletes every completed Finance transaction.")
+                }
+                .alert("Delete Selected Transactions?", isPresented: $showingDeleteSelectedConfirm) {
+                    Button("Delete", role: .destructive) {
+                        deleteSelectedEntries()
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This permanently deletes the selected Finance transactions.")
+                }
                 .onChange(of: filters) { _, newFilters in
                     saveFilters(newFilters)
                 }
@@ -241,6 +273,15 @@ struct FinanceView: View {
                     await vm.refresh()
                     sanitizeCustomOrder(using: vm.entries)
                     sanitizeSelection(using: vm.entries)
+                }
+                .onChange(of: aiAssistant.pendingActionsToken) { _, newToken in
+                    guard lastRefreshToken != newToken else { return }
+                    lastRefreshToken = newToken
+                    Task {
+                        await vm.refresh()
+                        sanitizeCustomOrder(using: vm.entries)
+                        sanitizeSelection(using: vm.entries)
+                    }
                 }
 
             }
@@ -286,16 +327,31 @@ struct FinanceView: View {
 
                 Spacer()
 
-                if filters.isActive {
-                    Text("Filtered")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(DesignSystem.warmAccent.opacity(0.18))
-                        )
-                        .foregroundStyle(DesignSystem.warmAccent)
+                VStack(alignment: .trailing, spacing: 8) {
+                    if filters.isActive {
+                        Text("Filtered")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(DesignSystem.warmAccent.opacity(0.18))
+                            )
+                            .foregroundStyle(DesignSystem.warmAccent)
+                    }
+
+                    if !completedEntries.isEmpty {
+                        Button(role: .destructive) {
+                            showingClearCompletedConfirm = true
+                        } label: {
+                            Label("Clear All", systemImage: "trash")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(vm.isSaving)
+                        .accessibilityLabel("Clear all completed transactions")
+                    }
                 }
             }
         }
@@ -303,62 +359,123 @@ struct FinanceView: View {
 
     private var summaryCards: some View {
         HStack(spacing: 10) {
-            StatCard(
-                title: "Net",
-                value: StatCard.currencyString(for: netTotal),
-                subtitle: netTotal >= 0 ? "Positive runway" : "Needs attention",
-                icon: "plus",
-                tint: netTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor
-            )
+            Button {
+                withAnimation { filters.type = nil }
+            } label: {
+                StatCard(
+                    title: "Net",
+                    value: StatCard.currencyString(for: netTotal),
+                    subtitle: netTotal >= 0 ? "Positive runway" : "Needs attention",
+                    icon: "plus",
+                    tint: netTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor
+                )
+            }
+            .buttonStyle(.plain)
 
-            StatCard(
-                title: "Gain",
-                value: StatCard.currencyString(for: gainTotal),
-                subtitle: "Open income",
-                icon: "arrow.up.right",
-                tint: DesignSystem.gainColor
-            )
+            Button {
+                withAnimation { filters.type = filters.type == .gain ? nil : .gain }
+            } label: {
+                StatCard(
+                    title: "Gain",
+                    value: StatCard.currencyString(for: gainTotal),
+                    subtitle: "Open income",
+                    icon: "arrow.up.right",
+                    tint: DesignSystem.gainColor,
+                    isSelected: filters.type == .gain
+                )
+            }
+            .buttonStyle(.plain)
 
-            StatCard(
-                title: "Owe",
-                value: StatCard.currencyString(for: oweTotal),
-                subtitle: "Pending outflow",
-                icon: "arrow.down.right",
-                tint: DesignSystem.oweColor
-            )
+            Button {
+                withAnimation { filters.type = filters.type == .owe ? nil : .owe }
+            } label: {
+                StatCard(
+                    title: "Owe",
+                    value: StatCard.currencyString(for: oweTotal),
+                    subtitle: "Pending outflow",
+                    icon: "arrow.down.right",
+                    tint: DesignSystem.oweColor,
+                    isSelected: filters.type == .owe
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
     private var selectionSummaryCard: some View {
         AppCard {
-            HStack(spacing: 12) {
-                ItemIconBadge(
-                    symbol: selectedEntryIDs.isEmpty ? "checklist.unchecked" : "checkmark.circle.fill",
-                    tint: selectedNetTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor,
-                    size: 42
-                )
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    ItemIconBadge(
+                        symbol: selectedVisibleIDs.isEmpty ? "checklist.unchecked" : "checkmark.circle.fill",
+                        tint: selectedNetTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor,
+                        size: 42
+                    )
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Selected Total")
-                        .font(.headline)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Selected Total")
+                            .font(.headline)
 
-                    Text(selectedEntryIDs.isEmpty ? "Tap transactions to add them to the total." : "\(selectedEntryIDs.count) item\(selectedEntryIDs.count == 1 ? "" : "s") selected")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                        Text(selectionSummaryText)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
 
-                Spacer()
+                    Spacer()
 
-                VStack(alignment: .trailing, spacing: 8) {
                     Text(StatCard.currencyString(for: selectedNetTotal))
                         .font(.headline)
                         .foregroundStyle(selectedNetTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor)
+                }
 
-                    if !selectedEntryIDs.isEmpty {
-                        Button("Clear") {
-                            selectedEntryIDs.removeAll()
+                Divider()
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        Button {
+                            toggleSelectAllVisible()
+                        } label: {
+                            Label(allVisibleEntriesSelected ? "Deselect All" : "Select All", systemImage: allVisibleEntriesSelected ? "xmark.circle" : "checkmark.circle")
                         }
-                        .font(.caption.weight(.semibold))
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
+                        Button {
+                            markSelectedEntriesCompleted(true)
+                        } label: {
+                            Label("Complete", systemImage: "checkmark.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(selectedVisibleIDs.isEmpty || vm.isSaving)
+
+                        Button {
+                            markSelectedEntriesCompleted(false)
+                        } label: {
+                            Label("Reopen", systemImage: "arrow.uturn.backward.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(selectedVisibleIDs.isEmpty || vm.isSaving)
+
+                        Button(role: .destructive) {
+                            showingDeleteSelectedConfirm = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(selectedVisibleIDs.isEmpty || vm.isSaving)
+
+                        if !selectedVisibleIDs.isEmpty {
+                            Button {
+                                selectedEntryIDs.removeAll()
+                            } label: {
+                                Label("Clear", systemImage: "xmark")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
                     }
                 }
             }
@@ -643,6 +760,50 @@ struct FinanceView: View {
         }
     }
 
+    private var selectionSummaryText: String {
+        let count = selectedVisibleIDs.count
+
+        guard count > 0 else {
+            return "Tap transactions or select all visible items."
+        }
+
+        return "\(count) item\(count == 1 ? "" : "s") selected"
+    }
+
+    private func toggleSelectAllVisible() {
+        let visibleIDs = Set(filteredEntries.map(\.id))
+
+        if allVisibleEntriesSelected {
+            selectedEntryIDs.subtract(visibleIDs)
+        } else {
+            selectedEntryIDs.formUnion(visibleIDs)
+        }
+    }
+
+    private func markSelectedEntriesCompleted(_ isCompleted: Bool) {
+        let ids = selectedVisibleIDs
+        guard !ids.isEmpty else { return }
+
+        Task {
+            await vm.setCompletion(for: ids, isCompleted: isCompleted)
+            await MainActor.run {
+                selectedEntryIDs.subtract(ids)
+            }
+        }
+    }
+
+    private func deleteSelectedEntries() {
+        let ids = selectedVisibleIDs
+        guard !ids.isEmpty else { return }
+
+        Task {
+            await vm.deleteEntries(withIDs: ids)
+            await MainActor.run {
+                selectedEntryIDs.subtract(ids)
+            }
+        }
+    }
+
     private func signedAmount(for entry: FinanceEntryRecord) -> Double {
         entry.type == .gain ? entry.amount : -entry.amount
     }
@@ -710,11 +871,12 @@ struct FinanceAIInterpreter {
         timeZone: TimeZone
     ) async -> Result<FinancePromptInterpretation, Error> {
         guard let configuration = OpenAIConfiguration.load() else {
+            print("[OpenRouter] No API key configured — falling back to local parser")
             return fallbackInterpretation(
                 prompt: prompt,
                 fallbackCategory: fallbackCategory,
                 now: now,
-                prefix: "Set `OPENAI_API_KEY` in a local xcconfig or environment variable to enable real AI."
+                prefix: "Set `OPENAI_API_KEY` in OnePlace.xcconfig to enable AI via OpenRouter."
             )
         }
 
@@ -751,6 +913,7 @@ struct FinanceAIInterpreter {
                 )
             )
         } catch {
+            print("[OpenRouter] Request failed: \(error.localizedDescription) — falling back to local parser")
             return fallbackInterpretation(
                 prompt: prompt,
                 fallbackCategory: fallbackCategory,
@@ -785,9 +948,12 @@ struct FinanceAIInterpreter {
         now: Date,
         timeZone: TimeZone
     ) async throws -> FinanceAITransactionPayload {
-        let requestBody = OpenAIResponsesRequest(
+        let endpointURL = "https://openrouter.ai/api/v1/chat/completions"
+        print("[OpenRouter] Sending finance AI request — model: \(configuration.model), endpoint: \(endpointURL)")
+
+        let requestBody = OpenRouterChatRequest(
             model: configuration.model,
-            input: [
+            messages: [
                 .init(
                     role: "system",
                     content: """
@@ -818,9 +984,9 @@ struct FinanceAIInterpreter {
                     """
                 )
             ],
-            text: .init(
-                format: .init(
-                    type: "json_schema",
+            responseFormat: .init(
+                type: "json_schema",
+                jsonSchema: .init(
                     name: "finance_transaction",
                     strict: true,
                     schema: .financeTransaction
@@ -828,29 +994,38 @@ struct FinanceAIInterpreter {
             )
         )
 
-        var request = URLRequest(url: URL(string: "https://api.openai.com/v1/responses")!)
+        var request = URLRequest(url: URL(string: endpointURL)!)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("Bearer \(configuration.apiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("OnePlace iOS App", forHTTPHeaderField: "X-Title")
         request.httpBody = try JSONEncoder().encode(requestBody)
 
+        print("[OpenRouter] Request dispatched — waiting for response")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
+            print("[OpenRouter] ERROR: Invalid response object")
             throw FinanceAIError.invalidResponse
         }
 
+        print("[OpenRouter] Response received — HTTP \(httpResponse.statusCode)")
+
         guard (200..<300).contains(httpResponse.statusCode) else {
             let apiError = try? JSONDecoder().decode(OpenAIAPIErrorResponse.self, from: data)
-            throw FinanceAIError.apiError(apiError?.error.message ?? "OpenAI returned status \(httpResponse.statusCode).")
+            let message = apiError?.error.message ?? "OpenRouter returned status \(httpResponse.statusCode)."
+            print("[OpenRouter] ERROR: \(message)")
+            throw FinanceAIError.apiError(message)
         }
 
-        let envelope = try JSONDecoder().decode(OpenAIResponsesEnvelope.self, from: data)
-        guard let jsonText = envelope.firstOutputText else {
+        let chatResponse = try JSONDecoder().decode(OpenRouterChatResponse.self, from: data)
+        guard let jsonText = chatResponse.firstContent else {
+            print("[OpenRouter] ERROR: Response contained no content")
             throw FinanceAIError.invalidPayload("The AI response did not include structured text.")
         }
 
         let payloadData = Data(jsonText.utf8)
         let payload = try JSONDecoder().decode(FinanceAITransactionPayload.self, from: payloadData)
+        print("[OpenRouter] Parsed transaction — title: \"\(payload.title)\", type: \(payload.type), amount: \(payload.amount), category: \(payload.category)")
         return payload
     }
 
@@ -941,36 +1116,53 @@ private struct OpenAIConfiguration {
 
         let configuredModel = (
             Bundle.main.object(forInfoDictionaryKey: "OPENAI_MODEL_ID") as? String ??
-            "gpt-4o-mini"
+            "openai/gpt-4o-mini"
         )
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
+        let model = configuredModel.isEmpty ? "openai/gpt-4o-mini" : configuredModel
+        print("[OpenRouter] Configuration loaded — model: \(model)")
         return OpenAIConfiguration(
             apiKey: key,
-            model: configuredModel.isEmpty ? "gpt-4o-mini" : configuredModel
+            model: model
         )
     }
 }
 
-private struct OpenAIResponsesRequest: Encodable {
+private struct OpenRouterChatRequest: Encodable {
     let model: String
-    let input: [InputMessage]
-    let text: TextFormat
+    let messages: [Message]
+    let responseFormat: ResponseFormat
 
-    struct InputMessage: Encodable {
+    struct Message: Encodable {
         let role: String
         let content: String
     }
 
-    struct TextFormat: Encodable {
-        let format: ResponseFormat
-    }
-
     struct ResponseFormat: Encodable {
         let type: String
-        let name: String
-        let strict: Bool
-        let schema: JSONSchema
+        let jsonSchema: JSONSchemaWrapper
+
+        struct JSONSchemaWrapper: Encodable {
+            let name: String
+            let strict: Bool
+            let schema: JSONSchema
+
+            enum CodingKeys: String, CodingKey {
+                case name, strict, schema
+            }
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case type
+            case jsonSchema = "json_schema"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case messages
+        case responseFormat = "response_format"
     }
 }
 
@@ -1019,23 +1211,19 @@ private struct JSONSchemaValue: Encodable {
     }
 }
 
-private struct OpenAIResponsesEnvelope: Decodable {
-    let output: [OutputItem]
+private struct OpenRouterChatResponse: Decodable {
+    let choices: [Choice]
 
-    var firstOutputText: String? {
-        output
-            .flatMap { $0.content ?? [] }
-            .first(where: { $0.type == "output_text" })?
-            .text
+    var firstContent: String? {
+        choices.first?.message.content
     }
 
-    struct OutputItem: Decodable {
-        let content: [ContentItem]?
+    struct Choice: Decodable {
+        let message: Message
     }
 
-    struct ContentItem: Decodable {
-        let type: String
-        let text: String?
+    struct Message: Decodable {
+        let content: String?
     }
 }
 

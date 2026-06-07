@@ -22,31 +22,13 @@ final class TaskRepository {
             }
             return record
         }
-        .sorted { lhs, rhs in
-            switch (lhs.dueDate, rhs.dueDate) {
-            case let (left?, right?):
-                if left != right {
-                    return left < right
-                }
-            case (.some, .none):
-                return true
-            case (.none, .some):
-                return false
-            case (.none, .none):
-                break
-            }
-
-            if lhs.completed != rhs.completed {
-                return !lhs.completed && rhs.completed
-            }
-
-            return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-        }
+        .sortedForOrganizer()
     }
 
     // MARK: - Create
 
-    func createTask(for uid: String, draft: TaskItemDraft) async throws {
+    @discardableResult
+    func createTask(for uid: String, draft: TaskItemDraft, remindersID: String? = nil) async throws -> TaskItemRecord {
         let documentRef = taskCollection(for: uid).document()
 
         let record = TaskItemRecord(
@@ -58,10 +40,13 @@ final class TaskRepository {
             dueDate: draft.dueDate,
             completed: draft.completed,
             reminderEnabled: draft.reminderEnabled,
-            reminderDate: draft.reminderDate
+            reminderDate: draft.reminderDate,
+            reminderRepeat: draft.reminderRepeat,
+            remindersID: remindersID
         )
 
         try await documentRef.setData(encode(record: record), merge: false)
+        return record
     }
 
     // MARK: - Update
@@ -120,6 +105,9 @@ final class TaskRepository {
             reminderDate = nil
         }
 
+        let reminderRepeat = ReminderRepeat(rawValue: data["reminderRepeat"] as? String ?? "") ?? .oneTime
+        let remindersID = data["remindersID"] as? String
+
         return TaskItemDTO(
             title: title,
             notes: notes,
@@ -127,7 +115,9 @@ final class TaskRepository {
             dueDate: dueDate,
             completed: completed,
             reminderEnabled: reminderEnabled,
-            reminderDate: reminderDate
+            reminderDate: reminderDate,
+            reminderRepeat: reminderRepeat,
+            remindersID: remindersID
         )
     }
 
@@ -150,6 +140,10 @@ final class TaskRepository {
         if let reminderDate = record.reminderDate {
             data["reminderDate"] = Timestamp(date: reminderDate)
         }
+        data["reminderRepeat"] = record.reminderRepeat.rawValue
+        if let remindersID = record.remindersID {
+            data["remindersID"] = remindersID
+        }
 
         return data
     }
@@ -164,6 +158,8 @@ final class TaskRepository {
         let completed: Bool
         let reminderEnabled: Bool
         let reminderDate: Date?
+        let reminderRepeat: ReminderRepeat
+        let remindersID: String?
 
         func toRecord(id: String, ownerUserId: String) -> TaskItemRecord? {
             guard let taskPriority = TaskPriority(rawValue: priority) else {
@@ -179,7 +175,9 @@ final class TaskRepository {
                 dueDate: dueDate,
                 completed: completed,
                 reminderEnabled: reminderEnabled,
-                reminderDate: reminderDate
+                reminderDate: reminderDate,
+                reminderRepeat: reminderRepeat,
+                remindersID: remindersID
             )
         }
     }

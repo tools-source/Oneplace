@@ -10,11 +10,18 @@ struct OrganizerView: View {
     }
 
     @StateObject private var vm = OrganizerViewModel()
+    @EnvironmentObject private var aiAssistant: AIAssistantManager
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var showingAdd = false
     @State private var editingTask: TaskItemRecord?
     @State private var searchText = ""
-    @State private var selectedSegment: OrganizerSegment = .today
+    @State private var lastRefreshToken: UUID?
+    @State private var showingClearDoneConfirm = false
+    @State private var selectedSegment: OrganizerSegment = {
+        let saved = UserDefaults.standard.string(forKey: "tasks.selectedSegment") ?? ""
+        return OrganizerSegment(rawValue: saved) ?? .today
+    }()
 
     private var filteredTasks: [TaskItemRecord] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -38,9 +45,12 @@ struct OrganizerView: View {
     }
 
     private var todayTasks: [TaskItemRecord] {
-        filteredTasks.filter { task in
-            guard let dueDate = task.dueDate else { return false }
-            return Calendar.current.isDateInToday(dueDate) && !task.completed
+        let startOfTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+        return filteredTasks.filter { task in
+            guard !task.completed else { return false }
+            // No due date, due today, or overdue all belong here so nothing falls through the cracks.
+            guard let dueDate = task.dueDate else { return true }
+            return dueDate < startOfTomorrow
         }
     }
 
@@ -54,6 +64,10 @@ struct OrganizerView: View {
 
     private var completedTasks: [TaskItemRecord] {
         filteredTasks.filter(\.completed)
+    }
+
+    private var allCompletedTasks: [TaskItemRecord] {
+        vm.tasks.filter(\.completed)
     }
 
     var body: some View {
@@ -71,7 +85,6 @@ struct OrganizerView: View {
                 }
 
                 summarySection
-                filterSection
                 tasksSection
             }
             .listStyle(.plain)
@@ -84,6 +97,9 @@ struct OrganizerView: View {
             }
             .navigationTitle("Tasks")
             .animation(.easeInOut(duration: 0.2), value: selectedSegment)
+            .onChange(of: selectedSegment) { _, newValue in
+                UserDefaults.standard.set(newValue.rawValue, forKey: "tasks.selectedSegment")
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -95,8 +111,10 @@ struct OrganizerView: View {
             }
             .sheet(isPresented: $showingAdd) {
                 TaskEditorView(task: nil) { draft in
-                    Task { await vm.addTask(draft: draft) }
-                    showingAdd = false
+                    Task {
+                        await vm.addTask(draft: draft)
+                        showingAdd = false
+                    }
                 }
             }
             .sheet(item: $editingTask) { task in
@@ -110,7 +128,9 @@ struct OrganizerView: View {
                         dueDate: draft.dueDate,
                         completed: draft.completed,
                         reminderEnabled: draft.reminderEnabled,
-                        reminderDate: draft.reminderDate
+                        reminderDate: draft.reminderDate,
+                        reminderRepeat: draft.reminderRepeat,
+                        remindersID: task.remindersID
                     )
                     Task { await vm.updateTask(updated) }
                     editingTask = nil
@@ -123,8 +143,25 @@ struct OrganizerView: View {
             } message: {
                 Text(vm.errorMessage ?? "Please try again.")
             }
+            .alert("Clear Done Tasks?", isPresented: $showingClearDoneConfirm) {
+                Button("Clear All", role: .destructive) {
+                    Task { await vm.clearCompletedTasks() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes every completed task from OnePlace and synced Reminders.")
+            }
             .task {
                 await vm.refresh()
+            }
+            .onChange(of: aiAssistant.pendingActionsToken) { _, newToken in
+                guard lastRefreshToken != newToken else { return }
+                lastRefreshToken = newToken
+                Task { await vm.refresh() }
+            }
+            .onChange(of: scenePhase) { _, newValue in
+                guard newValue == .active else { return }
+                Task { await vm.refresh() }
             }
         }
     }
@@ -143,56 +180,77 @@ struct OrganizerView: View {
     private var summarySection: some View {
         Section {
             HStack(spacing: 10) {
-                StatCard(
-                    title: "Today",
-                    value: todayTasks.count.formatted(),
-                    icon: "calendar",
-                    tint: DesignSystem.accentColor
-                )
-                StatCard(
-                    title: "Upcoming",
-                    value: upcomingTasks.count.formatted(),
-                    icon: "calendar.badge.clock",
-                    tint: DesignSystem.warmAccent
-                )
-                StatCard(
-                    title: "Done",
-                    value: completedTasks.count.formatted(),
-                    icon: "checkmark.circle.fill",
-                    tint: DesignSystem.gainColor
-                )
+                Button {
+                    withAnimation { selectedSegment = .today }
+                } label: {
+                    StatCard(
+                        title: "Today",
+                        value: todayTasks.count.formatted(),
+                        icon: "calendar",
+                        tint: DesignSystem.accentColor,
+                        isSelected: selectedSegment == .today
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    withAnimation { selectedSegment = .upcoming }
+                } label: {
+                    StatCard(
+                        title: "Upcoming",
+                        value: upcomingTasks.count.formatted(),
+                        icon: "calendar.badge.clock",
+                        tint: DesignSystem.warmAccent,
+                        isSelected: selectedSegment == .upcoming
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    withAnimation { selectedSegment = .done }
+                } label: {
+                    StatCard(
+                        title: "Done",
+                        value: completedTasks.count.formatted(),
+                        icon: "checkmark.circle.fill",
+                        tint: DesignSystem.gainColor,
+                        isSelected: selectedSegment == .done
+                    )
+                }
+                .buttonStyle(.plain)
             }
             .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
             .listRowBackground(Color.clear)
         }
     }
 
-    private var filterSection: some View {
-        Section {
-            Picker("Show", selection: $selectedSegment) {
-                ForEach(OrganizerSegment.allCases) { segment in
-                    Text(segment.rawValue).tag(segment)
-                }
-            }
-            .pickerStyle(.segmented)
-            .listRowBackground(Color.clear)
-        }
-    }
-
     private var tasksSection: some View {
         Section {
+            if selectedSegment == .done && !allCompletedTasks.isEmpty {
+                doneSectionActions
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
             if vm.isLoading && vm.tasks.isEmpty {
                 ProgressView("Loading…")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
                     .listRowBackground(Color.clear)
             } else if selectedTasks.isEmpty {
-                Text("No tasks.")
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 24)
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                EmptyState(
+                    title: emptyTitle,
+                    message: emptyMessage,
+                    systemImage: emptySystemImage,
+                    ctaTitle: "Add Task"
+                ) {
+                    showingAdd = true
+                }
+                .padding(.vertical, 10)
+                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             } else {
                 ForEach(selectedTasks) { task in
                     taskRow(for: task)
@@ -205,6 +263,27 @@ struct OrganizerView: View {
                 }
             }
         }
+    }
+
+    private var doneSectionActions: some View {
+        HStack {
+            Label("\(allCompletedTasks.count) completed", systemImage: "checkmark.circle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button(role: .destructive) {
+                showingClearDoneConfirm = true
+            } label: {
+                Label("Clear All", systemImage: "trash")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(vm.isLoading)
+        }
+        .padding(.horizontal, 4)
     }
 
     @ViewBuilder
@@ -265,18 +344,58 @@ struct OrganizerView: View {
         }
     }
 
-    private func handleSearchSubmit() {
+    private var emptyTitle: String {
+        let hasSearch = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if hasSearch { return "No matching tasks" }
+
+        switch selectedSegment {
+        case .today: return "Nothing for today"
+        case .upcoming: return "No upcoming tasks"
+        case .done: return "No completed tasks"
+        }
+    }
+
+    private var emptyMessage: String {
+        switch selectedSegment {
+        case .today:
+            return "Tasks without due dates will appear here with anything due today."
+        case .upcoming:
+            return "Tasks with future due dates will appear here."
+        case .done:
+            return "Completed tasks will appear here."
+        }
+    }
+
+    private var emptySystemImage: String {
+        switch selectedSegment {
+        case .today: return "calendar"
+        case .upcoming: return "checklist"
+        case .done: return "checkmark.circle"
+        }
+    }
+
+    private func handleSearchSubmit(wasVoice: Bool) {
         let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty,
-              OnePlacePromptClassifier.isCommand(prompt, in: .organizer) else { return }
-
-        let draft = OrganizerPromptInterpreter.interpret(prompt)
-        Task {
-            await vm.addTask(draft: draft)
-            await MainActor.run {
-                searchText = ""
-                selectedSegment = draft.dueDate.map { Calendar.current.isDateInToday($0) ? .today : .upcoming } ?? .today
+              OnePlacePromptClassifier.isCommand(prompt, in: .organizer) else {
+            if wasVoice {
+                aiAssistant.openVoiceMode(area: .organizer)
             }
+            return
+        }
+
+        if wasVoice {
+            aiAssistant.openVoiceMode(area: .organizer)
+        } else {
+            aiAssistant.openChatFresh(area: .organizer, voice: false)
+        }
+        aiAssistant.userSaid(prompt)
+        searchText = ""
+
+        Task {
+            await AIChatResponder.handleUserInput(text: prompt, assistant: aiAssistant)
+            await vm.refresh()
+            selectedSegment = .today
         }
     }
 
@@ -415,6 +534,7 @@ private struct TaskEditorView: View {
     @State private var hasDueDate: Bool
     @State private var reminderEnabled: Bool
     @State private var reminderDate: Date
+    @State private var reminderRepeat: ReminderRepeat
 
     private let task: TaskItemRecord?
     private let onSave: (TaskItemDraft) -> Void
@@ -430,6 +550,7 @@ private struct TaskEditorView: View {
         _hasDueDate = State(initialValue: task?.dueDate != nil)
         _reminderEnabled = State(initialValue: task?.reminderEnabled ?? false)
         _reminderDate = State(initialValue: task?.reminderDate ?? task?.dueDate ?? Date())
+        _reminderRepeat = State(initialValue: task?.reminderRepeat ?? .oneTime)
     }
 
     var body: some View {
@@ -452,13 +573,18 @@ private struct TaskEditorView: View {
                 }
 
                 Section("Reminder") {
-                    Toggle("Reminder", isOn: $reminderEnabled)
+                    Toggle("Send notification reminder", isOn: $reminderEnabled)
                     if reminderEnabled {
                         DatePicker(
-                            "Reminder time",
+                            "Remind Me",
                             selection: $reminderDate,
                             displayedComponents: [.date, .hourAndMinute]
                         )
+                        Picker("Repeat", selection: $reminderRepeat) {
+                            ForEach(ReminderRepeat.allCases) { option in
+                                Text(option.displayName).tag(option)
+                            }
+                        }
                     }
                 }
 
@@ -483,7 +609,8 @@ private struct TaskEditorView: View {
                             dueDate: hasDueDate ? dueDate : nil,
                             completed: task?.completed ?? false,
                             reminderEnabled: reminderEnabled,
-                            reminderDate: reminderEnabled ? reminderDate : nil
+                            reminderDate: reminderEnabled ? reminderDate : nil,
+                            reminderRepeat: reminderEnabled ? reminderRepeat : .oneTime
                         )
                         onSave(draft)
                         dismiss()

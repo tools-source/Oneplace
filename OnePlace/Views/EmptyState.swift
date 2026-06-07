@@ -24,11 +24,11 @@ public struct EmptyState: View {
     public var body: some View {
         VStack(spacing: 14) {
             ZStack {
-                Circle()
-                    .fill(DesignSystem.accentColor.opacity(0.10))
-                    .frame(width: 72, height: 72)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(DesignSystem.accentColor.opacity(0.12))
+                    .frame(width: 68, height: 68)
                 Image(systemName: systemImage)
-                    .font(.system(size: 28, weight: .medium))
+                    .font(.system(size: 27, weight: .semibold))
                     .foregroundStyle(DesignSystem.accentColor)
             }
 
@@ -46,17 +46,14 @@ public struct EmptyState: View {
 
             if let ctaTitle, let onCTATap {
                 Button(action: onCTATap) {
-                    Text(ctaTitle)
+                    Label(ctaTitle, systemImage: "plus")
                         .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 22)
+                        .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(DesignSystem.accentColor)
-                        )
+                        .background(Capsule(style: .continuous).fill(DesignSystem.accentColor))
                         .foregroundStyle(.white)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
             }
         }
         .padding(.vertical, 28)
@@ -68,8 +65,9 @@ public struct EmptyState: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.largeCardCornerRadius, style: .continuous)
-                .strokeBorder(DesignSystem.cardBorderColor, lineWidth: 1)
+                .strokeBorder(DesignSystem.glassStroke, lineWidth: 1)
         )
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -105,6 +105,31 @@ final class FinanceViewModel: ObservableObject {
         }
     }
 
+    func setCompletion(for selectedIDs: Set<String>, isCompleted: Bool) async {
+        let targetIDs = selectedIDs.intersection(entries.map(\.id))
+        guard !targetIDs.isEmpty else { return }
+
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+
+        let originals = entries
+
+        for index in entries.indices where targetIDs.contains(entries[index].id) {
+            entries[index].isCompleted = isCompleted
+        }
+
+        do {
+            for entry in entries where targetIDs.contains(entry.id) {
+                try await repo.updateEntry(entry)
+            }
+            resortEntries()
+        } catch {
+            entries = originals
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func deleteEntry(_ entry: FinanceEntryRecord) async {
         isSaving = true
         errorMessage = nil
@@ -115,6 +140,47 @@ final class FinanceViewModel: ObservableObject {
             entries.removeAll { $0.id == entry.id }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func deleteEntries(withIDs selectedIDs: Set<String>) async {
+        let targets = entries.filter { selectedIDs.contains($0.id) }
+        guard !targets.isEmpty else { return }
+
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+
+        let originals = entries
+        entries.removeAll { selectedIDs.contains($0.id) }
+
+        do {
+            for entry in targets {
+                try await repo.deleteEntry(entry)
+            }
+        } catch {
+            entries = originals
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func clearCompletedEntries() async {
+        let completedEntries = entries.filter(\.isCompleted)
+        guard !completedEntries.isEmpty else { return }
+
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+
+        do {
+            for entry in completedEntries {
+                try await repo.deleteEntry(entry)
+            }
+
+            entries.removeAll(where: \.isCompleted)
+        } catch {
+            errorMessage = error.localizedDescription
+            await refresh()
         }
     }
 

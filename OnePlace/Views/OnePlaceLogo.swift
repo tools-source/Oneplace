@@ -3,49 +3,52 @@ import SwiftUI
 struct OnePlaceLogo: View {
     var size: CGFloat = 72
 
+    private var cornerRadius: CGFloat { size * 0.2237 } // iOS squircle ratio
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+            // Base brand tile
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(DesignSystem.logoGradient)
-                .frame(width: size, height: size)
-                .shadow(color: Color(red: 0.05, green: 0.58, blue: 0.68).opacity(0.40), radius: size * 0.22, x: 0, y: size * 0.10)
 
-            // Subtle inner ring
-            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.18), lineWidth: max(1, size * 0.018))
-                .frame(width: size * 0.76, height: size * 0.76)
+            // Top sheen for depth
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.30), Color.white.opacity(0)],
+                        center: UnitPoint(x: 0.5, y: 0.06),
+                        startRadius: 0,
+                        endRadius: size * 0.9
+                    )
+                )
+
+            // Orbit ring
+            Ellipse()
+                .stroke(Color.white.opacity(0.24), lineWidth: max(1, size * 0.016))
+                .frame(width: size * 0.66, height: size * 0.34)
+                .rotationEffect(.degrees(-22))
+
+            // Satellite dot with glow
+            Circle()
+                .fill(Color.white)
+                .frame(width: size * 0.06, height: size * 0.06)
+                .shadow(color: Color.white.opacity(0.85), radius: size * 0.045)
+                .offset(x: size * 0.18, y: -size * 0.20)
 
             // Numeral
             Text("1")
-                .font(.system(size: size * 0.50, weight: .black, design: .rounded))
+                .font(.system(size: size * 0.56, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
-                .offset(y: -size * 0.03)
+                .shadow(color: Color(red: 0.02, green: 0.13, blue: 0.22).opacity(0.28),
+                        radius: size * 0.03, x: 0, y: size * 0.02)
 
-            // "P" label below numeral
-            Text("PLACE")
-                .font(.system(size: size * 0.13, weight: .bold, design: .rounded))
-                .tracking(size * 0.02)
-                .foregroundStyle(.white.opacity(0.72))
-                .offset(y: size * 0.28)
-
-            // Constellation dots
-            Group {
-                Circle()
-                    .fill(Color.white.opacity(0.65))
-                    .frame(width: size * 0.055, height: size * 0.055)
-                    .offset(x: size * 0.28, y: -size * 0.30)
-
-                Circle()
-                    .fill(Color.white.opacity(0.40))
-                    .frame(width: size * 0.038, height: size * 0.038)
-                    .offset(x: size * 0.36, y: -size * 0.18)
-
-                Circle()
-                    .fill(Color.white.opacity(0.28))
-                    .frame(width: size * 0.028, height: size * 0.028)
-                    .offset(x: size * 0.22, y: -size * 0.38)
-            }
+            // Hairline edge highlight
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.18), lineWidth: max(0.5, size * 0.008))
         }
+        .frame(width: size, height: size)
+        .shadow(color: Color(red: 0.07, green: 0.42, blue: 0.74).opacity(0.38),
+                radius: size * 0.18, x: 0, y: size * 0.09)
     }
 }
 

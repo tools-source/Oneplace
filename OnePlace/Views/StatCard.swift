@@ -7,6 +7,7 @@ struct StatCard: View {
     let icon: String
     let tint: Color
     let minHeight: CGFloat
+    var isSelected: Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -16,7 +17,8 @@ struct StatCard: View {
         subtitle: String? = nil,
         icon: String,
         tint: Color,
-        minHeight: CGFloat = 100
+        minHeight: CGFloat = 100,
+        isSelected: Bool = false
     ) {
         self.title = title
         self.value = value
@@ -24,6 +26,7 @@ struct StatCard: View {
         self.icon = icon
         self.tint = tint
         self.minHeight = minHeight
+        self.isSelected = isSelected
     }
 
     var body: some View {
@@ -51,7 +54,7 @@ struct StatCard: View {
                     .lineLimit(1)
             }
         }
-        .padding(DesignSystem.cardPadding)
+        .padding(14)
         .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
@@ -59,12 +62,19 @@ struct StatCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
-                .strokeBorder(tint.opacity(0.20), lineWidth: 1)
+                .fill(isSelected ? tint.opacity(0.10) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.cardCornerRadius, style: .continuous)
+                .strokeBorder(isSelected ? AnyShapeStyle(tint.opacity(0.65)) : AnyShapeStyle(DesignSystem.glassStroke), lineWidth: isSelected ? 1.5 : 1)
         )
         .shadow(
-            color: tint.opacity(colorScheme == .dark ? 0.12 : 0.06),
-            radius: 10, x: 0, y: 6
+            color: tint.opacity(colorScheme == .dark ? 0.10 : 0.05),
+            radius: 8, x: 0, y: 5
         )
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

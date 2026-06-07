@@ -1,6 +1,6 @@
 import Foundation
 
-struct FlowItemDraft {
+struct FlowItemDraft: Sendable {
     var title: String = ""
     var amount: Double = 0
     var type: FlowType = .bill

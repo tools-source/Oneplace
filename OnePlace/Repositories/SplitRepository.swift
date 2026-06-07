@@ -91,6 +91,22 @@ final class SplitRepository {
             .delete()
     }
 
+    // MARK: - Delete All
+
+    func deleteAllPeople(for uid: String) async throws {
+        let snapshot = try await peopleCollection(for: uid).getDocuments()
+        for doc in snapshot.documents {
+            try await doc.reference.delete()
+        }
+    }
+
+    func deleteAllExpenses(for uid: String) async throws {
+        let snapshot = try await expensesCollection(for: uid).getDocuments()
+        for doc in snapshot.documents {
+            try await doc.reference.delete()
+        }
+    }
+
     // MARK: - Calculate Balance
 
     func calculateBalance(for personId: String, expenses: [SplitExpenseRecord]) -> Double {

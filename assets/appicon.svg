@@ -1,0 +1,55 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Brand diagonal gradient: teal -> blue -> indigo -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#19B9D6"/>
+      <stop offset="0.46" stop-color="#2C74D6"/>
+      <stop offset="1" stop-color="#4A33C8"/>
+    </linearGradient>
+    <!-- Soft top sheen for depth -->
+    <radialGradient id="sheen" cx="0.5" cy="0.10" r="0.95">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.24"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Subtle bottom vignette -->
+    <radialGradient id="vignette" cx="0.5" cy="1.0" r="0.95">
+      <stop offset="0" stop-color="#04122A" stop-opacity="0.22"/>
+      <stop offset="0.62" stop-color="#04122A" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Glow for the satellite dot -->
+    <radialGradient id="dotGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Gentle vertical fill on the numeral -->
+    <linearGradient id="glyphFill" x1="0" y1="290" x2="0" y2="710" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8F4FF"/>
+    </linearGradient>
+    <filter id="glyphShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#062038" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+
+  <!-- Background (full-bleed, opaque; iOS applies the corner mask) -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#sheen)"/>
+  <rect width="1024" height="1024" fill="url(#vignette)"/>
+
+  <!-- Orbit ring -->
+  <g transform="rotate(-22 512 512)">
+    <ellipse cx="512" cy="512" rx="330" ry="168" fill="none"
+             stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="7"/>
+  </g>
+
+  <!-- Satellite dot sitting on the ring -->
+  <circle cx="690" cy="312" r="66" fill="url(#dotGlow)"/>
+  <circle cx="690" cy="312" r="23" fill="#FFFFFF"/>
+
+  <!-- Numeral "1": flag + stem + foot (overlapping rounded shapes) -->
+  <g filter="url(#glyphShadow)" fill="url(#glyphFill)">
+    <rect x="357" y="330" width="196" height="60" rx="30" transform="rotate(-31 455 360)"/>
+    <rect x="466" y="300" width="150" height="384" rx="34"/>
+    <rect x="380" y="636" width="320" height="64" rx="32"/>
+  </g>
+</svg>

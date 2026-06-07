@@ -46,7 +46,7 @@ enum DesignSystem {
     static let cardBackground = Color(
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0.09, green: 0.14, blue: 0.19, alpha: 1)
+                ? UIColor(red: 0.08, green: 0.11, blue: 0.14, alpha: 1)
                 : UIColor(red: 1.00, green: 1.00, blue: 1.00, alpha: 1)
         }
     )
@@ -98,6 +98,15 @@ enum DesignSystem {
         }
     )
     static let shadowColor = Color.black.opacity(0.10)
+    static let glassStroke = LinearGradient(
+        colors: [
+            Color.white.opacity(0.28),
+            Color.white.opacity(0.06),
+            accentColor.opacity(0.10)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
     // MARK: - Gradients
 
@@ -142,10 +151,12 @@ enum DesignSystem {
         endPoint: .bottomTrailing
     )
 
+    // Brand tile gradient — mirrors the app icon (teal → blue → indigo)
     static let logoGradient = LinearGradient(
         colors: [
-            Color(red: 0.05, green: 0.58, blue: 0.68),
-            Color(red: 0.18, green: 0.38, blue: 0.82)
+            Color(red: 0.098, green: 0.725, blue: 0.839),
+            Color(red: 0.173, green: 0.455, blue: 0.839),
+            Color(red: 0.290, green: 0.200, blue: 0.784)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -174,6 +185,36 @@ enum DesignSystem {
 
     // MARK: - Corner Radius
 
-    static let cardCornerRadius: CGFloat = 18
-    static let largeCardCornerRadius: CGFloat = 22
+    static let cardCornerRadius: CGFloat = 16
+    static let largeCardCornerRadius: CGFloat = 18
+
+    // MARK: - Motion
+
+    /// Standard spring used for interactive state changes across the app.
+    static let interactiveSpring = Animation.spring(response: 0.35, dampingFraction: 0.78)
+}
+
+// MARK: - Reusable Button Styles
+
+/// Gives any button a subtle, premium press response (scale + dim) with light haptics.
+struct PressableButtonStyle: ButtonStyle {
+    var scale: CGFloat = 0.97
+    var haptic: Bool = true
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .opacity(configuration.isPressed ? 0.92 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, pressed in
+                if pressed && haptic {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+            }
+    }
+}
+
+extension ButtonStyle where Self == PressableButtonStyle {
+    /// `.buttonStyle(.pressable)` — subtle scale + haptic on press.
+    static var pressable: PressableButtonStyle { PressableButtonStyle() }
 }

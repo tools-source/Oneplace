@@ -20,14 +20,14 @@ public struct AppCard<Content: View>: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.largeCardCornerRadius, style: .continuous)
-                .strokeBorder(DesignSystem.cardBorderColor, lineWidth: 1)
+                .strokeBorder(DesignSystem.glassStroke, lineWidth: 1)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 3)
         .shadow(
             color: DesignSystem.shadowColor.opacity(colorScheme == .dark ? 0.20 : 0.10),
-            radius: DesignSystem.cardShadowRadius,
-            x: 0, y: 8
+            radius: colorScheme == .dark ? 10 : 12,
+            x: 0, y: colorScheme == .dark ? 5 : 7
         )
     }
 
@@ -75,6 +75,7 @@ struct ItemIconBadge: View {
             Circle()
                 .strokeBorder(tint.opacity(0.22), lineWidth: 1)
         )
+        .accessibilityHidden(symbol != nil)
     }
 }
 
@@ -102,7 +103,7 @@ enum OnePlacePromptClassifier {
             // so treat any text with letters as a potential task.
             return lowered.rangeOfCharacter(from: .letters) != nil
         case .split:
-            return lowered.hasPrefix("add ") || lowered.contains("split") || lowered.contains("paid by") || hasAmount(lowered)
+            return hasCommandVerb(lowered) || lowered.hasPrefix("add ") || lowered.contains("split") || lowered.contains("paid by") || hasAmount(lowered)
         case .talk:
             return hasCommandVerb(lowered) ||
                 lowered.contains("talk card") ||
@@ -119,7 +120,8 @@ enum OnePlacePromptClassifier {
     private static func hasCommandVerb(_ prompt: String) -> Bool {
         let commandWords = [
             "add", "create", "make", "log", "record", "track", "schedule", "set",
-            "remind", "mark", "pay", "paid", "split"
+            "remind", "mark", "pay", "paid", "split", "delete", "remove", "erase",
+            "complete", "finish", "finished", "reopen", "undo"
         ]
 
         return commandWords.contains { word in
@@ -160,9 +162,30 @@ struct OnePlaceAISearchBar: View {
     @Binding var text: String
     let placeholder: String
     let isProcessing: Bool
-    let onSubmit: () -> Void
+    let onSubmit: (Bool) -> Void
 
     @StateObject private var speechRecognizer = FinanceSpeechRecognizer()
+    @State private var lastSubmitWasVoice: Bool = false
+
+    init(text: Binding<String>,
+         placeholder: String,
+         isProcessing: Bool,
+         onSubmit: @escaping (Bool) -> Void) {
+        self._text = text
+        self.placeholder = placeholder
+        self.isProcessing = isProcessing
+        self.onSubmit = onSubmit
+    }
+
+    init(text: Binding<String>,
+         placeholder: String,
+         isProcessing: Bool,
+         onSubmit: @escaping () -> Void) {
+        self._text = text
+        self.placeholder = placeholder
+        self.isProcessing = isProcessing
+        self.onSubmit = { _ in onSubmit() }
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -173,7 +196,7 @@ struct OnePlaceAISearchBar: View {
             TextField(placeholder, text: $text)
                 .textInputAutocapitalization(.sentences)
                 .submitLabel(.search)
-                .onSubmit(submit)
+                .onSubmit { submit(wasVoice: false) }
 
             if isProcessing {
                 ProgressView()
@@ -181,14 +204,24 @@ struct OnePlaceAISearchBar: View {
             }
 
             Button(action: toggleVoiceCapture) {
-                Image(systemName: speechRecognizer.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(speechRecognizer.isRecording ? DesignSystem.oweColor : DesignSystem.accentColor)
-                    .frame(width: 32, height: 32)
-                    .background(
+                ZStack {
+                    Circle()
+                        .fill(speechRecognizer.isRecording ? DesignSystem.oweColor.opacity(0.16) : DesignSystem.accentSoft)
+                        .frame(width: 36, height: 36)
+
+                    if speechRecognizer.isRecording {
                         Circle()
-                            .fill(speechRecognizer.isRecording ? DesignSystem.oweColor.opacity(0.16) : DesignSystem.accentSoft)
-                    )
+                            .stroke(DesignSystem.oweColor.opacity(0.55), lineWidth: 2)
+                            .frame(width: 36, height: 36)
+                            .scaleEffect(speechRecognizer.isRecording ? 1.25 : 1.0)
+                            .opacity(speechRecognizer.isRecording ? 0 : 1)
+                            .animation(.easeOut(duration: 1.2).repeatForever(autoreverses: false), value: speechRecognizer.isRecording)
+                    }
+
+                    Image(systemName: speechRecognizer.isRecording ? "stop.fill" : "mic.fill")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(speechRecognizer.isRecording ? DesignSystem.oweColor : DesignSystem.accentColor)
+                }
             }
             .buttonStyle(.plain)
             .disabled(isProcessing)
@@ -197,13 +230,21 @@ struct OnePlaceAISearchBar: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(DesignSystem.secondaryBackground)
+            Capsule(style: .continuous)
+                .fill(.regularMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(DesignSystem.cardBorderColor, lineWidth: 1)
+            Capsule(style: .continuous)
+                .strokeBorder(
+                    AnyShapeStyle(
+                        speechRecognizer.isRecording
+                            ? AnyShapeStyle(DesignSystem.oweColor.opacity(0.4))
+                            : AnyShapeStyle(DesignSystem.glassStroke)
+                    ),
+                    lineWidth: 1
+                )
         )
+        .shadow(color: DesignSystem.shadowColor.opacity(0.07), radius: 10, x: 0, y: 6)
         .onChange(of: speechRecognizer.transcript) { _, newValue in
             guard speechRecognizer.isRecording else { return }
             text = newValue
@@ -213,13 +254,13 @@ struct OnePlaceAISearchBar: View {
             let transcript = speechRecognizer.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !transcript.isEmpty else { return }
             text = transcript
-            submit()
+            submit(wasVoice: true)
         }
     }
 
-    private func submit() {
+    private func submit(wasVoice: Bool) {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        onSubmit()
+        onSubmit(wasVoice)
     }
 
     private func toggleVoiceCapture() {

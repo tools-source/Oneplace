@@ -1,5 +1,6 @@
 import AVFoundation
 import AppIntents
+import BackgroundTasks
 import SwiftUI
 import FirebaseAuth
 import FirebaseCore
@@ -14,7 +15,48 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
 
         FirebaseApp.configure()
+        OnePlaceRemindersChangeObserver.shared.start()
+        registerTaskBackgroundRefresh()
         return true
+    }
+
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        OnePlaceTaskSyncCoordinator.scheduleBackgroundRefresh()
+    }
+
+    private func registerTaskBackgroundRefresh() {
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: OnePlaceTaskSyncCoordinator.backgroundRefreshIdentifier,
+            using: nil
+        ) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+
+            Task { @MainActor in
+                self.handleTaskBackgroundRefresh(refreshTask)
+            }
+        }
+    }
+
+    @MainActor
+    private func handleTaskBackgroundRefresh(_ task: BGAppRefreshTask) {
+        OnePlaceTaskSyncCoordinator.scheduleBackgroundRefresh()
+
+        let syncTask = Task {
+            do {
+                try await OnePlaceTaskSyncCoordinator.syncCurrentUserTasks()
+                task.setTaskCompleted(success: true)
+            } catch {
+                print("OnePlace task background refresh failed: \(error.localizedDescription)")
+                task.setTaskCompleted(success: false)
+            }
+        }
+
+        task.expirationHandler = {
+            syncTask.cancel()
+        }
     }
 }
 
@@ -48,11 +90,17 @@ struct OnePlaceApp: App {
             }
             .environmentObject(authManager)
             .tint(DesignSystem.accentColor)
+            .onOpenURL { url in
+                if let tabRawValue = OnePlaceDeepLink.tabRawValue(for: url) {
+                    UserDefaults.standard.set(tabRawValue, forKey: "root.selectedTab")
+                }
+            }
             .task {
                 guard !didRestoreSession else { return }
                 didRestoreSession = true
                 await authManager.restoreSessionFromProvider()
                 await AppPermissionBootstrap.requestInitialPermissionsIfNeeded()
+                OnePlaceTaskSyncCoordinator.scheduleBackgroundRefresh()
             }
         }
         .modelContainer(dataController.container)
@@ -200,6 +248,28 @@ struct AddOrganizerSiriIntent: AppIntent {
     }
 }
 
+struct StartTasksLiveActivityIntent: AppIntent {
+    static var title: LocalizedStringResource = "Start Tasks Live Activity"
+    static var description = IntentDescription("Start or refresh the OnePlace Organizer tasks Live Activity.")
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let message = await OnePlaceSiriWriter.startTasksLiveActivity()
+        return .result(dialog: "\(message)")
+    }
+}
+
+struct SyncOrganizerRemindersIntent: AppIntent {
+    static var title: LocalizedStringResource = "Sync Organizer Reminders"
+    static var description = IntentDescription("Sync OnePlace Organizer tasks with the OnePlace Tasks list in Apple Reminders.")
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let message = await OnePlaceSiriWriter.syncOrganizerReminders()
+        return .result(dialog: "\(message)")
+    }
+}
+
 struct AddSplitSiriIntent: AppIntent {
     static var title: LocalizedStringResource = "Add Split Item"
     static var description = IntentDescription("Add a person or shared expense to Split.")
@@ -258,36 +328,6 @@ struct OnePlaceAppShortcuts: AppShortcutsProvider {
 
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: AskOnePlaceIntent(),
-            phrases: [
-                "Ask \(.applicationName)",
-                "Tell \(.applicationName)"
-            ],
-            shortTitle: "Ask OnePlace",
-            systemImageName: "sparkles"
-        )
-
-        AppShortcut(
-            intent: AddFinanceSiriIntent(),
-            phrases: [
-                "Add finance transaction in \(.applicationName)",
-                "Log money in \(.applicationName)"
-            ],
-            shortTitle: "Add Finance",
-            systemImageName: "creditcard"
-        )
-
-        AppShortcut(
-            intent: AddFlowSiriIntent(),
-            phrases: [
-                "Add flow item in \(.applicationName)",
-                "Add bill in \(.applicationName)"
-            ],
-            shortTitle: "Add Flow",
-            systemImageName: "calendar.badge.clock"
-        )
-
-        AppShortcut(
             intent: AddOrganizerSiriIntent(),
             phrases: [
                 "Add organizer task in \(.applicationName)",
@@ -298,32 +338,23 @@ struct OnePlaceAppShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: AddSplitSiriIntent(),
+            intent: StartTasksLiveActivityIntent(),
             phrases: [
-                "Add split item in \(.applicationName)",
-                "Add split expense in \(.applicationName)"
+                "Start tasks live activity in \(.applicationName)",
+                "Show my tasks on the lock screen in \(.applicationName)"
             ],
-            shortTitle: "Add Split",
-            systemImageName: "person.2"
+            shortTitle: "Start Live",
+            systemImageName: "rectangle.on.rectangle"
         )
 
         AppShortcut(
-            intent: AddTalkSiriIntent(),
+            intent: SyncOrganizerRemindersIntent(),
             phrases: [
-                "Create talk card in \(.applicationName)",
-                "Add talk card in \(.applicationName)"
+                "Sync reminders in \(.applicationName)",
+                "Sync organizer reminders in \(.applicationName)"
             ],
-            shortTitle: "Create Card",
-            systemImageName: "waveform"
-        )
-
-        AppShortcut(
-            intent: OpenOnePlaceTabIntent(),
-            phrases: [
-                "Open \(\.$area) in \(.applicationName)"
-            ],
-            shortTitle: "Open Tab",
-            systemImageName: "rectangle.grid.1x2"
+            shortTitle: "Sync Reminders",
+            systemImageName: "arrow.triangle.2.circlepath"
         )
     }
 }
@@ -419,7 +450,28 @@ private enum OnePlaceSiriWriter {
             let uid = try signedInUserId()
             let draft = OrganizerPromptInterpreter.interpret(request)
             try await TaskRepository().createTask(for: uid, draft: draft)
+            try await OnePlaceTaskSyncCoordinator.syncTasks(ownerUserId: uid, preferOnePlaceChanges: true)
             return "Added \(draft.title) to Organizer."
+        } catch {
+            return failureMessage(for: error)
+        }
+    }
+
+    static func startTasksLiveActivity() async -> String {
+        do {
+            _ = try signedInUserId()
+            try await OnePlaceTaskSyncCoordinator.syncCurrentUserTasks()
+            return "Started the Organizer tasks Live Activity."
+        } catch {
+            return failureMessage(for: error)
+        }
+    }
+
+    static func syncOrganizerReminders() async -> String {
+        do {
+            _ = try signedInUserId()
+            try await OnePlaceTaskSyncCoordinator.syncCurrentUserTasks()
+            return "Synced Organizer with Apple Reminders."
         } catch {
             return failureMessage(for: error)
         }

@@ -8,5 +8,10 @@ OnePlace/Info.plist.local
 OnePlace.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcuserstate
 
+# Build artifacts
+build/
+DerivedData/
+
 # Local logs
 firebase-debug.log
+node_modules
