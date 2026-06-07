@@ -9,12 +9,12 @@ struct ClaudeConversationContext: Sendable {
 actor ClaudeAIService {
     private let apiKey: String
     private let baseURL = "https://openrouter.ai/api/v1"
-    // Valid OpenRouter free model IDs — pick one:
-    //   "nvidia/nemotron-3-super:free"                 NVIDIA Nemotron 3 Super (fastest, #1 by usage, 1M ctx)
-    //   "deepseek/deepseek-v4-flash:free"              DeepSeek V4 Flash
-    //   "openai/gpt-oss-20b:free"                      OpenAI gpt-oss 20B (smallest, fastest)
-    //   "deepseek/deepseek-r1:free"                    DeepSeek R1 (better reasoning, slower)
-    private static let model = "openai/gpt-oss-20b:free"
+    // Verified-available OpenRouter free model IDs (checked against /models) — pick one:
+    //   "openai/gpt-oss-120b:free"                     OpenAI gpt-oss 120B — best instruction-following, accurate dates (default)
+    //   "openai/gpt-oss-20b:free"                      OpenAI gpt-oss 20B — smaller/faster, less reliable at the SAVING format
+    //   "google/gemma-4-31b-it:free"                   Gemma 4 31B — very fast, but unreliable with relative dates
+    //   "meta-llama/llama-3.3-70b-instruct:free"       Llama 3.3 70B — strong, but frequently rate-limited (HTTP 429) on free tier
+    private static let model = "openai/gpt-oss-120b:free"
     private static let timeoutSeconds: Double = 25
 
     private var conversationHistory: [Message] = []
@@ -152,9 +152,15 @@ actor ClaudeAIService {
         let missingInfo = context.missingFields.isEmpty ? "" :
             "\n\nStill need from user: \(context.missingFields.map(\.rawValue).joined(separator: ", "))"
 
+        let todayFormatter = DateFormatter()
+        todayFormatter.dateFormat = "EEEE, yyyy-MM-dd"
+        todayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        let today = todayFormatter.string(from: Date())
+
         return """
 You are OnePlace AI, a personal finance and productivity assistant.
 Current area: \(areaDesc)
+Today is \(today). Resolve relative dates (today, tomorrow, this Friday) against it and always output absolute YYYY-MM-DD dates.
 
 Rules:
 1. Extract ALL data from the user's message (amounts, dates, title, frequency, participants).
@@ -184,12 +190,22 @@ SAVING:
 """
     }
 
+    /// Finds the end of a "SAVING" marker, tolerating markdown bold and a missing colon
+    /// (e.g. "SAVING:", "**SAVING:**", "Saving"). Returns the index just after the marker.
+    private func savingBlockStart(in text: String) -> String.Index? {
+        let pattern = "\\*{0,2}\\s*SAVING\\s*\\*{0,2}\\s*:?\\*{0,2}"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let range = Range(match.range, in: text) else { return nil }
+        return range.upperBound
+    }
+
     private func userFacingMessage(from reply: String) -> String {
-        guard let savingRange = reply.range(of: "SAVING:", options: .caseInsensitive) else {
+        guard let savingStart = savingBlockStart(in: reply) else {
             return reply.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        let afterSaving = String(reply[savingRange.upperBound...])
+        let afterSaving = String(reply[savingStart...])
         let lines = afterSaving.components(separatedBy: .newlines)
         var confirmationLines: [String] = []
         var passedSavingBlock = false
@@ -258,8 +274,8 @@ SAVING:
         var data = ExtractedData()
 
         // Parse the SAVING: block Claude outputs
-        if let savingRange = response.range(of: "SAVING:", options: .caseInsensitive) {
-            let savingBlock = String(response[savingRange.upperBound...])
+        if let savingStart = savingBlockStart(in: response) {
+            let savingBlock = String(response[savingStart...])
             data.action    = extractField("Action", from: savingBlock)
             data.title     = extractField("Title", from: savingBlock)
             data.frequency = extractField("Frequency", from: savingBlock)
@@ -286,12 +302,22 @@ SAVING:
     }
 
     private func extractField(_ key: String, from text: String) -> String? {
-        let pattern = "(?:^|\\n)- \(key):[\\s]*([^\\n]+)"
+        // Tolerate sloppy model formatting: optional list marker (-, *, •), optional
+        // markdown bold (**Action**), and flexible spacing around the colon.
+        let pattern = "(?:^|\\n)[ \\t]*(?:[-*•][ \\t]*)?\\*{0,2}\\s*\(key)\\s*\\*{0,2}[ \\t]*:[ \\t]*([^\\n]+)"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let range = Range(match.range(at: 1), in: text) else { return nil }
-        let result = String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
-        return result.isEmpty ? nil : result
+
+        var result = String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip surrounding markdown bold/italics the model sometimes wraps values in.
+        result = result.trimmingCharacters(in: CharacterSet(charactersIn: "*_`")).trimmingCharacters(in: .whitespaces)
+
+        // Treat an unfilled template placeholder (e.g. "[name]", "[amount]") as missing.
+        if result.isEmpty || (result.hasPrefix("[") && result.hasSuffix("]")) {
+            return nil
+        }
+        return result
     }
 
     private func parseAmount(_ text: String) -> Double? {
