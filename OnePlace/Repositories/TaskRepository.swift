@@ -37,6 +37,7 @@ final class TaskRepository {
             title: draft.title,
             notes: draft.notes,
             priority: draft.priority,
+            manualOrder: nil,
             dueDate: draft.dueDate,
             completed: draft.completed,
             reminderEnabled: draft.reminderEnabled,
@@ -107,11 +108,20 @@ final class TaskRepository {
 
         let reminderRepeat = ReminderRepeat(rawValue: data["reminderRepeat"] as? String ?? "") ?? .oneTime
         let remindersID = data["remindersID"] as? String
+        let manualOrder: Double?
+        if let value = data["manualOrder"] as? Double {
+            manualOrder = value
+        } else if let value = data["manualOrder"] as? Int {
+            manualOrder = Double(value)
+        } else {
+            manualOrder = nil
+        }
 
         return TaskItemDTO(
             title: title,
             notes: notes,
             priority: priority,
+            manualOrder: manualOrder,
             dueDate: dueDate,
             completed: completed,
             reminderEnabled: reminderEnabled,
@@ -137,6 +147,9 @@ final class TaskRepository {
         if let dueDate = record.dueDate {
             data["dueDate"] = Timestamp(date: dueDate)
         }
+        if let manualOrder = record.manualOrder {
+            data["manualOrder"] = manualOrder
+        }
         if let reminderDate = record.reminderDate {
             data["reminderDate"] = Timestamp(date: reminderDate)
         }
@@ -154,6 +167,7 @@ final class TaskRepository {
         let title: String
         let notes: String?
         let priority: String
+        let manualOrder: Double?
         let dueDate: Date?
         let completed: Bool
         let reminderEnabled: Bool
@@ -172,6 +186,7 @@ final class TaskRepository {
                 title: title,
                 notes: notes,
                 priority: taskPriority,
+                manualOrder: manualOrder,
                 dueDate: dueDate,
                 completed: completed,
                 reminderEnabled: reminderEnabled,

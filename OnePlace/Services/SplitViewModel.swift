@@ -41,17 +41,30 @@ final class SplitViewModel: ObservableObject {
     // MARK: - People Operations
 
     func addPerson(name: String) async {
+        await addPeople(names: [name])
+    }
+
+    func addPeople(names: [String]) async {
         guard let uid = Auth.auth().currentUser?.uid else {
             errorMessage = "You're not signed in."
             return
         }
+
+        let cleanedNames = names
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !cleanedNames.isEmpty else { return }
 
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
 
         do {
-            _ = try await repo.createPerson(for: uid, name: name)
+            var existingNames = Set(people.map { $0.name.lowercased() })
+            for name in cleanedNames where !existingNames.contains(name.lowercased()) {
+                _ = try await repo.createPerson(for: uid, name: name)
+                existingNames.insert(name.lowercased())
+            }
             people = try await repo.fetchPeople(for: uid)
         } catch {
             errorMessage = error.localizedDescription
@@ -82,6 +95,26 @@ final class SplitViewModel: ObservableObject {
             people.removeAll { $0.id == person.id }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func reorderPeople(_ reorderedPeople: [SplitPersonRecord]) async {
+        guard !reorderedPeople.isEmpty else { return }
+
+        let updatedPeople = reorderedPeople.enumerated().map { index, person in
+            var updated = person
+            updated.manualOrder = Double(index)
+            return updated
+        }
+
+        people = updatedPeople
+        errorMessage = nil
+
+        do {
+            try await repo.reorderPeople(updatedPeople)
+        } catch {
+            errorMessage = error.localizedDescription
+            await refresh()
         }
     }
 

@@ -45,6 +45,7 @@ struct OnePlaceLiveTask: Codable, Hashable, Identifiable, Sendable {
     var title: String
     var isCompleted: Bool
     var priority: OnePlaceLivePriority
+    var manualOrder: Double?
     var dueDate: Date?
     var remindersID: String?
 
@@ -53,6 +54,7 @@ struct OnePlaceLiveTask: Codable, Hashable, Identifiable, Sendable {
         title: String,
         isCompleted: Bool,
         priority: OnePlaceLivePriority = .normal,
+        manualOrder: Double? = nil,
         dueDate: Date? = nil,
         remindersID: String? = nil
     ) {
@@ -60,6 +62,7 @@ struct OnePlaceLiveTask: Codable, Hashable, Identifiable, Sendable {
         self.title = title
         self.isCompleted = isCompleted
         self.priority = priority
+        self.manualOrder = manualOrder
         self.dueDate = dueDate
         self.remindersID = remindersID
     }

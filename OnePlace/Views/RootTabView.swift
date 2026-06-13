@@ -1353,10 +1353,21 @@ enum AIChatResponder {
     private static func startSplitConversation(prompt: String, assistant: AIAssistantManager) async {
         if let names = SplitPromptInterpreter.personNames(from: prompt), !names.isEmpty {
             if let uid = try? AIAuth.requireUID() {
+                let repository = SplitRepository()
+                var existingNames = Set(((try? await repository.fetchPeople(for: uid)) ?? []).map { $0.name.lowercased() })
+                var addedNames: [String] = []
+
                 for name in names {
-                    _ = try? await SplitRepository().createPerson(for: uid, name: name)
+                    guard !existingNames.contains(name.lowercased()) else { continue }
+                    _ = try? await repository.createPerson(for: uid, name: name)
+                    existingNames.insert(name.lowercased())
+                    addedNames.append(name)
                 }
-                assistant.assistantSay("Added \(joinedNames(names)) to Split.")
+                assistant.assistantSay(
+                    addedNames.isEmpty
+                        ? "Those people are already in Split."
+                        : "Added \(joinedNames(addedNames)) to Split."
+                )
                 assistant.pendingActionsToken = UUID()
             }
             return

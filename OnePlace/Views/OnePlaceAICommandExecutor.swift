@@ -41,19 +41,25 @@ enum OnePlaceAICommandExecutor {
 
     private static func handleLocalAddCommand(text: String, assistant: AIAssistantManager) async -> Bool {
         guard assistant.currentArea == .split else { return false }
-        guard let names = splitPersonNames(from: text), !names.isEmpty else { return false }
+        guard let names = SplitPromptInterpreter.personNames(from: text), !names.isEmpty else { return false }
 
         do {
             let uid = try AIAuth.requireUID()
             let repo = SplitRepository()
+            var existingNames = Set((try await repo.fetchPeople(for: uid)).map { $0.name.lowercased() })
             var addedNames: [String] = []
 
-            for name in names {
+            for name in names where !existingNames.contains(name.lowercased()) {
                 _ = try await repo.createPerson(for: uid, name: name)
+                existingNames.insert(name.lowercased())
                 addedNames.append(name)
             }
 
-            assistant.assistantSay("Added \(joinedNames(addedNames)) to Split.")
+            assistant.assistantSay(
+                addedNames.isEmpty
+                    ? "Those people are already in Split."
+                    : "Added \(joinedNames(addedNames)) to Split."
+            )
             assistant.pendingActionsToken = UUID()
         } catch {
             assistant.assistantSay("I couldn't add those people: \(error.localizedDescription)")
@@ -460,33 +466,6 @@ enum OnePlaceAICommandExecutor {
 
     private static func containsAny(_ text: String, _ needles: [String]) -> Bool {
         needles.contains { text.contains($0) }
-    }
-
-    private static func splitPersonNames(from text: String) -> [String]? {
-        var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lowered = value.lowercased()
-        guard parseAmount(from: value) == nil else { return nil }
-        guard lowered.hasPrefix("add ") || lowered.hasPrefix("create ") else { return nil }
-        guard lowered.contains("person") || lowered.contains("people") || lowered.contains(",") || lowered.contains(" and ") else {
-            return nil
-        }
-
-        value = value.replacingOccurrences(
-            of: #"(?i)^(add|create)\s+(?:(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+)?(?:person|people|persons)\s*|^(add|create)\s+"#,
-            with: "",
-            options: .regularExpression
-        )
-        value = value.replacingOccurrences(of: #"(?i)\b(to|in)\s+split\b"#, with: "", options: .regularExpression)
-        value = value.replacingOccurrences(of: #"(?i)\bpeople\b|\bpersons\b|\bperson\b"#, with: "", options: .regularExpression)
-        value = value.replacingOccurrences(of: #"(?i)\band\b"#, with: ",", options: .regularExpression)
-
-        let names = value
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .map { $0.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression) }
-            .filter { !$0.isEmpty }
-
-        return names.isEmpty ? nil : names
     }
 
     private static func joinedNames(_ names: [String]) -> String {

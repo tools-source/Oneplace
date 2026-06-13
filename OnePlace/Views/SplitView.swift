@@ -4,8 +4,10 @@ import UIKit
 struct SplitView: View {
     @StateObject private var vm = SplitViewModel()
     @EnvironmentObject private var aiAssistant: AIAssistantManager
+    @Environment(\.editMode) private var editMode
 
-    @State private var showingAddPerson = false
+    @State private var showingPersonEditor = false
+    @State private var editingPerson: SplitPersonRecord?
     @State private var showingAddExpense = false
     @State private var editingExpense: SplitExpenseRecord?
     @State private var newPersonName = ""
@@ -31,6 +33,12 @@ struct SplitView: View {
             expense.title.localizedCaseInsensitiveContains(query) ||
             expenseSubtitle(for: expense).localizedCaseInsensitiveContains(query)
         }
+    }
+
+    private var canReorderPeople: Bool {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !vm.isLoading &&
+        vm.people.count > 1
     }
 
     var body: some View {
@@ -62,8 +70,11 @@ struct SplitView: View {
             .navigationTitle("Split")
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    EditButton()
+                        .disabled(!canReorderPeople)
+
                     Button {
-                        showingAddPerson = true
+                        presentPersonEditor()
                     } label: {
                         Image(systemName: "person.badge.plus")
                     }
@@ -83,19 +94,13 @@ struct SplitView: View {
                     .disabled(vm.people.isEmpty && vm.expenses.isEmpty)
                 }
             }
-            .alert("Add Person", isPresented: $showingAddPerson) {
+            .alert(editingPerson == nil ? "Add Person" : "Edit Person", isPresented: $showingPersonEditor) {
                 TextField("Name", text: $newPersonName)
-                Button("Add") {
-                    let trimmed = newPersonName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-
-                    Task {
-                        await vm.addPerson(name: trimmed)
-                        newPersonName = ""
-                    }
+                Button(editingPerson == nil ? "Add" : "Save") {
+                    savePersonEditor()
                 }
                 Button("Cancel", role: .cancel) {
-                    newPersonName = ""
+                    resetPersonEditor()
                 }
             }
             .sheet(isPresented: $showingAddExpense) {
@@ -195,7 +200,7 @@ struct SplitView: View {
                     systemImage: "person.badge.plus",
                     ctaTitle: "Add Person"
                 ) {
-                    showingAddPerson = true
+                    presentPersonEditor()
                 }
                 .padding(.vertical, 10)
                 .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
@@ -215,10 +220,15 @@ struct SplitView: View {
             } else {
                 ForEach(filteredPeople) { person in
                     personRow(for: person)
+                        .onTapGesture {
+                            presentPersonEditor(for: person)
+                        }
+                        .moveDisabled(!canReorderPeople)
                         .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
+                .onMove(perform: movePeople)
             }
         } header: {
             HStack {
@@ -250,7 +260,7 @@ struct SplitView: View {
                     ctaTitle: vm.people.isEmpty ? "Add Person" : "Add Expense"
                 ) {
                     if vm.people.isEmpty {
-                        showingAddPerson = true
+                        presentPersonEditor()
                     } else {
                         showingAddExpense = true
                     }
@@ -298,7 +308,14 @@ struct SplitView: View {
                     .foregroundStyle(balance >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor)
             }
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                presentPersonEditor(for: person)
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .tint(DesignSystem.accentColor)
+
             Button(role: .destructive) {
                 Task { await vm.deletePerson(person) }
             } label: {
@@ -346,6 +363,43 @@ struct SplitView: View {
         }
     }
 
+    private func presentPersonEditor(for person: SplitPersonRecord? = nil) {
+        editingPerson = person
+        newPersonName = person?.name ?? ""
+        showingPersonEditor = true
+    }
+
+    private func savePersonEditor() {
+        let trimmed = newPersonName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        if var editingPerson {
+            editingPerson.name = trimmed
+            Task { await vm.updatePerson(editingPerson) }
+        } else {
+            Task { await vm.addPerson(name: trimmed) }
+        }
+
+        resetPersonEditor()
+    }
+
+    private func resetPersonEditor() {
+        newPersonName = ""
+        editingPerson = nil
+    }
+
+    private func movePeople(from source: IndexSet, to destination: Int) {
+        guard canReorderPeople else { return }
+
+        var reorderedPeople = vm.people
+        reorderedPeople.move(fromOffsets: source, toOffset: destination)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        Task {
+            await vm.reorderPeople(reorderedPeople)
+        }
+    }
+
     private func handleSearchSubmit(wasVoice: Bool) {
         let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty,
@@ -358,9 +412,7 @@ struct SplitView: View {
 
         if let names = SplitPromptInterpreter.personNames(from: prompt), !names.isEmpty {
             Task {
-                for name in names {
-                    await vm.addPerson(name: name)
-                }
+                await vm.addPeople(names: names)
                 await MainActor.run { searchText = "" }
             }
             return
@@ -442,24 +494,74 @@ enum SplitPromptInterpreter {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let lowered = trimmed.lowercased()
         guard extractAmount(from: prompt) == nil,
-              lowered.hasPrefix("add person ") || lowered.hasPrefix("add ") else {
+              lowered.hasPrefix("add person ") ||
+              lowered.hasPrefix("add people ") ||
+              lowered.hasPrefix("add persons ") ||
+              lowered.hasPrefix("add ") ||
+              lowered.hasPrefix("create person ") ||
+              lowered.hasPrefix("create people ") ||
+              lowered.hasPrefix("create persons ") ||
+              lowered.hasPrefix("create ") else {
             return nil
         }
 
+        let expectedCount = expectedPeopleCount(in: lowered)
         let value = trimmed
-            .replacingOccurrences(of: #"(?i)^add\s+(?:(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+)?(?:person|people|persons)\s*|^add\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)^(add|create)\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)^(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:person|people|persons)\s*,?\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)^(?:person|people|persons)\s*,?\s*"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"(?i)\b(to|in)\s+split\b"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"(?i)\bpeople\b|\bpersons\b|\bperson\b"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"(?i)\band\b"#, with: ",", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\s*(?:,|\band\b|&|\+)\s*"#, with: ",", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let names = value
+        var names = value
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .map { $0.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression) }
+            .map(cleanPersonName)
             .filter { !$0.isEmpty }
 
+        if let expectedCount, names.count < expectedCount {
+            names = names
+                .flatMap { $0.split(whereSeparator: \.isWhitespace).map(String.init) }
+                .map(cleanPersonName)
+                .filter { !$0.isEmpty }
+        }
+
+        names = Array(NSOrderedSet(array: names).compactMap { $0 as? String })
         return names.isEmpty ? nil : names
+    }
+
+    private static func expectedPeopleCount(in loweredPrompt: String) -> Int? {
+        let numberWords = [
+            "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+            "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10
+        ]
+
+        if let match = loweredPrompt.range(
+            of: #"(?<=\badd\s)(one|two|three|four|five|six|seven|eight|nine|ten|\d+)(?=\s+(?:person|people|persons)\b)"#,
+            options: .regularExpression
+        ) ?? loweredPrompt.range(
+            of: #"(?<=\bcreate\s)(one|two|three|four|five|six|seven|eight|nine|ten|\d+)(?=\s+(?:person|people|persons)\b)"#,
+            options: .regularExpression
+        ) {
+            let token = String(loweredPrompt[match])
+            return numberWords[token] ?? Int(token)
+        }
+
+        return nil
+    }
+
+    private static func cleanPersonName(_ name: String) -> String {
+        name
+            .replacingOccurrences(of: #"(?i)\b(add|person|people|persons|to split|in split)\b"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"[^A-Za-z'\-\s]"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: \.isWhitespace)
+            .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+            .joined(separator: " ")
     }
 
     static func expenseDraft(from prompt: String, people: [SplitPersonRecord]) -> SplitExpenseDraft? {
@@ -563,6 +665,8 @@ private struct AddSplitExpenseView: View {
             _date = State(initialValue: expense.date)
             _selectedPaidBy = State(initialValue: expense.paidById)
             _selectedParticipants = State(initialValue: Set(expense.participantIds))
+        } else {
+            _selectedParticipants = State(initialValue: Set(vm.people.map(\.id)))
         }
     }
 

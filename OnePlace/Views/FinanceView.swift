@@ -740,7 +740,9 @@ struct FinanceView: View {
         return FinanceFilters(
             type: type,
             category: savedCategory,
-            hideCompleted: defaults.bool(forKey: FinancePreferenceKey.hideCompleted)
+            hideCompleted: defaults.object(forKey: FinancePreferenceKey.hideCompleted) == nil
+                ? true
+                : defaults.bool(forKey: FinancePreferenceKey.hideCompleted)
         )
     }
 
@@ -812,7 +814,7 @@ struct FinanceView: View {
 private struct FinanceFilters: Equatable {
     var type: FinanceType? = nil
     var category: String? = nil
-    var hideCompleted = false
+    var hideCompleted = true
 
     var isActive: Bool {
         type != nil || category != nil || hideCompleted

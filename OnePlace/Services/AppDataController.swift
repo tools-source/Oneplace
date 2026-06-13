@@ -11,6 +11,8 @@ final class AppDataController: ObservableObject {
     }
 
     private static func makeLocalContainer(schema: Schema) -> ModelContainer {
+        prepareApplicationSupportDirectory()
+
         let configuration = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false
@@ -20,6 +22,24 @@ final class AppDataController: ObservableObject {
         } catch {
             logContainerError(error, configuration: configuration)
             return makeInMemoryContainer(schema: schema)
+        }
+    }
+
+    private static func prepareApplicationSupportDirectory() {
+        guard let appGroupURL = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: OnePlaceTaskCache.appGroupID
+        ) else {
+            return
+        }
+
+        let supportURL = appGroupURL
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("Application Support", isDirectory: true)
+
+        do {
+            try FileManager.default.createDirectory(at: supportURL, withIntermediateDirectories: true)
+        } catch {
+            print("Failed to prepare SwiftData Application Support directory: \(error.localizedDescription)")
         }
     }
 

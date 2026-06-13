@@ -13,12 +13,23 @@ final class SplitRepository {
     // MARK: - Fetch People
 
     func fetchPeople(for uid: String) async throws -> [SplitPersonRecord] {
-        let snapshot = try await peopleCollection(for: uid)
-            .order(by: "name", descending: false)
-            .getDocuments()
+        let snapshot = try await peopleCollection(for: uid).getDocuments()
 
-        return snapshot.documents.compactMap { document in
-            parsePersonDTO(from: document.data(), id: document.documentID, ownerUserId: uid)
+        return snapshot.documents
+            .compactMap { document in
+                parsePersonDTO(from: document.data(), id: document.documentID, ownerUserId: uid)
+            }
+            .sorted {
+                switch ($0.manualOrder, $1.manualOrder) {
+                case let (left?, right?) where left != right:
+                    return left < right
+                case (_?, nil):
+                    return true
+                case (nil, _?):
+                    return false
+                default:
+                    return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                }
         }
     }
 
@@ -26,8 +37,10 @@ final class SplitRepository {
 
     func createPerson(for uid: String, name: String) async throws -> String {
         let documentRef = peopleCollection(for: uid).document()
+        let nextOrder = ((try? await fetchPeople(for: uid).compactMap(\.manualOrder).max()) ?? -1) + 1
         let data: [String: Any] = [
-            "name": name
+            "name": name,
+            "manualOrder": nextOrder
         ]
         try await documentRef.setData(data, merge: false)
         return documentRef.documentID
@@ -37,7 +50,30 @@ final class SplitRepository {
 
     func updatePerson(_ person: SplitPersonRecord) async throws {
         let documentRef = peopleCollection(for: person.ownerUserId).document(person.id)
-        try await documentRef.setData(["name": person.name], merge: false)
+        var data: [String: Any] = ["name": person.name]
+        if let manualOrder = person.manualOrder {
+            data["manualOrder"] = manualOrder
+        }
+        try await documentRef.setData(data, merge: false)
+    }
+
+    func reorderPeople(_ people: [SplitPersonRecord]) async throws {
+        guard let first = people.first else { return }
+        let batch = firestore.batch()
+
+        for (index, person) in people.enumerated() {
+            let documentRef = peopleCollection(for: first.ownerUserId).document(person.id)
+            batch.setData(
+                [
+                    "name": person.name,
+                    "manualOrder": Double(index)
+                ],
+                forDocument: documentRef,
+                merge: true
+            )
+        }
+
+        try await batch.commit()
     }
 
     // MARK: - Delete Person
@@ -157,7 +193,8 @@ final class SplitRepository {
         return SplitPersonRecord(
             id: id,
             ownerUserId: ownerUserId,
-            name: name
+            name: name,
+            manualOrder: data["manualOrder"] as? Double
         )
     }
 

@@ -34,7 +34,13 @@ enum OnePlaceTaskSyncCoordinator {
     static func updateTaskSurfaces(with tasks: [TaskItemRecord]) {
         OnePlaceTaskCache.save(tasks.map(\.liveActivityTask))
         WidgetCenter.shared.reloadAllTimelines()
-        OnePlaceLiveActivityController.shared.startOrUpdate(with: tasks)
+        OnePlaceLiveActivityController.shared.updateForCurrentPreference(with: tasks)
+    }
+
+    static func clearTaskSurfaces() async {
+        OnePlaceTaskCache.clear()
+        WidgetCenter.shared.reloadAllTimelines()
+        await OnePlaceLiveActivityController.shared.stopAll()
     }
 
     static func scheduleBackgroundRefresh() {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct OrganizerView: View {
     enum OrganizerSegment: String, CaseIterable, Identifiable {
@@ -12,12 +13,14 @@ struct OrganizerView: View {
     @StateObject private var vm = OrganizerViewModel()
     @EnvironmentObject private var aiAssistant: AIAssistantManager
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.editMode) private var editMode
 
     @State private var showingAdd = false
     @State private var editingTask: TaskItemRecord?
     @State private var searchText = ""
     @State private var lastRefreshToken: UUID?
     @State private var showingClearDoneConfirm = false
+    @State private var completingTaskIDs: Set<String> = []
     @State private var selectedSegment: OrganizerSegment = {
         let saved = UserDefaults.standard.string(forKey: "tasks.selectedSegment") ?? ""
         return OrganizerSegment(rawValue: saved) ?? .today
@@ -42,6 +45,23 @@ struct OrganizerView: View {
         case .done:
             return completedTasks
         }
+    }
+
+    private var taskPriorityGroups: [TaskPriorityGroup] {
+        [TaskPriority.high, .normal, .low].compactMap { priority in
+            let tasks = selectedTasks.filter { $0.priority == priority }
+            return tasks.isEmpty ? nil : TaskPriorityGroup(priority: priority, tasks: tasks)
+        }
+    }
+
+    private var isEditingTasks: Bool {
+        editMode?.wrappedValue.isEditing == true
+    }
+
+    private var canReorderTasks: Bool {
+        selectedSegment != .done &&
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !vm.isLoading
     }
 
     private var todayTasks: [TaskItemRecord] {
@@ -76,7 +96,7 @@ struct OrganizerView: View {
                 Section {
                     OnePlaceAISearchBar(
                         text: $searchText,
-                        placeholder: "Search or ask OnePlace",
+                        placeholder: "Search or add task",
                         isProcessing: vm.isLoading,
                         onSubmit: handleSearchSubmit
                     )
@@ -99,9 +119,15 @@ struct OrganizerView: View {
             .animation(.easeInOut(duration: 0.2), value: selectedSegment)
             .onChange(of: selectedSegment) { _, newValue in
                 UserDefaults.standard.set(newValue.rawValue, forKey: "tasks.selectedSegment")
+                if isEditingTasks {
+                    editMode?.wrappedValue = .inactive
+                }
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    EditButton()
+                        .disabled(!canReorderTasks || selectedTasks.isEmpty)
+
                     Button {
                         showingAdd = true
                     } label: {
@@ -125,6 +151,7 @@ struct OrganizerView: View {
                         title: draft.title,
                         notes: draft.notes,
                         priority: draft.priority,
+                        manualOrder: task.priority == draft.priority ? task.manualOrder : nil,
                         dueDate: draft.dueDate,
                         completed: draft.completed,
                         reminderEnabled: draft.reminderEnabled,
@@ -225,43 +252,85 @@ struct OrganizerView: View {
     }
 
     private var tasksSection: some View {
-        Section {
+        Group {
             if selectedSegment == .done && !allCompletedTasks.isEmpty {
-                doneSectionActions
-                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-
-            if vm.isLoading && vm.tasks.isEmpty {
-                ProgressView("Loading…")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .listRowBackground(Color.clear)
-            } else if selectedTasks.isEmpty {
-                EmptyState(
-                    title: emptyTitle,
-                    message: emptyMessage,
-                    systemImage: emptySystemImage,
-                    ctaTitle: "Add Task"
-                ) {
-                    showingAdd = true
-                }
-                .padding(.vertical, 10)
-                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            } else {
-                ForEach(selectedTasks) { task in
-                    taskRow(for: task)
-                        .onTapGesture {
-                            editingTask = task
-                        }
-                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                Section {
+                    doneSectionActions
+                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
             }
+
+            if vm.isLoading && vm.tasks.isEmpty {
+                Section {
+                    ProgressView("Loading…")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                        .listRowBackground(Color.clear)
+                }
+            } else if selectedTasks.isEmpty {
+                Section {
+                    EmptyState(
+                        title: emptyTitle,
+                        message: emptyMessage,
+                        systemImage: emptySystemImage,
+                        ctaTitle: "Add Task"
+                    ) {
+                        showingAdd = true
+                    }
+                    .padding(.vertical, 10)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
+            } else {
+                ForEach(taskPriorityGroups) { group in
+                    Section {
+                        ForEach(group.tasks) { task in
+                            taskRow(for: task)
+                                .onTapGesture {
+                                    editingTask = task
+                                }
+                                .moveDisabled(!canReorderTasks)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
+                        .onMove { source, destination in
+                            moveTasks(from: source, to: destination, in: group)
+                        }
+                    } header: {
+                        priorityHeader(for: group)
+                    }
+                }
+            }
+        }
+    }
+
+    private func priorityHeader(for group: TaskPriorityGroup) -> some View {
+        HStack {
+            Label(group.priority.displayName, systemImage: priorityHeaderIcon(for: group.priority))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(priorityTint(for: group.priority))
+            Spacer()
+            Text(group.tasks.count.formatted())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .textCase(nil)
+        .padding(.horizontal, 4)
+    }
+
+    private func moveTasks(from source: IndexSet, to destination: Int, in group: TaskPriorityGroup) {
+        guard canReorderTasks else { return }
+
+        var reorderedTasks = group.tasks
+        reorderedTasks.move(fromOffsets: source, toOffset: destination)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        Task {
+            await vm.reorderTasks(reorderedTasks)
         }
     }
 
@@ -288,9 +357,17 @@ struct OrganizerView: View {
 
     @ViewBuilder
     private func taskRow(for task: TaskItemRecord) -> some View {
+        let isCompleting = completingTaskIDs.contains(task.id)
+
         AppCard {
             HStack(spacing: 12) {
-                ItemIconBadge(symbol: taskIcon(for: task), tint: taskTint(for: task))
+                Button {
+                    completeTaskWithMotion(task)
+                } label: {
+                    completionControl(for: task, isCompleting: isCompleting)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(task.completed ? "Mark task incomplete" : "Mark task complete")
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(task.title)
@@ -306,7 +383,7 @@ struct OrganizerView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(task.completed ? "Done" : task.priority.rawValue.capitalized)
+                    Text(task.completed ? "Done" : task.priority.displayName)
                         .font(.headline)
                         .foregroundStyle(taskTint(for: task))
 
@@ -319,9 +396,13 @@ struct OrganizerView: View {
             }
             .opacity(task.completed ? 0.62 : 1)
         }
+        .scaleEffect(isCompleting ? 0.94 : 1)
+        .offset(x: isCompleting ? 36 : 0)
+        .opacity(isCompleting ? 0.18 : 1)
+        .animation(.easeInOut(duration: 0.48), value: isCompleting)
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
-                Task { await vm.toggleCompletion(for: task) }
+                completeTaskWithMotion(task)
             } label: {
                 Label(task.completed ? "Undo" : "Complete",
                       systemImage: task.completed ? "arrow.uturn.backward.circle" : "checkmark.circle")
@@ -342,6 +423,55 @@ struct OrganizerView: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+        .contextMenu {
+            ForEach([TaskPriority.high, .normal, .low], id: \.self) { priority in
+                Button {
+                    updatePriority(priority, for: task)
+                } label: {
+                    Label(priority.displayName, systemImage: priorityHeaderIcon(for: priority))
+                }
+            }
+        }
+    }
+
+    private func completionControl(for task: TaskItemRecord, isCompleting: Bool) -> some View {
+        AnimatedCompletionControl(
+            isCompleted: task.completed || isCompleting,
+            tint: isCompleting ? DesignSystem.gainColor : taskTint(for: task)
+        )
+    }
+
+    private func completeTaskWithMotion(_ task: TaskItemRecord) {
+        guard !completingTaskIDs.contains(task.id) else { return }
+
+        if task.completed {
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            Task { await vm.toggleCompletion(for: task) }
+            return
+        }
+
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        withAnimation(.easeInOut(duration: 0.48)) {
+            _ = completingTaskIDs.insert(task.id)
+        }
+
+        Task {
+            try? await Task.sleep(nanoseconds: 520_000_000)
+            await vm.toggleCompletion(for: task)
+            await MainActor.run {
+                _ = completingTaskIDs.remove(task.id)
+            }
+        }
+    }
+
+    private func updatePriority(_ priority: TaskPriority, for task: TaskItemRecord) {
+        guard task.priority != priority else { return }
+
+        var updated = task
+        updated.priority = priority
+        updated.manualOrder = nil
+        Task { await vm.updateTask(updated) }
     }
 
     private var emptyTitle: String {
@@ -376,19 +506,28 @@ struct OrganizerView: View {
 
     private func handleSearchSubmit(wasVoice: Bool) {
         let prompt = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !prompt.isEmpty,
-              OnePlacePromptClassifier.isCommand(prompt, in: .organizer) else {
-            if wasVoice {
-                aiAssistant.openVoiceMode(area: .organizer)
+        guard !prompt.isEmpty else { return }
+
+        guard shouldRouteToAssistant(prompt) else {
+            Task {
+                var draft = OrganizerPromptInterpreter.interpret(prompt)
+                if !OrganizerPromptInterpreter.promptHasDate(prompt) {
+                    draft.dueDate = nil
+                    draft.reminderEnabled = false
+                    draft.reminderDate = nil
+                }
+
+                await vm.addTask(draft: draft)
+                guard vm.errorMessage == nil else { return }
+
+                searchText = ""
+                selectedSegment = .today
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
             return
         }
 
-        if wasVoice {
-            aiAssistant.openVoiceMode(area: .organizer)
-        } else {
-            aiAssistant.openChatFresh(area: .organizer, voice: false)
-        }
+        aiAssistant.openChatFresh(area: .organizer, voice: wasVoice)
         aiAssistant.userSaid(prompt)
         searchText = ""
 
@@ -397,6 +536,14 @@ struct OrganizerView: View {
             await vm.refresh()
             selectedSegment = .today
         }
+    }
+
+    private func shouldRouteToAssistant(_ prompt: String) -> Bool {
+        let lowered = prompt.lowercased()
+        return [
+            "delete", "remove", "erase", "complete", "mark done", "finished",
+            "finish ", "reopen", "undo", "not done"
+        ].contains { lowered.contains($0) }
     }
 
     private func taskSubtitle(for task: TaskItemRecord) -> String {
@@ -427,18 +574,25 @@ struct OrganizerView: View {
         return date.formatted(date: .abbreviated, time: .omitted)
     }
 
-    private func taskIcon(for task: TaskItemRecord) -> String {
-        if task.completed {
-            return "checkmark.circle.fill"
-        }
-
-        switch task.priority {
+    private func priorityHeaderIcon(for priority: TaskPriority) -> String {
+        switch priority {
         case .high:
             return "exclamationmark.circle.fill"
         case .normal:
-            return "calendar"
+            return "circle.grid.2x2.fill"
         case .low:
-            return "circle.fill"
+            return "arrow.down.circle.fill"
+        }
+    }
+
+    private func priorityTint(for priority: TaskPriority) -> Color {
+        switch priority {
+        case .high:
+            return DesignSystem.warmAccent
+        case .normal:
+            return DesignSystem.accentColor
+        case .low:
+            return DesignSystem.secondaryTextColor
         }
     }
 
@@ -447,14 +601,83 @@ struct OrganizerView: View {
             return DesignSystem.gainColor
         }
 
-        switch task.priority {
-        case .high:
-            return DesignSystem.warmAccent
-        case .normal:
-            return DesignSystem.accentColor
-        case .low:
-            return DesignSystem.secondaryTextColor
+        return priorityTint(for: task.priority)
+    }
+}
+
+private struct TaskPriorityGroup: Identifiable {
+    let priority: TaskPriority
+    let tasks: [TaskItemRecord]
+
+    var id: TaskPriority { priority }
+}
+
+private struct AnimatedCompletionControl: View {
+    let isCompleted: Bool
+    let tint: Color
+
+    @State private var fillScale: CGFloat = 0.1
+    @State private var checkProgress: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(tint.opacity(0.08))
+
+            Circle()
+                .fill(tint)
+                .scaleEffect(fillScale)
+                .opacity(isCompleted ? 1 : 0)
+
+            Circle()
+                .stroke(tint.opacity(isCompleted ? 0 : 0.5), lineWidth: 2)
+
+            if isCompleted || checkProgress > 0 {
+                AnimatedCheckmark()
+                    .trim(from: 0, to: checkProgress)
+                    .stroke(
+                        Color.white,
+                        style: StrokeStyle(lineWidth: 2.7, lineCap: .round, lineJoin: .round)
+                    )
+                    .frame(width: 16, height: 12)
+                    .scaleEffect(isCompleted ? 1 : 0.86)
+            }
         }
+        .frame(width: 32, height: 32)
+        .frame(width: 36, height: 36)
+        .onAppear {
+            fillScale = isCompleted ? 1 : 0.1
+            checkProgress = isCompleted ? 1 : 0
+        }
+        .onChange(of: isCompleted) { _, completed in
+            if completed {
+                fillScale = 0.62
+                checkProgress = 0
+
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.68)) {
+                    fillScale = 1
+                }
+
+                withAnimation(.easeOut(duration: 0.22).delay(0.07)) {
+                    checkProgress = 1
+                }
+            } else {
+                withAnimation(.easeIn(duration: 0.14)) {
+                    fillScale = 0.1
+                    checkProgress = 0
+                }
+            }
+        }
+    }
+}
+
+private struct AnimatedCheckmark: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + rect.width * 0.08, y: rect.minY + rect.height * 0.56))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.38, y: rect.minY + rect.height * 0.84))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.94, y: rect.minY + rect.height * 0.14))
+        return path
     }
 }
 
@@ -475,6 +698,25 @@ enum OrganizerPromptInterpreter {
             reminderEnabled: reminderDate != nil,
             reminderDate: reminderDate
         )
+    }
+
+    static func promptHasDate(_ prompt: String) -> Bool {
+        let lowered = prompt.lowercased()
+        let keywords = [
+            "today", "tomorrow", "tonight", "next week", "next month",
+            "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+            "january", "february", "march", "april", "may", "june", "july",
+            "august", "september", "october", "november", "december",
+            "weekend", "this week"
+        ]
+
+        if keywords.contains(where: lowered.contains) {
+            return true
+        }
+
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+        let range = NSRange(prompt.startIndex..<prompt.endIndex, in: prompt)
+        return detector?.firstMatch(in: prompt, range: range) != nil
     }
 
     private static func priority(from prompt: String) -> TaskPriority {
@@ -511,7 +753,7 @@ enum OrganizerPromptInterpreter {
 
     private static func title(from prompt: String) -> String {
         var value = prompt
-            .replacingOccurrences(of: #"(?i)\b(remind me to|add a task to|add task to|add todo to|add|create|make|task|todo|to do|remind|today|tomorrow|next week|urgent|asap|important|high priority|low priority|please)\b"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"(?i)\b(remind me to|add a task to|add task to|add todo to|add|create|make|task|todo|to do|remind|today|tomorrow|tonight|next week|next month|this week|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday|urgent|asap|important|high priority|low priority|please)\b"#, with: " ", options: .regularExpression)
             .replacingOccurrences(of: #"[^A-Za-z0-9'&\s]"#, with: " ", options: .regularExpression)
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -527,6 +769,11 @@ enum OrganizerPromptInterpreter {
 private struct TaskEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
+    private enum Field {
+        case title
+        case notes
+    }
+
     @State private var title: String
     @State private var notes: String
     @State private var priority: TaskPriority
@@ -535,6 +782,7 @@ private struct TaskEditorView: View {
     @State private var reminderEnabled: Bool
     @State private var reminderDate: Date
     @State private var reminderRepeat: ReminderRepeat
+    @FocusState private var focusedField: Field?
 
     private let task: TaskItemRecord?
     private let onSave: (TaskItemDraft) -> Void
@@ -558,11 +806,18 @@ private struct TaskEditorView: View {
             Form {
                 Section("Details") {
                     TextField("Task title", text: $title)
+                        .focused($focusedField, equals: .title)
+                        .submitLabel(.next)
+                        .onSubmit {
+                            focusedField = .notes
+                        }
+
                     Picker("Priority", selection: $priority) {
-                        ForEach(TaskPriority.allCases, id: \.self) { priority in
-                            Text(priority.rawValue.capitalized).tag(priority)
+                        ForEach([TaskPriority.high, .normal, .low], id: \.self) { priority in
+                            Text(priority.displayName).tag(priority)
                         }
                     }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("Due Date") {
@@ -590,12 +845,16 @@ private struct TaskEditorView: View {
 
                 Section("Notes") {
                     TextField("Optional notes", text: $notes, axis: .vertical)
+                        .focused($focusedField, equals: .notes)
                         .lineLimit(2...4)
                 }
             }
+            .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-            .background(DesignSystem.backgroundGradient.ignoresSafeArea())
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(task == nil ? "New Task" : "Edit Task")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
@@ -616,6 +875,11 @@ private struct TaskEditorView: View {
                         dismiss()
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .onAppear {
+                if task == nil {
+                    focusedField = .title
                 }
             }
         }

@@ -45,6 +45,7 @@
 		5F8A9B892B2C8A4E00A1A1A1 /* CommsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B882B2C8A4E00A1A1A1 /* CommsView.swift */; };
 		5F8A9B8B2B2C8A4E00A1A1A1 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8A9B8A2B2C8A4E00A1A1A1 /* HelpView.swift */; };
 		5F8A9B8D2B2C8A4E00A1A1A1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5F8A9B8C2B2C8A4E00A1A1A1 /* Assets.xcassets */; };
+		A16060602F71000100000001 /* AppIcon60x60@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A16060602F71000100000002 /* AppIcon60x60@3x.png */; };
 		A1B2C3D40000000000000001 /* AppUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000002 /* AppUser.swift */; };
 		A1B2C3D40000000000000003 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000004 /* AuthManager.swift */; };
 		A1B2C3D40000000000000005 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000006 /* LoginView.swift */; };
@@ -143,6 +144,7 @@
 		5F8A9B8A2B2C8A4E00A1A1A1 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		5F8A9B8C2B2C8A4E00A1A1A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5F8A9B8E2B2C8A4E00A1A1A1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A16060602F71000100000002 /* AppIcon60x60@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@3x.png"; sourceTree = "<group>"; };
 		A1B2C3D40000000000000002 /* AppUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUser.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000004 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000006 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -349,6 +351,7 @@
 			isa = PBXGroup;
 			children = (
 				5F8A9B8C2B2C8A4E00A1A1A1 /* Assets.xcassets */,
+				A16060602F71000100000002 /* AppIcon60x60@3x.png */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -500,6 +503,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5F8A9B8D2B2C8A4E00A1A1A1 /* Assets.xcassets in Resources */,
+				A16060602F71000100000001 /* AppIcon60x60@3x.png in Resources */,
 				0B2D74B22F4056DE00B52D14 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -623,7 +627,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.0;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -651,7 +655,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.0;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
@@ -752,7 +756,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = OnePlaceWidget/Resources/OnePlaceWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OnePlaceWidget/Resources/Info.plist;
@@ -762,7 +766,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 4.0;
+				MARKETING_VERSION = 5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -779,7 +783,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = OnePlaceWidget/Resources/OnePlaceWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OnePlaceWidget/Resources/Info.plist;
@@ -789,7 +793,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 4.0;
+				MARKETING_VERSION = 5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

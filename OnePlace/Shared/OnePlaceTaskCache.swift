@@ -25,6 +25,14 @@ enum OnePlaceTaskCache {
         try? data.write(to: url, options: .atomic)
     }
 
+    static func clear() {
+        if let url = fileURL {
+            try? FileManager.default.removeItem(at: url)
+        }
+
+        clearLockScreenToggle()
+    }
+
     static func load() -> [OnePlaceLiveTask] {
         guard let url = fileURL,
               let data = try? Data(contentsOf: url),
@@ -49,4 +57,3 @@ enum OnePlaceTaskCache {
         defaults?.removeObject(forKey: toggleTimestampKey)
     }
 }
-

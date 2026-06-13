@@ -100,8 +100,8 @@ struct OnePlaceLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: OnePlaceActivityAttributes.self) { context in
             OnePlaceLockScreenView(state: context.state)
-                .activityBackgroundTint(Color.black.opacity(0.55))
-                .activitySystemActionForegroundColor(.white)
+                .activityBackgroundTint(.clear)
+                .activitySystemActionForegroundColor(.primary)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -149,6 +149,12 @@ private extension Array where Element == OnePlaceLiveTask {
         sorted {
             if $0.priority != $1.priority {
                 return $0.priority.rawValue > $1.priority.rawValue
+            }
+
+            if let leftOrder = $0.manualOrder,
+               let rightOrder = $1.manualOrder,
+               leftOrder != rightOrder {
+                return leftOrder < rightOrder
             }
 
             if let leftDue = $0.dueDate, let rightDue = $1.dueDate {
@@ -217,7 +223,7 @@ private struct OnePlaceLockScreenView: View {
                         .foregroundStyle(.teal)
                     Text("No open tasks")
                         .font(.system(size: density.rowFontSize, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.82))
+                        .foregroundStyle(.primary)
                 }
                 .frame(height: density.rowHeight, alignment: .center)
             } else {
@@ -245,7 +251,7 @@ private struct OnePlaceLockScreenView: View {
                     .lineLimit(1)
                 Text(footerText)
                     .font(.system(size: density.subtitleSize, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
@@ -255,7 +261,7 @@ private struct OnePlaceLockScreenView: View {
                 .font(.system(size: density.ringFontSize, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
                 .frame(width: density.ringSize, height: density.ringSize)
-                .background(Circle().stroke(Color.white.opacity(0.22), lineWidth: density.ringWidth))
+                .background(Circle().stroke(Color.secondary.opacity(0.32), lineWidth: density.ringWidth))
         }
     }
 
@@ -272,7 +278,7 @@ private struct OnePlaceLockScreenView: View {
             if overflowCount > 0 {
                 Text("+\(overflowCount)")
                     .font(.system(size: density.rowFontSize, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .foregroundStyle(.secondary)
                     .frame(height: density.rowHeight)
             }
         }
@@ -320,7 +326,7 @@ private struct OnePlaceLiveTaskRow: View {
     private var checkmark: some View {
         ZStack {
             Circle()
-                .stroke(task.isCompleted ? priorityColor : Color.white.opacity(0.35), lineWidth: 2)
+                .stroke(task.isCompleted ? priorityColor : Color.secondary.opacity(0.45), lineWidth: 2)
                 .frame(width: density.checkSize, height: density.checkSize)
 
             if task.isCompleted {

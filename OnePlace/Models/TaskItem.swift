@@ -14,6 +14,7 @@ final class TaskItem {
     var title: String = ""
     var notes: String?
     var priority: TaskPriority = TaskPriority.normal
+    var manualOrder: Double?
     var dueDate: Date?
     var completed: Bool = false
     var reminderEnabled: Bool = false
@@ -26,6 +27,7 @@ final class TaskItem {
         title: String = "",
         notes: String? = nil,
         priority: TaskPriority = TaskPriority.normal,
+        manualOrder: Double? = nil,
         dueDate: Date? = nil,
         completed: Bool = false,
         reminderEnabled: Bool = false,
@@ -37,6 +39,7 @@ final class TaskItem {
         self.title = title
         self.notes = notes
         self.priority = priority
+        self.manualOrder = manualOrder
         self.dueDate = dueDate
         self.completed = completed
         self.reminderEnabled = reminderEnabled

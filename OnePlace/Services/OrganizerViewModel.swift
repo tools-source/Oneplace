@@ -83,6 +83,36 @@ final class OrganizerViewModel: ObservableObject {
         }
     }
 
+    func reorderTasks(_ orderedTasks: [TaskItemRecord]) async {
+        guard !orderedTasks.isEmpty else { return }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        let updatedTasks = orderedTasks.enumerated().map { offset, task in
+            var updated = task
+            updated.manualOrder = Double(offset)
+            return updated
+        }
+
+        do {
+            for task in updatedTasks where task.manualOrder != tasks.first(where: { $0.id == task.id })?.manualOrder {
+                try await repo.updateTask(task)
+            }
+
+            let updatedByID = Dictionary(uniqueKeysWithValues: updatedTasks.map { ($0.id, $0) })
+            tasks = tasks.map { updatedByID[$0.id] ?? $0 }.sortedForOrganizer()
+            updateLiveActivityAndWidgetCache()
+        } catch {
+            errorMessage = error.localizedDescription
+            if let uid = Auth.auth().currentUser?.uid {
+                tasks = (try? await repo.fetchTasks(for: uid)) ?? tasks
+                updateLiveActivityAndWidgetCache()
+            }
+        }
+    }
+
     func deleteTask(_ task: TaskItemRecord) async {
         isLoading = true
         errorMessage = nil

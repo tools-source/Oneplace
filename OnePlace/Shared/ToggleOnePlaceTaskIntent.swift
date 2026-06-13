@@ -80,6 +80,12 @@ struct ToggleOnePlaceTaskIntent: LiveActivityIntent {
                     return $0.priority.rawValue > $1.priority.rawValue
                 }
 
+                if let leftOrder = $0.manualOrder,
+                   let rightOrder = $1.manualOrder,
+                   leftOrder != rightOrder {
+                    return leftOrder < rightOrder
+                }
+
                 if let leftDue = $0.dueDate, let rightDue = $1.dueDate {
                     return leftDue < rightDue
                 }
@@ -96,4 +102,3 @@ struct ToggleOnePlaceTaskIntent: LiveActivityIntent {
             }
     }
 }
-

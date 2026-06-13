@@ -65,6 +65,8 @@ struct OnePlaceApp: App {
     // ✅ register app delegate for Firebase setup
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
+    @Environment(\.scenePhase) private var scenePhase
+
     @StateObject private var dataController: AppDataController
     @StateObject private var authManager: AuthManager
     @State private var didRestoreSession = false
@@ -100,10 +102,28 @@ struct OnePlaceApp: App {
                 didRestoreSession = true
                 await authManager.restoreSessionFromProvider()
                 await AppPermissionBootstrap.requestInitialPermissionsIfNeeded()
+                await refreshTaskSurfacesIfSignedIn()
                 OnePlaceTaskSyncCoordinator.scheduleBackgroundRefresh()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                Task {
+                    await refreshTaskSurfacesIfSignedIn()
+                }
             }
         }
         .modelContainer(dataController.container)
+    }
+
+    @MainActor
+    private func refreshTaskSurfacesIfSignedIn() async {
+        guard case .signedIn = authManager.authState else { return }
+
+        do {
+            try await OnePlaceTaskSyncCoordinator.syncCurrentUserTasks()
+        } catch {
+            print("OnePlace task surface refresh failed: \(error.localizedDescription)")
+        }
     }
 }
 
@@ -459,9 +479,10 @@ private enum OnePlaceSiriWriter {
 
     static func startTasksLiveActivity() async -> String {
         do {
-            _ = try signedInUserId()
-            try await OnePlaceTaskSyncCoordinator.syncCurrentUserTasks()
-            return "Started the Organizer tasks Live Activity."
+            let uid = try signedInUserId()
+            let tasks = try await OnePlaceTaskSyncCoordinator.syncTasks(ownerUserId: uid, preferOnePlaceChanges: true)
+            let started = await OnePlaceLiveActivityController.shared.startOrUpdateAndWait(with: tasks)
+            return started ? "Started the Organizer tasks Live Activity." : OnePlaceLiveActivityController.shared.lastStatus
         } catch {
             return failureMessage(for: error)
         }
@@ -482,9 +503,18 @@ private enum OnePlaceSiriWriter {
             let uid = try signedInUserId()
             let repository = SplitRepository()
 
-            if let personName = SplitPromptInterpreter.personName(from: request) {
-                _ = try await repository.createPerson(for: uid, name: personName)
-                return "Added \(personName) to Split."
+            if let personNames = SplitPromptInterpreter.personNames(from: request), !personNames.isEmpty {
+                var existingNames = Set((try await repository.fetchPeople(for: uid)).map { $0.name.lowercased() })
+                var addedNames: [String] = []
+
+                for personName in personNames where !existingNames.contains(personName.lowercased()) {
+                    _ = try await repository.createPerson(for: uid, name: personName)
+                    existingNames.insert(personName.lowercased())
+                    addedNames.append(personName)
+                }
+                return addedNames.isEmpty
+                    ? "Those people are already in Split."
+                    : "Added \(joinedNames(addedNames)) to Split."
             }
 
             let people = try await repository.fetchPeople(for: uid)
@@ -530,6 +560,19 @@ private enum OnePlaceSiriWriter {
         }
 
         return "OnePlace could not complete that: \(error.localizedDescription)"
+    }
+
+    private static func joinedNames(_ names: [String]) -> String {
+        switch names.count {
+        case 0:
+            return ""
+        case 1:
+            return names[0]
+        case 2:
+            return "\(names[0]) and \(names[1])"
+        default:
+            return "\(names.dropLast().joined(separator: ", ")), and \(names.last ?? "")"
+        }
     }
 
     private static func isFlowPrompt(_ prompt: String) -> Bool {

@@ -4,6 +4,7 @@ struct SplitPersonRecord: Identifiable, Equatable {
     let id: String
     let ownerUserId: String
     var name: String
+    var manualOrder: Double?
 }
 
 struct SplitExpenseRecord: Identifiable, Equatable {

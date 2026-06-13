@@ -7,6 +7,7 @@ final class OnePlaceLiveActivityController {
 
     private let maxVisibleTasks = 12
     private let lastStatusKey = "oneplace.liveActivity.lastStatus"
+    private let userEnabledKey = "oneplace.liveActivity.userEnabled"
     private var updateTask: Task<Void, Never>?
 
     private init() {}
@@ -23,15 +24,52 @@ final class OnePlaceLiveActivityController {
         UserDefaults.standard.string(forKey: lastStatusKey) ?? "Not started yet."
     }
 
+    var isUserEnabled: Bool {
+        guard UserDefaults.standard.object(forKey: userEnabledKey) != nil else {
+            return true
+        }
+
+        return UserDefaults.standard.bool(forKey: userEnabledKey)
+    }
+
+    func setUserEnabled(_ isEnabled: Bool) {
+        UserDefaults.standard.set(isEnabled, forKey: userEnabledKey)
+        recordStatus(isEnabled ? "Live Activity is on." : "Live Activity is off.")
+    }
+
     func startOrUpdate(with tasks: [TaskItemRecord]) {
+        updateTask?.cancel()
+        updateTask = Task {
+            _ = await startOrUpdateAndWait(with: tasks)
+        }
+    }
+
+    @discardableResult
+    func startOrUpdateAndWait(with tasks: [TaskItemRecord]) async -> Bool {
+        setUserEnabled(true)
+
         guard activitiesEnabled else {
             recordStatus("Live Activities are disabled for OnePlace in iOS Settings.")
-            return
+            return false
         }
 
         let liveTasks = liveTasksForUpdate(from: tasks)
         OnePlaceTaskCache.save(liveTasks)
-        startOrUpdate(with: makeState(from: liveTasks))
+        return await performStartOrUpdate(with: makeState(from: liveTasks))
+    }
+
+    func updateForCurrentPreference(with tasks: [TaskItemRecord]) {
+        let liveTasks = liveTasksForUpdate(from: tasks)
+        OnePlaceTaskCache.save(liveTasks)
+
+        guard isUserEnabled else {
+            return
+        }
+
+        updateTask?.cancel()
+        updateTask = Task {
+            _ = await performStartOrUpdate(with: makeState(from: liveTasks))
+        }
     }
 
     func stopAll() async {
@@ -42,19 +80,22 @@ final class OnePlaceLiveActivityController {
         recordStatus("Stopped all Live Activities.")
     }
 
-    private func startOrUpdate(with state: OnePlaceActivityAttributes.ContentState) {
-        updateTask?.cancel()
-        updateTask = Task {
-            if let existing = Activity<OnePlaceActivityAttributes>.activities.first {
-                await existing.update(ActivityContent(state: state, staleDate: nil))
-                recordStatus("Updated Live Activity with \(state.totalOpenCount) open tasks.")
-            } else {
-                requestNewActivity(with: state)
-            }
+    func turnOff() async {
+        setUserEnabled(false)
+        await stopAll()
+    }
+
+    private func performStartOrUpdate(with state: OnePlaceActivityAttributes.ContentState) async -> Bool {
+        if let existing = Activity<OnePlaceActivityAttributes>.activities.first {
+            await existing.update(ActivityContent(state: state, staleDate: nil))
+            recordStatus("Updated Live Activity with \(state.totalOpenCount) open tasks.")
+            return true
+        } else {
+            return requestNewActivity(with: state)
         }
     }
 
-    private func requestNewActivity(with state: OnePlaceActivityAttributes.ContentState) {
+    private func requestNewActivity(with state: OnePlaceActivityAttributes.ContentState) -> Bool {
         do {
             _ = try Activity.request(
                 attributes: OnePlaceActivityAttributes(),
@@ -63,8 +104,10 @@ final class OnePlaceLiveActivityController {
             )
 
             recordStatus("Started Live Activity with \(state.totalOpenCount) open tasks.")
+            return true
         } catch {
             recordStatus("Failed to start Live Activity: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -108,6 +151,12 @@ final class OnePlaceLiveActivityController {
                     return $0.priority.rawValue > $1.priority.rawValue
                 }
 
+                if let leftOrder = $0.manualOrder,
+                   let rightOrder = $1.manualOrder,
+                   leftOrder != rightOrder {
+                    return leftOrder < rightOrder
+                }
+
                 if let leftDue = $0.dueDate, let rightDue = $1.dueDate {
                     return leftDue < rightDue
                 }
@@ -137,6 +186,7 @@ extension TaskItemRecord {
             title: title,
             isCompleted: completed,
             priority: priority.liveActivityPriority,
+            manualOrder: manualOrder,
             dueDate: dueDate,
             remindersID: remindersID
         )
@@ -152,4 +202,3 @@ private extension TaskPriority {
         }
     }
 }
-

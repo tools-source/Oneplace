@@ -195,9 +195,12 @@ final class AuthManager: ObservableObject {
     // MARK: - Sign Out
 
     func signOut() {
+        let signedOutUserID = auth.currentUser?.uid
+
         do {
             try auth.signOut()
             GIDSignIn.sharedInstance.signOut()
+            cleanupLocalSessionArtifacts(for: signedOutUserID)
             authState = .signedOut
             errorMessage = nil
         } catch {
@@ -462,6 +465,8 @@ final class AuthManager: ObservableObject {
     // MARK: - Cleanup
 
     private func performLocalCleanup() {
+        let signedOutUserID = auth.currentUser?.uid
+
         do {
             try auth.signOut()
         } catch {
@@ -469,8 +474,32 @@ final class AuthManager: ObservableObject {
         }
 
         GIDSignIn.sharedInstance.signOut()
+        cleanupLocalSessionArtifacts(for: signedOutUserID)
         authState = .signedOut
         errorMessage = nil
+    }
+
+    private func cleanupLocalSessionArtifacts(for userID: String?) {
+        removePendingTaskNotifications(for: userID)
+
+        Task { @MainActor in
+            await OnePlaceTaskSyncCoordinator.clearTaskSurfaces()
+        }
+    }
+
+    private func removePendingTaskNotifications(for userID: String?) {
+        guard let userID else { return }
+
+        let center = UNUserNotificationCenter.current()
+        let prefix = "task-reminder-\(userID)-"
+        center.getPendingNotificationRequests { requests in
+            let identifiers = requests
+                .map(\.identifier)
+                .filter { $0.hasPrefix(prefix) }
+
+            guard !identifiers.isEmpty else { return }
+            center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
     }
 }
 

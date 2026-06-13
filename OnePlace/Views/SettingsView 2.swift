@@ -7,6 +7,9 @@ struct SettingsView: View {
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var pendingRequests: [UNNotificationRequest] = []
     @State private var isRefreshing = false
+    @State private var isUpdatingLiveActivity = false
+    @State private var isLiveActivityEnabled = true
+    @State private var isLiveActivityRunning = false
     @State private var isDeletingAccount = false
     @State private var showDeleteAccountConfirmation = false
     @State private var deleteAccountErrorMessage: String?
@@ -29,6 +32,7 @@ struct SettingsView: View {
 
                 profileSection
                 notificationStatusSection
+                liveActivitySection
                 scheduledRemindersSection
                 #if DEBUG
                 debugSection
@@ -47,6 +51,9 @@ struct SettingsView: View {
             }
             .task {
                 await refreshStatus()
+            }
+            .onChange(of: authManager.authState) { _, _ in
+                Task { await refreshStatus() }
             }
             .alert("Delete Account", isPresented: $showDeleteAccountConfirmation) {
                 Button("Cancel", role: .cancel) {}
@@ -234,6 +241,39 @@ struct SettingsView: View {
         }
     }
 
+    private var liveActivitySection: some View {
+        Section {
+            Toggle(isOn: liveActivityToggleBinding) {
+                Label("Lock Screen Tasks", systemImage: "rectangle.on.rectangle")
+            }
+            .disabled(!isUserSignedIn || isUpdatingLiveActivity)
+            .listRowBackground(Color.clear)
+
+            HStack {
+                Label("Status", systemImage: liveActivityStatusSymbol)
+                Spacer()
+                Text(liveActivityStatusText)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(isLiveActivityRunning ? DesignSystem.gainColor : .secondary)
+            }
+            .listRowBackground(Color.clear)
+
+            if isUpdatingLiveActivity {
+                HStack {
+                    ProgressView()
+                    Text("Updating")
+                        .foregroundStyle(.secondary)
+                }
+                .listRowBackground(Color.clear)
+            }
+        } header: {
+            Text("Live Activity")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     #if DEBUG
     private var debugSection: some View {
         Section("Debug") {
@@ -241,7 +281,7 @@ struct SettingsView: View {
                 Task {
                     let testDate = Date().addingTimeInterval(10)
                     await scheduleReminder(
-                        id: "debug-test-notification",
+                        id: currentUserID.map { "task-reminder-\($0)-debug-test-notification" } ?? "debug-test-notification",
                         title: "OnePlace Test",
                         body: "This is a test reminder from Settings.",
                         date: testDate,
@@ -261,6 +301,14 @@ struct SettingsView: View {
     private var isUserSignedIn: Bool {
         if case .signedIn = authManager.authState { return true }
         return false
+    }
+
+    private var currentUserID: String? {
+        if case .signedIn(let user) = authManager.authState {
+            return user.uid
+        }
+
+        return nil
     }
 
     private var avatarInitials: String {
@@ -290,6 +338,28 @@ struct SettingsView: View {
             get: { settingsAIResponse != nil },
             set: { if !$0 { settingsAIResponse = nil } }
         )
+    }
+
+    private var liveActivityToggleBinding: Binding<Bool> {
+        Binding(
+            get: { isLiveActivityEnabled },
+            set: { newValue in
+                isLiveActivityEnabled = newValue
+                Task { await setLiveActivityEnabled(newValue) }
+            }
+        )
+    }
+
+    private var liveActivityStatusText: String {
+        if isLiveActivityRunning { return "Active" }
+        if isLiveActivityEnabled { return "On" }
+        return "Off"
+    }
+
+    private var liveActivityStatusSymbol: String {
+        if isLiveActivityRunning { return "checkmark.circle.fill" }
+        if isLiveActivityEnabled { return "clock.badge.checkmark" }
+        return "power.circle"
     }
 
     private func handleDeleteAccount() async {
@@ -357,7 +427,57 @@ struct SettingsView: View {
         let settings = await notificationSettings(from: center)
         authorizationStatus = settings.authorizationStatus
         pendingRequests = await pendingNotificationRequests(from: center)
+            .filter { isCurrentUserReminder($0) }
+        isLiveActivityEnabled = OnePlaceLiveActivityController.shared.isUserEnabled
+        isLiveActivityRunning = OnePlaceLiveActivityController.shared.isRunning
         isRefreshing = false
+    }
+
+    private func setLiveActivityEnabled(_ isEnabled: Bool) async {
+        if isEnabled {
+            await startLiveActivity()
+        } else {
+            await stopLiveActivity()
+        }
+    }
+
+    private func startLiveActivity() async {
+        guard let currentUserID else {
+            isLiveActivityEnabled = OnePlaceLiveActivityController.shared.isUserEnabled
+            return
+        }
+
+        isUpdatingLiveActivity = true
+        defer { isUpdatingLiveActivity = false }
+
+        do {
+            let tasks = try await OnePlaceTaskSyncCoordinator.syncTasks(
+                ownerUserId: currentUserID,
+                preferOnePlaceChanges: true
+            )
+            let started = await OnePlaceLiveActivityController.shared.startOrUpdateAndWait(with: tasks)
+            isLiveActivityEnabled = OnePlaceLiveActivityController.shared.isUserEnabled
+            isLiveActivityRunning = OnePlaceLiveActivityController.shared.isRunning
+            if !started {
+                settingsAIResponse = OnePlaceLiveActivityController.shared.lastStatus
+            }
+        } catch {
+            settingsAIResponse = "I couldn't start the Live Activity: \(error.localizedDescription)"
+        }
+    }
+
+    private func stopLiveActivity() async {
+        isUpdatingLiveActivity = true
+        defer { isUpdatingLiveActivity = false }
+
+        await OnePlaceLiveActivityController.shared.turnOff()
+        isLiveActivityEnabled = OnePlaceLiveActivityController.shared.isUserEnabled
+        isLiveActivityRunning = OnePlaceLiveActivityController.shared.isRunning
+    }
+
+    private func isCurrentUserReminder(_ request: UNNotificationRequest) -> Bool {
+        guard let currentUserID else { return false }
+        return request.identifier.hasPrefix("task-reminder-\(currentUserID)-")
     }
 
     private func nextTriggerDate(for request: UNNotificationRequest) -> Date? {
