@@ -20,6 +20,7 @@
 		0BF9F97A2F383B3900E14DC7 /* SettingsView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9792F383B3900E14DC7 /* SettingsView 2.swift */; };
 		0BF9F97C2F383B6400E14DC7 /* EmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F97B2F383B6400E14DC7 /* EmptyState.swift */; };
 		0BF9F97E2F383BA400E14DC7 /* AppCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F97D2F383BA400E14DC7 /* AppCard.swift */; };
+		0BF9F9882F72000100E14DC7 /* OnePlaceHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9872F72000100E14DC7 /* OnePlaceHomeView.swift */; };
 		0BF9F9822F38583F00E14DC7 /* FinanceCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */; };
 		0BF9F9842F38664500E14DC7 /* AudioPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */; };
 		0BF9F9862F38666C00E14DC7 /* StatCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF9F9852F38666C00E14DC7 /* StatCard.swift */; };
@@ -116,6 +117,7 @@
 		0BF9F9792F383B3900E14DC7 /* SettingsView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView 2.swift"; sourceTree = "<group>"; };
 		0BF9F97B2F383B6400E14DC7 /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
 		0BF9F97D2F383BA400E14DC7 /* AppCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCard.swift; sourceTree = "<group>"; };
+		0BF9F9872F72000100E14DC7 /* OnePlaceHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePlaceHomeView.swift; sourceTree = "<group>"; };
 		0BF9F9812F38583F00E14DC7 /* FinanceCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceCategory.swift; sourceTree = "<group>"; };
 		0BF9F9832F38664500E14DC7 /* AudioPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerManager.swift; sourceTree = "<group>"; };
 		0BF9F9852F38666C00E14DC7 /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
@@ -306,6 +308,7 @@
 			children = (
 				0B2D74B32F40717200B52D14 /* AddFinanceEntryView.swift */,
 				5F8A9B7E2B2C8A4E00A1A1A1 /* RootTabView.swift */,
+				0BF9F9872F72000100E14DC7 /* OnePlaceHomeView.swift */,
 				5F8A9B802B2C8A4E00A1A1A1 /* FinanceView.swift */,
 				1A0F10042F5B100100ABCD01 /* FinanceViewModel.swift */,
 				B1C2D3E5000000000000000D /* FlowViewModel.swift */,
@@ -561,6 +564,7 @@
 				0BF9F97A2F383B3900E14DC7 /* SettingsView 2.swift in Sources */,
 				0BF9F9842F38664500E14DC7 /* AudioPlayerManager.swift in Sources */,
 				0BF9F97E2F383BA400E14DC7 /* AppCard.swift in Sources */,
+				0BF9F9882F72000100E14DC7 /* OnePlaceHomeView.swift in Sources */,
 				5F8A9B772B2C8A4E00A1A1A1 /* FlowItem.swift in Sources */,
 				5F8A9B792B2C8A4E00A1A1A1 /* SampleData.swift in Sources */,
 				0B2D74BC2F408B8A00B52D14 /* DesignSystem.swift in Sources */,
@@ -617,7 +621,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = OnePlace/OnePlace.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OnePlace/Info.plist;
@@ -645,7 +649,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_ENTITLEMENTS = OnePlace/OnePlace.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OnePlace/Info.plist;
@@ -766,7 +770,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 5.0;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -793,7 +797,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 5.0;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.one-place.app.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

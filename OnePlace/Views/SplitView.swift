@@ -8,8 +8,14 @@ struct SplitView: View {
 
     @State private var showingPersonEditor = false
     @State private var editingPerson: SplitPersonRecord?
-    @State private var showingAddExpense = false
-    @State private var editingExpense: SplitExpenseRecord?
+    @State private var editingExpense: ItemEditorDestination<SplitExpenseRecord>?
+    @State private var inlinePersonText = ""
+    @State private var inlinePersonError: String?
+    @State private var inlineExpenseText = ""
+    @State private var inlineExpenseError: String?
+    @State private var inlineExpensePaidById: String?
+    @State private var inlineExpenseDate: Date?
+    @State private var inlineExpenseSplitAll = true
     @State private var newPersonName = ""
     @State private var showingCopyAlert = false
     @State private var showingClearConfirm = false
@@ -41,18 +47,24 @@ struct SplitView: View {
         vm.people.count > 1
     }
 
+    private var unsettledTotal: Double {
+        vm.people.reduce(0) { partialResult, person in
+            partialResult + abs(vm.getBalance(for: person))
+        } / 2
+    }
+
+    private var settledPeopleCount: Int {
+        vm.people.filter { abs(vm.getBalance(for: $0)) < 0.01 }.count
+    }
+
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    OnePlaceAISearchBar(
-                        text: $searchText,
-                        placeholder: "Search or ask OnePlace",
-                        isProcessing: vm.isLoading,
-                        onSubmit: handleSearchSubmit
-                    )
-                    .listRowInsets(EdgeInsets(top: 10, leading: 8, bottom: 4, trailing: 8))
-                    .listRowBackground(Color.clear)
+                    splitPulseCard
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
 
                 summarySection
@@ -63,28 +75,18 @@ struct SplitView: View {
             .listSectionSeparator(.hidden)
             .listSectionSpacing(0)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: DesignSystem.tabBarContentInset)
             }
             .navigationTitle("Split")
+            .searchable(text: $searchText, prompt: "Search people and expenses")
+            .refreshable { await vm.refresh() }
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     EditButton()
                         .disabled(!canReorderPeople)
-
-                    Button {
-                        presentPersonEditor()
-                    } label: {
-                        Image(systemName: "person.badge.plus")
-                    }
-
-                    Button {
-                        showingAddExpense = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .disabled(vm.people.isEmpty)
                 }
 
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -94,33 +96,38 @@ struct SplitView: View {
                     .disabled(vm.people.isEmpty && vm.expenses.isEmpty)
                 }
             }
-            .alert(editingPerson == nil ? "Add Person" : "Edit Person", isPresented: $showingPersonEditor) {
-                TextField("Name", text: $newPersonName)
-                Button(editingPerson == nil ? "Add" : "Save") {
-                    savePersonEditor()
-                }
-                Button("Cancel", role: .cancel) {
-                    resetPersonEditor()
-                }
-            }
-            .sheet(isPresented: $showingAddExpense) {
-                AddSplitExpenseView(vm: vm) { draft in
-                    Task {
-                        await vm.addExpense(draft: draft)
-                        showingAddExpense = false
+            .sheet(isPresented: $showingPersonEditor, onDismiss: resetPersonEditor) {
+                SplitPersonEditorView(person: editingPerson) { name in
+                    if var person = editingPerson {
+                        person.name = name
+                        await vm.updatePerson(person)
+                    } else {
+                        await vm.addPerson(name: name)
                     }
+                    let error = vm.errorMessage
+                    vm.errorMessage = nil
+                    return error
                 }
             }
-            .sheet(item: $editingExpense) { expense in
-                AddSplitExpenseView(vm: vm, expenseToEdit: expense) { draft in
-                    var updated = expense
-                    updated.title = draft.title
-                    updated.amount = draft.amount
-                    updated.date = draft.date
-                    updated.participantIds = draft.participantIds
-                    updated.paidById = draft.paidById
-                    Task { await vm.updateExpense(updated) }
-                    editingExpense = nil
+            .sheet(item: $editingExpense) { destination in
+                AddSplitExpenseView(vm: vm, expenseToEdit: destination.item) { draft in
+                    if let expense = destination.item {
+                        var updated = expense
+                        updated.title = draft.title
+                        updated.amount = draft.amount
+                        updated.date = draft.date
+                        updated.participantIds = draft.participantIds
+                        updated.paidById = draft.paidById
+                        await vm.updateExpense(updated)
+                    } else {
+                        await vm.addExpense(draft: draft)
+                    }
+                    let error = vm.errorMessage
+                    if error == nil, destination.item == nil {
+                        searchText = ""
+                    }
+                    vm.errorMessage = nil
+                    return error
                 }
             }
             .alert("Split Error", isPresented: splitErrorBinding) {
@@ -156,7 +163,7 @@ struct SplitView: View {
 
     private var splitErrorBinding: Binding<Bool> {
         Binding(
-            get: { vm.errorMessage != nil },
+            get: { vm.errorMessage != nil && editingExpense == nil && !showingPersonEditor },
             set: { isPresented in
                 if !isPresented {
                     vm.errorMessage = nil
@@ -186,6 +193,42 @@ struct SplitView: View {
         }
     }
 
+    private var splitPulseCard: some View {
+        WorkspacePulseCard(
+            title: "Settlement Pulse",
+            subtitle: splitPulseSubtitle,
+            icon: unsettledTotal > 0 ? "person.2.wave.2.fill" : "checkmark.seal.fill",
+            tint: unsettledTotal > 0 ? DesignSystem.secondaryAccent : DesignSystem.gainColor,
+            primaryValue: StatCard.currencyString(for: unsettledTotal),
+            primaryLabel: "unsettled",
+            secondaryValue: "\(settledPeopleCount)/\(vm.people.count)",
+            secondaryLabel: "settled people",
+            actionTitle: vm.people.isEmpty ? "Add" : "Expense"
+        ) {
+            if vm.people.isEmpty {
+                inlinePersonText = ""
+            } else {
+                inlineExpenseText = ""
+            }
+        }
+    }
+
+    private var splitPulseSubtitle: String {
+        if vm.people.isEmpty {
+            return "Add people first, then OnePlace can track who paid and who owes."
+        }
+
+        if vm.expenses.isEmpty {
+            return "\(vm.people.count) people are ready for your first shared expense."
+        }
+
+        if unsettledTotal < 0.01 {
+            return "Everyone is balanced across \(vm.expenses.count) shared expense\(vm.expenses.count == 1 ? "" : "s")."
+        }
+
+        return "\(vm.expenses.count) expense\(vm.expenses.count == 1 ? "" : "s") have money left to settle."
+    }
+
     private var peopleSection: some View {
         Section {
             if vm.isLoading && vm.people.isEmpty {
@@ -194,19 +237,27 @@ struct SplitView: View {
                     .padding(.vertical, 24)
                     .listRowBackground(Color.clear)
             } else if vm.people.isEmpty {
+                inlinePersonAddRow
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
                 EmptyState(
                     title: "Add people to start",
                     message: "Create people first, then record shared expenses and balances.",
                     systemImage: "person.badge.plus",
-                    ctaTitle: "Add Person"
-                ) {
-                    presentPersonEditor()
-                }
+                    ctaTitle: nil
+                )
                 .padding(.vertical, 10)
                 .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             } else if filteredPeople.isEmpty {
+                inlinePersonAddRow
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
                 EmptyState(
                     title: "No matching people",
                     message: "Try a different search term.",
@@ -218,6 +269,11 @@ struct SplitView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             } else {
+                inlinePersonAddRow
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
                 ForEach(filteredPeople) { person in
                     personRow(for: person)
                         .onTapGesture {
@@ -253,27 +309,33 @@ struct SplitView: View {
     private var expensesSection: some View {
         Section("Expenses") {
             if filteredExpenses.isEmpty {
+                if !vm.people.isEmpty {
+                    inlineExpenseAddRow
+                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+
                 EmptyState(
                     title: vm.people.isEmpty ? "Add people first" : "No expenses yet",
                     message: vm.people.isEmpty ? "Once people are added, you can split expenses between them." : "Record a shared cost and OnePlace will calculate balances.",
                     systemImage: vm.people.isEmpty ? "person.2" : "creditcard",
-                    ctaTitle: vm.people.isEmpty ? "Add Person" : "Add Expense"
-                ) {
-                    if vm.people.isEmpty {
-                        presentPersonEditor()
-                    } else {
-                        showingAddExpense = true
-                    }
-                }
+                    ctaTitle: nil
+                )
                 .padding(.vertical, 10)
                 .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             } else {
+                inlineExpenseAddRow
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
                 ForEach(filteredExpenses) { expense in
                     expenseRow(for: expense)
                         .onTapGesture {
-                            editingExpense = expense
+                            editingExpense = .edit(expense)
                         }
                         .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
                         .listRowBackground(Color.clear)
@@ -281,6 +343,63 @@ struct SplitView: View {
                 }
             }
         }
+    }
+
+    private var inlinePersonAddRow: some View {
+        InlineAddItemRow(
+            text: $inlinePersonText,
+            placeholder: "New person name",
+            systemImage: "plus.circle.fill",
+            tint: DesignSystem.accentColor,
+            isSaving: vm.isLoading,
+            validationMessage: inlinePersonError,
+            onSubmit: saveInlinePerson,
+            onCancel: cancelInlinePersonAdd
+        ) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    Text("Add several people by separating their names with commas.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.leading, 40)
+            }
+        }
+    }
+
+    private var inlineExpenseAddRow: some View {
+        InlineAddItemRow(
+            text: $inlineExpenseText,
+            placeholder: "New expense, like Dinner 48 paid by Alex",
+            systemImage: "plus.circle.fill",
+            tint: DesignSystem.accentColor,
+            isSaving: vm.isLoading,
+            validationMessage: inlineExpenseError,
+            onSubmit: saveInlineExpense,
+            onCancel: cancelInlineExpenseAdd
+        ) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    InlineAddHelperMenu(title: "Who paid?", systemImage: "person.crop.circle", tint: DesignSystem.accentColor, isSelected: inlineExpensePaidById != nil) {
+                        Button("Use name in entry") { inlineExpensePaidById = nil }
+                        ForEach(vm.people) { person in
+                            Button(person.name) { inlineExpensePaidById = person.id }
+                        }
+                    }
+                    InlineAddHelperButton(title: "Split with everyone", systemImage: "person.2.fill", tint: DesignSystem.secondaryAccent, isSelected: inlineExpenseSplitAll) {
+                        inlineExpenseSplitAll.toggle()
+                    }
+                    InlineAddHelperButton(title: "Today", systemImage: "calendar", tint: DesignSystem.accentColor, isSelected: inlineExpenseDate.map(Calendar.current.isDateInToday) == true) {
+                        inlineExpenseDate = .now
+                    }
+                    InlineAddHelperButton(title: "Yesterday", systemImage: "clock.arrow.circlepath", tint: DesignSystem.warmAccent, isSelected: inlineExpenseDate.map(Calendar.current.isDateInYesterday) == true) {
+                        inlineExpenseDate = Calendar.current.date(byAdding: .day, value: -1, to: .now)
+                    }
+                }
+                .padding(.leading, 40)
+            }
+        }
+        .disabled(vm.people.isEmpty)
     }
 
     @ViewBuilder
@@ -349,7 +468,7 @@ struct SplitView: View {
         }
         .swipeActions(edge: .trailing) {
             Button {
-                editingExpense = expense
+                editingExpense = .edit(expense)
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
@@ -363,9 +482,9 @@ struct SplitView: View {
         }
     }
 
-    private func presentPersonEditor(for person: SplitPersonRecord? = nil) {
+    private func presentPersonEditor(for person: SplitPersonRecord) {
         editingPerson = person
-        newPersonName = person?.name ?? ""
+        newPersonName = person.name
         showingPersonEditor = true
     }
 
@@ -386,6 +505,86 @@ struct SplitView: View {
     private func resetPersonEditor() {
         newPersonName = ""
         editingPerson = nil
+    }
+
+    private func cancelInlinePersonAdd() {
+        inlinePersonText = ""
+        inlinePersonError = nil
+    }
+
+    private func saveInlinePerson() {
+        let names = inlinePersonNames(from: inlinePersonText)
+        guard !names.isEmpty else {
+            inlinePersonError = "Enter at least one name."
+            return
+        }
+
+        Task {
+            await vm.addPeople(names: names)
+            guard vm.errorMessage == nil else {
+                inlinePersonError = vm.errorMessage
+                return
+            }
+
+            await MainActor.run {
+                searchText = ""
+                inlinePersonText = ""
+                inlinePersonError = nil
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
+    }
+
+    private func cancelInlineExpenseAdd() {
+        inlineExpenseText = ""
+        inlineExpenseError = nil
+        inlineExpenseDate = nil
+    }
+
+    private func saveInlineExpense() {
+        let prompt = inlineExpenseText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+
+        guard var draft = SplitPromptInterpreter.expenseDraft(from: prompt, people: vm.people), draft.amount > 0 else {
+            inlineExpenseError = "Include an amount, like Dinner 48 paid by Alex."
+            return
+        }
+        draft.paidById = inlineExpensePaidById ?? draft.paidById ?? vm.people.first?.id
+        if inlineExpenseSplitAll {
+            draft.participantIds = vm.people.map(\.id)
+        }
+        if let inlineExpenseDate {
+            draft.date = inlineExpenseDate
+        }
+
+        Task {
+            await vm.addExpense(draft: draft)
+            guard vm.errorMessage == nil else {
+                inlineExpenseError = vm.errorMessage
+                return
+            }
+
+            await MainActor.run {
+                searchText = ""
+                inlineExpenseText = ""
+                inlineExpenseError = nil
+                inlineExpenseDate = nil
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
+    }
+
+    private func inlinePersonNames(from text: String) -> [String] {
+        if let names = SplitPromptInterpreter.personNames(from: text) {
+            return names
+        }
+
+        return text
+            .replacingOccurrences(of: #"(?i)\s*(?:,|\band\b|&|\+)\s*"#, with: ",", options: .regularExpression)
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression) }
+            .filter { !$0.isEmpty }
     }
 
     private func movePeople(from source: IndexSet, to destination: Int) {
@@ -634,6 +833,8 @@ enum SplitPromptInterpreter {
 
 private struct AddSplitExpenseView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var isSaving = false
+    @State private var saveError: String?
     @ObservedObject var vm: SplitViewModel
 
     @State private var title = ""
@@ -643,7 +844,7 @@ private struct AddSplitExpenseView: View {
     @State private var selectedParticipants: Set<String> = []
 
     private let expenseToEdit: SplitExpenseRecord?
-    private let onSave: (SplitExpenseDraft) -> Void
+    private let onSave: (SplitExpenseDraft) async -> String?
 
     private static let amountFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -653,7 +854,7 @@ private struct AddSplitExpenseView: View {
         return formatter
     }()
 
-    init(vm: SplitViewModel, expenseToEdit: SplitExpenseRecord? = nil, onSave: @escaping (SplitExpenseDraft) -> Void) {
+    init(vm: SplitViewModel, expenseToEdit: SplitExpenseRecord? = nil, onSave: @escaping (SplitExpenseDraft) async -> String?) {
         self.vm = vm
         self.expenseToEdit = expenseToEdit
         self.onSave = onSave
@@ -673,6 +874,18 @@ private struct AddSplitExpenseView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    CreationGuideCard(
+                        title: expenseToEdit == nil ? "Split A Shared Cost" : "Update Shared Cost",
+                        subtitle: "Choose who paid and who participated. The payer is automatically included so balances stay consistent.",
+                        icon: "person.2.fill",
+                        tint: DesignSystem.secondaryAccent,
+                        status: parsedAmount.map { StatCard.currencyString(for: $0) } ?? "Needs amount"
+                    )
+                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear)
+                }
+
                 Section("Details") {
                     TextField("Expense title", text: $title)
                     TextField("Amount", text: $amountText)
@@ -682,56 +895,95 @@ private struct AddSplitExpenseView: View {
 
                 Section("Paid By") {
                     Picker("Who paid?", selection: $selectedPaidBy) {
-                        Text("Unassigned").tag(String?.none)
+                        Text("Choose payer").tag(String?.none)
                         ForEach(vm.people) { person in
                             Text(person.name).tag(String?.some(person.id))
                         }
                     }
+                    .disabled(vm.people.isEmpty)
                 }
 
-                Section("Participants") {
+                Section {
                     if vm.people.isEmpty {
                         Text("Add people first")
                             .foregroundStyle(.secondary)
                     } else {
+                        HStack {
+                            Button("Select All") {
+                                selectedParticipants = Set(vm.people.map(\.id))
+                            }
+                            .buttonStyle(.borderless)
+
+                            Spacer()
+
+                            Button("Clear") {
+                                selectedParticipants.removeAll()
+                                selectedPaidBy = nil
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(DesignSystem.oweColor)
+                        }
+
                         ForEach(vm.people) { person in
-                            Toggle(person.name, isOn: Binding(
-                                get: { selectedParticipants.contains(person.id) },
-                                set: { isSelected in
-                                    if isSelected {
-                                        selectedParticipants.insert(person.id)
-                                    } else {
-                                        selectedParticipants.remove(person.id)
-                                    }
-                                }
-                            ))
+                            Toggle(person.name, isOn: participantBinding(for: person))
                         }
                     }
+                } header: {
+                    Text("Participants")
+                } footer: {
+                    Text(participantsFooterText)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .navigationTitle(expenseToEdit == nil ? "New Expense" : "Edit Expense")
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .scrollDismissesKeyboard(.interactively)
+            .interactiveDismissDisabled(isSaving)
+            .disabled(isSaving)
+            .overlay {
+                if isSaving { ProgressView("Saving…").padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) }
+            }
+            .alert("Couldn’t save", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "Please try again. Your entries are still here.")
+            }
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { dismiss() }.disabled(isSaving)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(expenseToEdit == nil ? "Add" : "Save") {
                         guard let amount = parsedAmount, amount > 0 else { return }
+                        guard let selectedPaidBy else { return }
+                        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
 
                         let draft = SplitExpenseDraft(
-                            title: title,
+                            title: trimmedTitle,
                             amount: amount,
                             date: date,
-                            participantIds: Array(selectedParticipants),
+                            participantIds: Array(normalizedParticipants),
                             paidById: selectedPaidBy
                         )
-                        onSave(draft)
-                        dismiss()
+                        isSaving = true
+                        Task {
+                            saveError = await onSave(draft)
+                            isSaving = false
+                            if saveError == nil {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                dismiss()
+                            }
+                        }
                     }
-                    .disabled(isSaveDisabled)
+                    .disabled(isSaving || isSaveDisabled)
                 }
+            }
+            .onChange(of: selectedPaidBy) { _, newValue in
+                guard let newValue else { return }
+                selectedParticipants.insert(newValue)
             }
         }
     }
@@ -739,12 +991,110 @@ private struct AddSplitExpenseView: View {
     private var parsedAmount: Double? {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        return Double(trimmed.replacingOccurrences(of: ",", with: ""))
+        return Double(
+            trimmed
+                .replacingOccurrences(of: "$", with: "")
+                .replacingOccurrences(of: ",", with: "")
+        )
     }
 
     private var isSaveDisabled: Bool {
         title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-        selectedParticipants.isEmpty ||
+        selectedPaidBy == nil ||
+        normalizedParticipants.isEmpty ||
         (parsedAmount ?? 0) <= 0
+    }
+
+    private var normalizedParticipants: Set<String> {
+        guard let selectedPaidBy else { return selectedParticipants }
+        var participants = selectedParticipants
+        participants.insert(selectedPaidBy)
+        return participants
+    }
+
+    private var participantsFooterText: String {
+        guard selectedPaidBy != nil else {
+            return "Choose who paid before saving."
+        }
+
+        let count = normalizedParticipants.count
+        return "Splitting across \(count) participant\(count == 1 ? "" : "s"). The payer is included automatically."
+    }
+
+    private func participantBinding(for person: SplitPersonRecord) -> Binding<Bool> {
+        Binding(
+            get: {
+                selectedParticipants.contains(person.id)
+            },
+            set: { isSelected in
+                updateParticipantSelection(for: person, isSelected: isSelected)
+            }
+        )
+    }
+
+    private func updateParticipantSelection(for person: SplitPersonRecord, isSelected: Bool) {
+        if isSelected {
+            selectedParticipants.insert(person.id)
+            return
+        }
+
+        selectedParticipants.remove(person.id)
+        if selectedPaidBy == person.id {
+            selectedPaidBy = nil
+        }
+    }
+}
+
+private struct SplitPersonEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var isSaving = false
+    @State private var saveError: String?
+    @FocusState private var nameFocused: Bool
+    let person: SplitPersonRecord?
+    let onSave: (String) async -> String?
+
+    init(person: SplitPersonRecord?, onSave: @escaping (String) async -> String?) {
+        self.person = person
+        self.onSave = onSave
+        _name = State(initialValue: person?.name ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Name", text: $name)
+                        .textContentType(.name)
+                        .textInputAutocapitalization(.words)
+                        .focused($nameFocused)
+                } header: { Text("Person’s name") } footer: {
+                    Text("Use a name everyone recognizes. You can choose this person when splitting an expense.")
+                }
+                if let saveError { Text(saveError).foregroundStyle(DesignSystem.oweColor) }
+            }
+            .navigationTitle(person == nil ? "Add Person" : "Edit Person")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }.disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Saving…" : (person == nil ? "Add" : "Save")) {
+                        isSaving = true
+                        Task {
+                            saveError = await onSave(name.trimmingCharacters(in: .whitespacesAndNewlines))
+                            isSaving = false
+                            if saveError == nil { dismiss() }
+                        }
+                    }
+                    .disabled(isSaving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .onAppear { nameFocused = true }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .interactiveDismissDisabled(isSaving)
     }
 }

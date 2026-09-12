@@ -1,12 +1,17 @@
 import SwiftUI
+import UIKit
 import UserNotifications
 
 struct FlowView: View {
     @StateObject private var vm = FlowViewModel()
     @EnvironmentObject private var aiAssistant: AIAssistantManager
 
-    @State private var showingAdd = false
-    @State private var editingItem: FlowItemRecord?
+    @State private var editingItem: ItemEditorDestination<FlowItemRecord>?
+    @State private var inlineItemText = ""
+    @State private var inlineItemError: String?
+    @State private var inlineItemType: FlowType = .bill
+    @State private var inlineItemFrequency: FlowFrequency = .monthly
+    @State private var inlineItemDueDate: Date? = nil
     @State private var searchText = ""
     @State private var statusFilter: FlowStatus? = nil
     @State private var lastRefreshToken: UUID?
@@ -39,14 +44,10 @@ struct FlowView: View {
         NavigationStack {
             List {
                 Section {
-                    OnePlaceAISearchBar(
-                        text: $searchText,
-                        placeholder: "Search or ask OnePlace",
-                        isProcessing: vm.isLoading,
-                        onSubmit: handleSearchSubmit
-                    )
-                    .listRowInsets(EdgeInsets(top: 10, leading: 8, bottom: 4, trailing: 8))
-                    .listRowBackground(Color.clear)
+                    flowPulseCard
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
 
                 summarySection
@@ -57,49 +58,45 @@ struct FlowView: View {
             .listSectionSeparator(.hidden)
             .listSectionSpacing(0)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: DesignSystem.tabBarContentInset)
             }
             .navigationTitle("Flow")
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
-            .sheet(isPresented: $showingAdd) {
-                FlowItemEditorView(item: nil) { draft in
-                    Task {
+            .searchable(text: $searchText, prompt: "Search bills and income")
+            .refreshable { await vm.refresh() }
+            .sheet(item: $editingItem) { destination in
+                FlowItemEditorView(item: destination.item) { draft in
+                    if let item = destination.item {
+                        let updated = FlowItemRecord(
+                            id: item.id,
+                            ownerUserId: item.ownerUserId,
+                            title: draft.title,
+                            amount: draft.amount,
+                            type: draft.type,
+                            frequency: draft.frequency,
+                            nextDueDate: draft.nextDueDate,
+                            status: draft.status,
+                            notes: draft.notes,
+                            reminderEnabled: draft.reminderEnabled,
+                            reminderDate: draft.reminderDate,
+                            reminderHour: draft.reminderHour,
+                            reminderMinute: draft.reminderMinute,
+                            reminderRepeat: draft.reminderRepeat,
+                            reminderOffsetDays: draft.reminderOffsetDays
+                        )
+                        await vm.updateItem(updated)
+                    } else {
                         await vm.addItem(draft: draft)
-                        showingAdd = false
                     }
-                }
-            }
-            .sheet(item: $editingItem) { item in
-                FlowItemEditorView(item: item) { draft in
-                    let updated = FlowItemRecord(
-                        id: item.id,
-                        ownerUserId: item.ownerUserId,
-                        title: draft.title,
-                        amount: draft.amount,
-                        type: draft.type,
-                        frequency: draft.frequency,
-                        nextDueDate: draft.nextDueDate,
-                        status: draft.status,
-                        notes: draft.notes,
-                        reminderEnabled: draft.reminderEnabled,
-                        reminderDate: draft.reminderDate,
-                        reminderHour: draft.reminderHour,
-                        reminderMinute: draft.reminderMinute,
-                        reminderRepeat: draft.reminderRepeat,
-                        reminderOffsetDays: draft.reminderOffsetDays
-                    )
-                    Task { await vm.updateItem(updated) }
-                    editingItem = nil
+                    let error = vm.errorMessage
+                    if error == nil, destination.item == nil {
+                        searchText = ""
+                        statusFilter = draft.status
+                    }
+                    vm.errorMessage = nil
+                    return error
                 }
             }
             .alert("Flow Error", isPresented: flowErrorBinding) {
@@ -131,13 +128,46 @@ struct FlowView: View {
 
     private var flowErrorBinding: Binding<Bool> {
         Binding(
-            get: { vm.errorMessage != nil },
+            get: { vm.errorMessage != nil && editingItem == nil },
             set: { isPresented in
                 if !isPresented {
                     vm.errorMessage = nil
                 }
             }
         )
+    }
+
+    private var monthlyFlowLoad: Double {
+        upcomingItems.reduce(0) { partialResult, item in
+            partialResult + normalizedMonthlyAmount(for: item)
+        }
+    }
+
+    private var flowPulseCard: some View {
+        WorkspacePulseCard(
+            title: "Flow Pulse",
+            subtitle: flowPulseSubtitle,
+            icon: upcomingItems.isEmpty ? "calendar.badge.checkmark" : "calendar.badge.clock",
+            tint: upcomingItems.isEmpty ? DesignSystem.gainColor : DesignSystem.warmAccent,
+            primaryValue: StatCard.currencyString(for: monthlyFlowLoad),
+            primaryLabel: "monthly load",
+            secondaryValue: "\(upcomingItems.count)",
+            secondaryLabel: "upcoming",
+            actionTitle: statusFilter == nil ? "Upcoming" : "All"
+        ) {
+            withAnimation {
+                statusFilter = statusFilter == nil ? .upcoming : nil
+            }
+        }
+    }
+
+    private var flowPulseSubtitle: String {
+        guard let next = upcomingItems.first else {
+            return paidItems.isEmpty ? "Add a bill or income to build your rhythm." : "\(paidItems.count) items are already marked paid."
+        }
+
+        let dueText = next.nextDueDate.formatted(date: .abbreviated, time: .omitted)
+        return "\(next.title) is next, due \(dueText)."
     }
 
     private var summarySection: some View {
@@ -184,28 +214,75 @@ struct FlowView: View {
                     .padding(.vertical, 24)
                     .listRowBackground(Color.clear)
             } else if upcomingItems.isEmpty {
+                inlineFlowAddRow
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
                 EmptyState(
                     title: searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "No upcoming bills" : "No matching upcoming bills",
                     message: "Add a bill or income item, or ask OnePlace to schedule it for you.",
                     systemImage: "calendar.badge.plus",
-                    ctaTitle: "Add Flow Item"
-                ) {
-                    showingAdd = true
-                }
+                    ctaTitle: nil
+                )
                 .padding(.vertical, 10)
                 .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             } else {
+                inlineFlowAddRow
+                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
                 ForEach(upcomingItems) { item in
                     flowItemRow(for: item)
                         .onTapGesture {
-                            editingItem = item
+                            editingItem = .edit(item)
                         }
                         .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
+            }
+        }
+    }
+
+    private var inlineFlowAddRow: some View {
+        InlineAddItemRow(
+            text: $inlineItemText,
+            placeholder: "New bill or income, like Rent 1200 due on the 1st",
+            systemImage: "plus.circle.fill",
+            tint: DesignSystem.accentColor,
+            isSaving: vm.isLoading,
+            validationMessage: inlineItemError,
+            onSubmit: saveInlineItem,
+            onCancel: cancelInlineItemAdd
+        ) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    InlineAddHelperMenu(title: "Bill or income", systemImage: "arrow.up.arrow.down", tint: DesignSystem.accentColor) {
+                        Picker("Type", selection: $inlineItemType) {
+                            ForEach(FlowType.allCases, id: \.self) { type in
+                                Text(type.rawValue.capitalized).tag(type)
+                            }
+                        }
+                    }
+                    InlineAddHelperMenu(title: "Frequency", systemImage: "repeat", tint: DesignSystem.secondaryAccent) {
+                        Picker("Frequency", selection: $inlineItemFrequency) {
+                            ForEach(FlowFrequency.allCases, id: \.self) { frequency in
+                                Text(frequency.rawValue.capitalized).tag(frequency)
+                            }
+                        }
+                    }
+                    InlineAddHelperButton(title: "Due today", systemImage: "calendar", tint: DesignSystem.warmAccent, isSelected: inlineItemDueDate.map(Calendar.current.isDateInToday) == true) {
+                        inlineItemDueDate = .now
+                    }
+                    InlineAddHelperButton(title: "Due tomorrow", systemImage: "calendar.badge.clock", tint: DesignSystem.accentColor, isSelected: inlineItemDueDate.map(Calendar.current.isDateInTomorrow) == true) {
+                        inlineItemDueDate = Calendar.current.date(byAdding: .day, value: 1, to: .now)
+                    }
+                }
+                .padding(.leading, 40)
             }
         }
     }
@@ -237,7 +314,7 @@ struct FlowView: View {
                     ForEach(paidItems) { item in
                         flowItemRow(for: item)
                             .onTapGesture {
-                                editingItem = item
+                                editingItem = .edit(item)
                             }
                             .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
                             .listRowBackground(Color.clear)
@@ -317,7 +394,7 @@ struct FlowView: View {
         }
         .swipeActions(edge: .trailing) {
             Button {
-                editingItem = item
+                editingItem = .edit(item)
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
@@ -378,6 +455,43 @@ struct FlowView: View {
         }
     }
 
+    private func cancelInlineItemAdd() {
+        inlineItemText = ""
+        inlineItemError = nil
+    }
+
+    private func saveInlineItem() {
+        let prompt = inlineItemText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+
+        guard var draft = FlowPromptInterpreter.interpret(prompt), draft.amount > 0 else {
+            inlineItemError = "Include an amount, like Rent 1200 due on the 1st."
+            return
+        }
+        draft.type = inlineItemType
+        draft.frequency = inlineItemFrequency
+        if let inlineItemDueDate {
+            draft.nextDueDate = inlineItemDueDate
+        }
+
+        Task {
+            await vm.addItem(draft: draft)
+            guard vm.errorMessage == nil else {
+                inlineItemError = vm.errorMessage
+                return
+            }
+
+            await MainActor.run {
+                searchText = ""
+                statusFilter = .upcoming
+                inlineItemText = ""
+                inlineItemError = nil
+                inlineItemDueDate = nil
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
+    }
+
     private func flowAccent(for item: FlowItemRecord) -> Color {
         switch item.type {
         case .income:
@@ -395,6 +509,16 @@ struct FlowView: View {
             return DesignSystem.gainColor
         case .skipped:
             return DesignSystem.secondaryTextColor
+        }
+    }
+
+    private func normalizedMonthlyAmount(for item: FlowItemRecord) -> Double {
+        switch item.frequency {
+        case .weekly: return item.amount * 52 / 12
+        case .biweekly: return item.amount * 26 / 12
+        case .monthly: return item.amount
+        case .quarterly: return item.amount / 3
+        case .yearly: return item.amount / 12
         }
     }
 }
@@ -649,6 +773,8 @@ enum FlowPromptInterpreter {
 
 private struct FlowItemEditorView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var isSaving = false
+    @State private var saveError: String?
 
     @State private var title: String
     @State private var amountText: String
@@ -662,7 +788,7 @@ private struct FlowItemEditorView: View {
     @State private var reminderRepeat: ReminderRepeatRule
 
     private let item: FlowItemRecord?
-    private let onSave: (FlowItemDraft) -> Void
+    private let onSave: (FlowItemDraft) async -> String?
 
     private static let amountFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -673,7 +799,7 @@ private struct FlowItemEditorView: View {
         return formatter
     }()
 
-    init(item: FlowItemRecord?, onSave: @escaping (FlowItemDraft) -> Void) {
+    init(item: FlowItemRecord?, onSave: @escaping (FlowItemDraft) async -> String?) {
         self.item = item
         self.onSave = onSave
 
@@ -697,6 +823,18 @@ private struct FlowItemEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    CreationGuideCard(
+                        title: type == .income ? "Recurring Income" : "Scheduled Bill",
+                        subtitle: "Add the amount, cadence, due date, and optional reminder. OnePlace will roll recurring items forward when they are paid.",
+                        icon: type == .income ? "arrow.down.circle.fill" : "calendar.badge.clock",
+                        tint: type == .income ? DesignSystem.gainColor : DesignSystem.warmAccent,
+                        status: parsedAmount.map { StatCard.currencyString(for: $0) } ?? "Needs amount"
+                    )
+                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear)
+                }
+
                 Section("Details") {
                     TextField("Title", text: $title)
                     TextField("Amount", text: $amountText)
@@ -744,24 +882,40 @@ private struct FlowItemEditorView: View {
             }
             .scrollContentBackground(.hidden)
             .background(DesignSystem.backgroundGradient.ignoresSafeArea())
-            .navigationTitle(item == nil ? "New Bill" : "Edit Bill")
+            .navigationTitle(item == nil ? "New Flow Item" : "Edit Flow Item")
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .scrollDismissesKeyboard(.interactively)
+            .interactiveDismissDisabled(isSaving)
+            .disabled(isSaving)
+            .overlay {
+                if isSaving { ProgressView("Saving…").padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) }
+            }
+            .alert("Couldn’t save", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "Please try again. Your entries are still here.")
+            }
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { dismiss() }.disabled(isSaving)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(item == nil ? "Add" : "Save") {
                         guard let amountValue = parsedAmount, amountValue > 0 else { return }
                         let reminderComponents = Calendar.current.dateComponents([.hour, .minute], from: reminderDate)
+                        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
 
                         let draft = FlowItemDraft(
-                            title: title,
+                            title: trimmedTitle,
                             amount: amountValue,
                             type: type,
                             frequency: frequency,
                             nextDueDate: nextDueDate,
                             status: status,
-                            notes: notes.isEmpty ? nil : notes,
+                            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
                             reminderEnabled: reminderEnabled,
                             reminderDate: reminderEnabled ? reminderDate : nil,
                             reminderHour: reminderEnabled ? reminderComponents.hour : nil,
@@ -770,11 +924,26 @@ private struct FlowItemEditorView: View {
                             reminderOffsetDays: 0
                         )
 
-                        onSave(draft)
-                        dismiss()
+                        isSaving = true
+                        Task {
+                            saveError = await onSave(draft)
+                            isSaving = false
+                            if saveError == nil {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                dismiss()
+                            }
+                        }
                     }
-                    .disabled(isSaveDisabled)
+                    .disabled(isSaving || isSaveDisabled)
                 }
+            }
+            .onChange(of: nextDueDate) { _, newValue in
+                guard !reminderEnabled else { return }
+                reminderDate = newValue
+            }
+            .onChange(of: reminderEnabled) { _, enabled in
+                guard enabled, reminderDate < Date() else { return }
+                reminderDate = nextDueDate
             }
         }
     }
@@ -782,13 +951,15 @@ private struct FlowItemEditorView: View {
     private var parsedAmount: Double? {
         let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let cleaned = trimmed.replacingOccurrences(of: ",", with: "")
+        let cleaned = trimmed
+            .replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: ",", with: "")
         return Double(cleaned)
     }
 
     private var isSaveDisabled: Bool {
         guard let amountValue = parsedAmount, amountValue > 0 else { return true }
-        return title.isEmpty
+        return title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func ruleLabel(for rule: ReminderRepeatRule) -> String {

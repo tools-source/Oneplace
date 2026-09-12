@@ -8,8 +8,8 @@ struct OnePlaceTasksWidget: Widget {
             OnePlaceTasksWidgetView(entry: entry)
         }
         .configurationDisplayName("OnePlace Tasks")
-        .description("See your open Organizer tasks.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .description("Keep your tasks handy on your Home Screen or Lock Screen, even after a Live Activity ends.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 
@@ -50,7 +50,40 @@ private struct OnePlaceTasksTimelineProvider: TimelineProvider {
 private struct OnePlaceTasksWidgetView: View {
     let entry: OnePlaceTasksEntry
 
+    @Environment(\.widgetFamily) private var family
+
     var body: some View {
+        Group {
+            switch family {
+            case .accessoryRectangular:
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("\(entry.tasks.count) open tasks", systemImage: "checklist")
+                        .font(.headline)
+                    ForEach(entry.tasks.prefix(2)) { task in
+                        Text(task.title).font(.caption).lineLimit(1)
+                    }
+                    if entry.tasks.isEmpty { Text("All clear. Enjoy your day.").font(.caption) }
+                }
+            case .accessoryCircular:
+                ZStack {
+                    AccessoryWidgetBackground()
+                    VStack(spacing: 1) {
+                        Image(systemName: "checklist").font(.caption)
+                        Text("\(entry.tasks.count)").font(.headline)
+                    }
+                }
+                .accessibilityLabel("\(entry.tasks.count) open tasks")
+            case .accessoryInline:
+                Label(entry.tasks.first?.title ?? "All tasks complete", systemImage: "checklist")
+            default:
+                homeScreenContent
+            }
+        }
+        .containerBackground(.background, for: .widget)
+        .widgetURL(OnePlaceDeepLink.tasks)
+    }
+
+    private var homeScreenContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Label("Tasks", systemImage: "checklist")
@@ -83,8 +116,6 @@ private struct OnePlaceTasksWidgetView: View {
                 Spacer(minLength: 0)
             }
         }
-        .containerBackground(.background, for: .widget)
-        .widgetURL(OnePlaceDeepLink.tasks)
     }
 
     private func priorityColor(for priority: OnePlaceLivePriority) -> Color {

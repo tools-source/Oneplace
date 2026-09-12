@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 private enum FinancePreferenceKey {
     static let customOrder = "finance.customOrder"
@@ -14,8 +15,18 @@ struct FinanceView: View {
 
     @Environment(\.editMode) private var editMode
 
+    @State private var targetedPersonID: String?
+    @State private var isMovingTransaction = false
+    private static let transactionDragType = UTType(exportedAs: "com.one-place.app.finance-transaction")
+
     @State private var editingEntry: FinanceEntryRecord?
     @State private var isShowingEditor = false
+    @State private var inlineTransactionText = ""
+    @State private var inlinePersonName = ""
+    @State private var inlineTransactionError: String?
+    @State private var inlineTransactionType: FinanceType
+    @State private var inlineTransactionCategory: String
+    @State private var inlineTransactionDate: Date?
     @State private var quickDraft: FinanceEntryDraft
     @State private var quickAmountText = ""
     @State private var editorDraft: FinanceEntryDraft
@@ -36,24 +47,36 @@ struct FinanceView: View {
         let initialDraft = FinanceDraftDefaults.blankDraft()
         _quickDraft = State(initialValue: initialDraft)
         _editorDraft = State(initialValue: initialDraft)
+        _inlineTransactionType = State(initialValue: initialDraft.type)
+        _inlineTransactionCategory = State(initialValue: initialDraft.category)
         _filters = State(initialValue: Self.loadSavedFilters())
         _customOrderIDs = State(
             initialValue: UserDefaults.standard.stringArray(forKey: FinancePreferenceKey.customOrder) ?? []
         )
     }
 
-    private var defaultOrderedEntries: [FinanceEntryRecord] {
-        vm.entries.sorted { lhs, rhs in
-            if lhs.date != rhs.date {
-                return lhs.date > rhs.date
-            }
+    private var displayedEntries: [FinanceEntryRecord] {
+        FinanceEntryList.ordered(vm.entries, customOrderIDs: customOrderIDs)
+    }
 
-            return lhs.id > rhs.id
+    private var personGroups: [FinancePersonGroup] {
+        var groups = FinanceEntryList.groups(in: filteredEntries)
+        if !groups.contains(where: { $0.name.isEmpty }) {
+            groups.append(FinancePersonGroup(id: "", name: "", entries: []))
+        }
+        return groups
+    }
+
+    private var financeRows: [FinanceListRow] {
+        personGroups.flatMap { group in
+            [.person(group)] + group.entries.map(FinanceListRow.transaction)
         }
     }
 
-    private var displayedEntries: [FinanceEntryRecord] {
-        applyCustomOrder(to: defaultOrderedEntries)
+    private var existingPersonNames: [String] {
+        FinanceEntryList.groups(in: vm.entries).map(\.name)
+            .filter { !$0.isEmpty }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     private var filteredEntries: [FinanceEntryRecord] {
@@ -62,6 +85,7 @@ struct FinanceView: View {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !query.isEmpty {
             base = base.filter {
+                $0.personName.localizedCaseInsensitiveContains(query) ||
                 $0.category.localizedCaseInsensitiveContains(query) ||
                 $0.entryDescription.localizedCaseInsensitiveContains(query) ||
                 $0.type.rawValue.localizedCaseInsensitiveContains(query)
@@ -125,14 +149,10 @@ struct FinanceView: View {
             ZStack(alignment: .bottom) {
                 List {
                     Section {
-                        OnePlaceAISearchBar(
-                            text: $searchText,
-                            placeholder: "Search or ask OnePlace",
-                            isProcessing: isInterpretingPrompt,
-                            onSubmit: handleAssistantPrompt
-                        )
-                        .listRowInsets(EdgeInsets(top: 10, leading: 8, bottom: 4, trailing: 8))
-                        .listRowBackground(Color.clear)
+                        financePulseCard
+                            .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 6, trailing: 8))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                     }
 
                     Section {
@@ -162,21 +182,33 @@ struct FinanceView: View {
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
                         } else if filteredEntries.isEmpty {
-                            EmptyState(
-                                title: "No transactions yet",
-                                message: "Type a transaction into search and press return, or tap + to add one manually.",
-                                systemImage: "sparkles.rectangle.stack",
-                                ctaTitle: "Add Transaction"
-                            ) {
-                                presentEditorForNewTransaction()
+                            if !isSelecting {
+                                inlineTransactionAddRow
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
                             }
+
+                            EmptyState(
+                                title: vm.entries.isEmpty ? "No transactions yet" : "No matching transactions",
+                                message: vm.entries.isEmpty ? "Use the inline entry and choose a person to keep their entries together." : "Try another search or adjust your filters.",
+                                systemImage: "sparkles.rectangle.stack",
+                                ctaTitle: nil
+                            )
                             .padding(.vertical, 12)
                             .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 16, trailing: 8))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                         } else {
+                            if !isSelecting {
+                                inlineTransactionAddRow
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                            }
+
                             if editMode?.wrappedValue.isEditing != true {
-                                Text("Swipe left or right on a row for quick actions.")
+                                Text("Hold and drag a transaction onto a person, or use Edit to move it. Swipe for quick actions.")
                                     .font(.caption)
                                     .foregroundStyle(.tertiary)
                                     .padding(.horizontal, 8)
@@ -184,20 +216,41 @@ struct FinanceView: View {
                                     .listRowSeparator(.hidden)
                             }
 
-                            ForEach(filteredEntries) { entry in
-                                transactionRow(for: entry)
-                                    .onTapGesture {
-                                        if isSelecting {
-                                            toggleSelection(for: entry)
-                                        } else {
-                                            presentEditor(for: entry)
+                            ForEach(financeRows) { row in
+                                switch row {
+                                case .person(let group):
+                                    personHeader(for: group)
+                                        .contentShape(Rectangle())
+                                        .background(targetedPersonID == group.id ? DesignSystem.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                                        .onDrop(of: [Self.transactionDragType], isTargeted: dropHighlight(for: group.id)) { providers in
+                                            acceptDrop(providers, personName: group.name, beforeEntryID: nil, atStart: true)
                                         }
-                                    }
-                                    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparator(.hidden)
+                                        .moveDisabled(true)
+                                        .listRowInsets(EdgeInsets(top: 14, leading: 12, bottom: 4, trailing: 12))
+                                        .listRowBackground(Color.clear)
+                                        .listRowSeparator(.hidden)
+
+                                case .transaction(let entry):
+                                    transactionRow(for: entry)
+                                        .onTapGesture {
+                                            if isSelecting {
+                                                toggleSelection(for: entry)
+                                            } else {
+                                                presentEditor(for: entry)
+                                            }
+                                        }
+                                        .onDrag { dragProvider(for: entry) }
+                                        .onDrop(of: [Self.transactionDragType], isTargeted: nil) { providers in
+                                            acceptDrop(providers, personName: entry.personName, beforeEntryID: entry.id)
+                                        }
+                                        .moveDisabled(isSelecting || vm.isSaving || isMovingTransaction)
+                                        .disabled(vm.isSaving || isMovingTransaction)
+                                        .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 8))
+                                        .listRowBackground(Color.clear)
+                                        .listRowSeparator(.hidden)
+                                }
                             }
-                            .onMove(perform: moveEntries)
+                            .onMove(perform: moveFinanceRows)
                         }
                     }
                 }
@@ -205,11 +258,14 @@ struct FinanceView: View {
                 .listSectionSeparator(.hidden)
                 .listSectionSpacing(0)
                 .scrollContentBackground(.hidden)
+                .scrollDismissesKeyboard(.interactively)
                 .background(DesignSystem.backgroundGradient.ignoresSafeArea())
                 .safeAreaInset(edge: .bottom) {
                     Color.clear.frame(height: DesignSystem.tabBarContentInset)
                 }
                 .navigationTitle("Finance")
+                .searchable(text: $searchText, prompt: "Search people or transactions")
+                .refreshable { await vm.refresh() }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button(isSelecting ? "Done" : "Select") {
@@ -228,12 +284,6 @@ struct FinanceView: View {
 
                         EditButton()
                             .disabled(isSelecting)
-
-                        Button {
-                            presentEditorForNewTransaction()
-                        } label: {
-                            Image(systemName: "plus")
-                        }
                     }
                 }
                 .sheet(isPresented: $showingFilters) {
@@ -287,14 +337,18 @@ struct FinanceView: View {
             }
             .sheet(isPresented: $isShowingEditor) {
                 AddFinanceEntryView(
-                    title: editingEntry == nil ? "Transaction Details" : "Edit Transaction",
+                    title: editingEntry == nil ? "New Transaction" : "Edit Transaction",
                     draft: $editorDraft,
                     amountText: $editorAmountText,
                     isSaving: vm.isSaving,
                     onDismiss: closeEditor,
                     onSave: saveEditorDraft
                 )
-                .presentationDetents([.fraction(0.72), .large])
+                .presentationDetents([.large])
+                .interactiveDismissDisabled(vm.isSaving)
+                .alert("Couldn’t save", isPresented: financeErrorBinding) {
+                    Button("OK", role: .cancel) { vm.clearError() }
+                } message: { Text(vm.errorMessage ?? "Please try again.") }
                 .presentationDragIndicator(.visible)
             }
         }
@@ -355,6 +409,42 @@ struct FinanceView: View {
                 }
             }
         }
+    }
+
+    private var financePulseCard: some View {
+        WorkspacePulseCard(
+            title: "Finance Pulse",
+            subtitle: financePulseSubtitle,
+            icon: netTotal >= 0 ? "chart.line.uptrend.xyaxis" : "exclamationmark.triangle.fill",
+            tint: netTotal >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor,
+            primaryValue: StatCard.currencyString(for: netTotal),
+            primaryLabel: "open net",
+            secondaryValue: "\(completedEntries.count)",
+            secondaryLabel: "completed",
+            actionTitle: filters.isActive ? "Show All" : "Filter"
+        ) {
+            if filters.isActive {
+                filters = FinanceFilters(type: nil, category: nil, hideCompleted: false)
+            } else {
+                showingFilters = true
+            }
+        }
+    }
+
+    private var financePulseSubtitle: String {
+        if vm.entries.isEmpty {
+            return "Start by typing a transaction in plain language."
+        }
+
+        if filters.isActive {
+            return "\(filteredEntries.count) matching entries are visible."
+        }
+
+        if netTotal < 0 {
+            return "Owed items are ahead of incoming money right now."
+        }
+
+        return "Open income is covering pending outflow."
     }
 
     private var summaryCards: some View {
@@ -482,6 +572,80 @@ struct FinanceView: View {
         }
     }
 
+    private var inlineTransactionAddRow: some View {
+        InlineAddItemRow(
+            text: $inlineTransactionText,
+            placeholder: "New transaction, like Coffee 6.50",
+            systemImage: "plus.circle.fill",
+            tint: DesignSystem.accentColor,
+            isSaving: vm.isSaving,
+            alwaysShowHelpers: true,
+            validationMessage: inlineTransactionError,
+            onSubmit: saveInlineTransaction,
+            onCancel: cancelInlineTransactionAdd
+        ) {
+            VStack(alignment: .leading, spacing: 10) {
+                FinancePersonField(personName: $inlinePersonName, existingNames: existingPersonNames)
+                    .disabled(vm.isSaving)
+                if !FinanceEntryList.normalizedPersonName(inlinePersonName).isEmpty {
+                    Picker("Who owes whom?", selection: Binding(get: { inlineTransactionType }, set: setInlineTransactionType)) {
+                        Text("They owe me").tag(FinanceType.gain)
+                        Text("I owe them").tag(FinanceType.owe)
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(vm.isSaving)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        InlineAddHelperMenu(title: "Gain or owe", systemImage: "arrow.up.arrow.down", tint: DesignSystem.accentColor) {
+                            Button(inlinePersonName.isEmpty ? "Gain" : "They owe me") { setInlineTransactionType(.gain) }
+                            Button(inlinePersonName.isEmpty ? "Owe" : "I owe them") { setInlineTransactionType(.owe) }
+                        }
+                        InlineAddHelperMenu(title: "Category", systemImage: "tray.full", tint: DesignSystem.secondaryAccent) {
+                            ForEach(inlineTransactionType == .gain ? FinanceCategory.incomeRawValues : FinanceCategory.expenseRawValues, id: \.self) { category in
+                                Button(category) { inlineTransactionCategory = category }
+                            }
+                        }
+                        InlineAddHelperButton(title: "Today", systemImage: "calendar", tint: DesignSystem.accentColor, isSelected: inlineTransactionDate.map(Calendar.current.isDateInToday) == true) {
+                            inlineTransactionDate = .now
+                        }
+                        InlineAddHelperButton(title: "Yesterday", systemImage: "clock.arrow.circlepath", tint: DesignSystem.warmAccent, isSelected: inlineTransactionDate.map(Calendar.current.isDateInYesterday) == true) {
+                            inlineTransactionDate = Calendar.current.date(byAdding: .day, value: -1, to: .now)
+                        }
+                    }
+                    .padding(.leading, 40)
+                }
+            }
+        }
+    }
+
+    private func personHeader(for group: FinancePersonGroup) -> some View {
+        HStack(spacing: 10) {
+            ItemIconBadge(
+                symbol: group.name.isEmpty ? "tray" : "person.fill",
+                tint: DesignSystem.accentColor,
+                size: 32
+            )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(group.name.isEmpty ? "Other transactions" : group.name)
+                    .font(.headline)
+                Text(group.entries.isEmpty ? "Drop here to remove a person" : "\(group.entries.count) transaction\(group.entries.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(StatCard.currencyString(for: abs(group.openNet)))
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                Text(group.name.isEmpty ? (group.openNet >= 0 ? "Net gain" : "Net owed") : (abs(group.openNet) < 0.005 ? "Settled" : (group.openNet > 0 ? "Owes you" : "You owe")))
+                    .font(.caption)
+            }
+            .foregroundStyle(group.openNet >= 0 ? DesignSystem.gainColor : DesignSystem.oweColor)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     @ViewBuilder
     private func transactionRow(for entry: FinanceEntryRecord) -> some View {
         let isSelected = selectedEntryIDs.contains(entry.id)
@@ -579,7 +743,9 @@ struct FinanceView: View {
                     if interpretation.isReadyToSave {
                         saveQuickDraft(using: interpretation.draft)
                     } else {
-                        presentEditorForNewTransaction()
+                        inlineTransactionText = trimmedPrompt
+                        inlineTransactionError = interpretation.message
+                        searchText = ""
                     }
 
                 case .failure(let error):
@@ -612,12 +778,64 @@ struct FinanceView: View {
         }
     }
 
-    private func presentEditorForNewTransaction() {
-        editingEntry = nil
-        editorDraft = quickDraft
-        editorAmountText = quickAmountText
-        isShowingEditor = true
+    private func cancelInlineTransactionAdd() {
+        inlineTransactionText = ""
+        inlineTransactionError = nil
+        inlineTransactionDate = nil
     }
+
+    private func saveInlineTransaction() {
+        let prompt = inlineTransactionText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+
+        guard let interpretation = FinancePromptInterpreter.interpret(
+            prompt,
+            fallbackCategory: inlineTransactionCategory,
+            now: .now
+        ), interpretation.draft.amount > 0 else {
+            inlineTransactionError = "Include an amount, like Coffee 6.50."
+            return
+        }
+
+        var draft = interpretation.draft
+        draft.personName = FinanceEntryList.normalizedPersonName(inlinePersonName)
+        draft.type = inlineTransactionType
+        draft.category = inlineTransactionCategory
+        if let inlineTransactionDate {
+            draft.date = inlineTransactionDate
+        }
+
+        Task {
+            let didSave = await vm.addEntry(draft: draft)
+            guard didSave else {
+                inlineTransactionError = vm.errorMessage
+                return
+            }
+
+            FinanceDraftDefaults.rememberCategoryIfKnown(draft.category)
+            await MainActor.run {
+                assistantFeedback = "Added \(draft.entryDescription) for \(StatCard.currencyString(for: draft.amount))."
+                quickDraft = FinanceDraftDefaults.blankDraft(preferredCategory: draft.category, preferredType: draft.type)
+                quickAmountText = ""
+                searchText = ""
+                filters.type = nil
+                filters.category = nil
+                inlineTransactionText = ""
+                inlineTransactionError = nil
+                inlineTransactionDate = nil
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
+    }
+
+    private func setInlineTransactionType(_ type: FinanceType) {
+        inlineTransactionType = type
+        let currentType = FinanceDraftDefaults.type(for: inlineTransactionCategory, fallback: type)
+        guard currentType != type else { return }
+        inlineTransactionCategory = FinanceDraftDefaults.defaultCategory(for: type)
+    }
+
+
 
     private func presentEditor(for entry: FinanceEntryRecord) {
         editingEntry = entry
@@ -637,7 +855,9 @@ struct FinanceView: View {
                 entryDescription: draft.entryDescription,
                 date: draft.date,
                 urgency: draft.urgency,
-                isCompleted: entry.isCompleted
+                isCompleted: entry.isCompleted,
+                personName: FinanceEntryList.normalizedPersonName(draft.personName),
+                createdAt: entry.createdAt
             )
 
             Task {
@@ -662,6 +882,8 @@ struct FinanceView: View {
                 quickDraft = FinanceDraftDefaults.blankDraft(preferredCategory: draft.category, preferredType: draft.type)
                 quickAmountText = ""
                 searchText = ""
+                filters.type = nil
+                filters.category = nil
                 closeEditor()
             }
         }
@@ -677,32 +899,68 @@ struct FinanceView: View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
-    private func moveEntries(from source: IndexSet, to destination: Int) {
-        let visibleEntries = filteredEntries
-        var reorderedVisibleEntries = visibleEntries
-        reorderedVisibleEntries.move(fromOffsets: source, toOffset: destination)
-
-        let visibleIDs = Set(visibleEntries.map(\.id))
-        var reorderedIterator = reorderedVisibleEntries.makeIterator()
-
-        customOrderIDs = displayedEntries.map { entry in
-            guard visibleIDs.contains(entry.id), let reorderedEntry = reorderedIterator.next() else {
-                return entry.id
-            }
-
-            return reorderedEntry.id
-        }
-
-        saveCustomOrder()
+    private func moveFinanceRows(from source: IndexSet, to destination: Int) {
+        guard source.count == 1, let index = source.first,
+              let target = FinanceEntryList.moveTarget(rows: financeRows, source: index, destination: destination),
+              case .transaction(let entry) = financeRows[index] else { return }
+        moveTransaction(entryID: entry.id, to: target)
     }
 
-    private func applyCustomOrder(to entries: [FinanceEntryRecord]) -> [FinanceEntryRecord] {
-        guard !customOrderIDs.isEmpty else { return entries }
+    private func dragProvider(for entry: FinanceEntryRecord) -> NSItemProvider {
+        let provider = NSItemProvider()
+        guard !isSelecting, !vm.isSaving, !isMovingTransaction else { return provider }
+        let data = Data(entry.id.utf8)
+        provider.registerDataRepresentation(forTypeIdentifier: Self.transactionDragType.identifier, visibility: .ownProcess) { completion in
+            completion(data, nil)
+            return nil
+        }
+        return provider
+    }
 
-        let map = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0) })
-        let ordered = customOrderIDs.compactMap { map[$0] }
-        let remaining = entries.filter { !customOrderIDs.contains($0.id) }
-        return ordered + remaining
+    private func dropHighlight(for personID: String) -> Binding<Bool> {
+        Binding(get: { targetedPersonID == personID }, set: { targeted in
+            if targeted { targetedPersonID = personID }
+            else if targetedPersonID == personID { targetedPersonID = nil }
+        })
+    }
+
+    private func acceptDrop(_ providers: [NSItemProvider], personName: String, beforeEntryID: String?, atStart: Bool = false) -> Bool {
+        guard !isSelecting, !vm.isSaving, !isMovingTransaction,
+              let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(Self.transactionDragType.identifier) }) else { return false }
+        targetedPersonID = nil
+        provider.loadDataRepresentation(forTypeIdentifier: Self.transactionDragType.identifier) { data, _ in
+            guard let data, let entryID = String(data: data, encoding: .utf8) else { return }
+            Task { @MainActor in
+                let key = FinanceEntryList.normalizedPersonName(personName).lowercased()
+                let firstEntryID = displayedEntries.first {
+                    $0.id != entryID && FinanceEntryList.normalizedPersonName($0.personName).lowercased() == key
+                }?.id
+                moveTransaction(entryID: entryID, to: FinanceMoveTarget(personName: personName, beforeEntryID: atStart ? firstEntryID : beforeEntryID))
+            }
+        }
+        return true
+    }
+
+    private func moveTransaction(entryID: String, to target: FinanceMoveTarget) {
+        guard !isSelecting, !vm.isSaving, !isMovingTransaction,
+              let original = vm.entries.first(where: { $0.id == entryID }),
+              let plan = FinanceEntryList.move(entryID: entryID, to: target, entries: vm.entries, customOrderIDs: customOrderIDs) else { return }
+        // An in-person reorder only changes order. A cross-person drop also
+        // persists the new assignment, preserving amount, direction and dates.
+        if original.personName == plan.entry.personName {
+            customOrderIDs = plan.orderedIDs
+            saveCustomOrder()
+            return
+        }
+        isMovingTransaction = true
+        Task {
+            let saved = await vm.updateEntry(plan.entry)
+            isMovingTransaction = false
+            guard saved else { return }
+            customOrderIDs = plan.orderedIDs
+            saveCustomOrder()
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
     }
 
     private func saveCustomOrder() {

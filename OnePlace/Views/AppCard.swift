@@ -79,6 +79,346 @@ struct ItemIconBadge: View {
     }
 }
 
+struct WorkspacePulseCard: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let tint: Color
+    let primaryValue: String
+    let primaryLabel: String
+    let secondaryValue: String
+    let secondaryLabel: String
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    init(
+        title: String,
+        subtitle: String,
+        icon: String,
+        tint: Color,
+        primaryValue: String,
+        primaryLabel: String,
+        secondaryValue: String,
+        secondaryLabel: String,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.icon = icon
+        self.tint = tint
+        self.primaryValue = primaryValue
+        self.primaryLabel = primaryLabel
+        self.secondaryValue = secondaryValue
+        self.secondaryLabel = secondaryLabel
+        self.actionTitle = actionTitle
+        self.action = action
+    }
+
+    var body: some View {
+        AppCard {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    ItemIconBadge(symbol: icon, tint: tint, size: 44)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.headline)
+                            .lineLimit(1)
+
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.82)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if let actionTitle, let action {
+                        Button(actionTitle, action: action)
+                            .font(.caption.weight(.semibold))
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .tint(tint)
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    pulseMetric(value: primaryValue, label: primaryLabel)
+                    pulseMetric(value: secondaryValue, label: secondaryLabel)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func pulseMetric(value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.66)
+                .monospacedDigit()
+
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(tint.opacity(0.09))
+        )
+    }
+}
+
+struct CreationGuideCard: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let tint: Color
+    var status: String?
+
+    var body: some View {
+        AppCard {
+            HStack(alignment: .top, spacing: 12) {
+                ItemIconBadge(symbol: icon, tint: tint, size: 44)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .lineLimit(1)
+
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.82)
+                }
+
+                Spacer(minLength: 0)
+
+                if let status, !status.isEmpty {
+                    Text(status)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(tint)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(tint.opacity(0.12))
+                        )
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct InlineAddItemRow<Helpers: View>: View {
+    @Binding var text: String
+
+    let placeholder: String
+    let systemImage: String
+    let tint: Color
+    var isSaving = false
+    var autoFocus = false
+    var alwaysShowHelpers = false
+    var validationMessage: String?
+    var onSubmit: () -> Void
+    var onCancel: () -> Void
+    private let helpers: Helpers
+
+    @FocusState private var isFocused: Bool
+
+    init(
+        text: Binding<String>,
+        placeholder: String,
+        systemImage: String,
+        tint: Color,
+        isSaving: Bool = false,
+        autoFocus: Bool = false,
+        alwaysShowHelpers: Bool = false,
+        validationMessage: String? = nil,
+        onSubmit: @escaping () -> Void,
+        onCancel: @escaping () -> Void,
+        @ViewBuilder helpers: () -> Helpers
+    ) {
+        _text = text
+        self.placeholder = placeholder
+        self.systemImage = systemImage
+        self.tint = tint
+        self.isSaving = isSaving
+        self.autoFocus = autoFocus
+        self.alwaysShowHelpers = alwaysShowHelpers
+        self.validationMessage = validationMessage
+        self.onSubmit = onSubmit
+        self.onCancel = onCancel
+        self.helpers = helpers()
+    }
+
+    private var trimmedText: String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isInUse: Bool {
+        isFocused || !trimmedText.isEmpty
+    }
+
+    var body: some View {
+        AppCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 12) {
+                    Button(action: submit) {
+                        if isSaving {
+                            ProgressView()
+                                .controlSize(.small)
+                                .frame(width: 28, height: 28)
+                        } else {
+                            Image(systemName: systemImage)
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(trimmedText.isEmpty ? DesignSystem.secondaryTextColor : tint)
+                                .frame(width: 28, height: 28)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSaving || trimmedText.isEmpty)
+
+                    TextField(placeholder, text: $text)
+                        .font(.body)
+                        .lineLimit(1)
+                        .textInputAutocapitalization(.sentences)
+                        .submitLabel(.done)
+                        .focused($isFocused)
+                        .disabled(isSaving)
+                        .onSubmit(submit)
+                }
+
+                if let validationMessage, !validationMessage.isEmpty {
+                    Text(validationMessage)
+                        .font(.caption)
+                        .foregroundStyle(DesignSystem.oweColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, 40)
+                }
+
+                if isInUse || alwaysShowHelpers {
+                    helpers
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+        .animation(DesignSystem.interactiveSpring, value: isInUse)
+        .onAppear {
+            guard autoFocus else { return }
+            DispatchQueue.main.async {
+                isFocused = true
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func submit() {
+        guard !isSaving, !trimmedText.isEmpty else { return }
+        onSubmit()
+    }
+
+    private func cancel() {
+        text = ""
+        onCancel()
+    }
+}
+
+extension InlineAddItemRow where Helpers == EmptyView {
+    init(
+        text: Binding<String>,
+        placeholder: String,
+        systemImage: String,
+        tint: Color,
+        isSaving: Bool = false,
+        autoFocus: Bool = false,
+        validationMessage: String? = nil,
+        onSubmit: @escaping () -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.init(
+            text: text,
+            placeholder: placeholder,
+            systemImage: systemImage,
+            tint: tint,
+            isSaving: isSaving,
+            autoFocus: autoFocus,
+            validationMessage: validationMessage,
+            onSubmit: onSubmit,
+            onCancel: onCancel
+        ) {
+            EmptyView()
+        }
+    }
+}
+
+struct InlineAddHelperButton: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    var isSelected = false
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(isSelected ? .white : tint)
+                .frame(width: 42, height: 42)
+                .background(
+                    Circle()
+                        .fill(isSelected ? tint : Color.primary.opacity(0.08))
+                )
+                .overlay(
+                    Circle()
+                        .strokeBorder(isSelected ? Color.white.opacity(0.26) : tint.opacity(0.16), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+}
+
+struct InlineAddHelperMenu<Content: View>: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    var isSelected = false
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        Menu {
+            content()
+        } label: {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(isSelected ? .white : tint)
+                .frame(width: 42, height: 42)
+                .background(
+                    Circle()
+                        .fill(isSelected ? tint : Color.primary.opacity(0.08))
+                )
+                .overlay(
+                    Circle()
+                        .strokeBorder(isSelected ? Color.white.opacity(0.26) : tint.opacity(0.16), lineWidth: 1)
+                )
+        }
+        .accessibilityLabel(title)
+    }
+}
+
 enum OnePlaceAITab {
     case finance
     case flow
@@ -283,4 +623,22 @@ struct OnePlaceAISearchBar: View {
             .foregroundColor(.primary)
     }
     .padding()
+}
+
+// One destination keeps new and existing items in the same presentation flow.
+enum ItemEditorDestination<Item: Identifiable>: Identifiable {
+    case new
+    case edit(Item)
+
+    var id: String {
+        switch self {
+        case .new: return "new"
+        case .edit(let item): return "edit-\(item.id)"
+        }
+    }
+
+    var item: Item? {
+        if case .edit(let item) = self { return item }
+        return nil
+    }
 }

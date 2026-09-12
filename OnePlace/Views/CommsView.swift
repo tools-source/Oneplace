@@ -1,13 +1,16 @@
 import SwiftUI
+import UIKit
 
 struct CommsView: View {
     @StateObject private var vm = CommsViewModel()
     @StateObject private var audioPlayer = AudioPlayerManager.shared
     @EnvironmentObject private var aiAssistant: AIAssistantManager
 
-    @State private var showingEditor = false
-    @State private var editingCard: CommsCardRecord?
+    @State private var editingCard: ItemEditorDestination<CommsCardRecord>?
     @State private var deletingCard: CommsCardRecord?
+    @State private var inlineCardText = ""
+    @State private var inlineCardError: String?
+    @State private var inlineCardEmoji = "💬"
     @State private var searchText = ""
     @State private var lastRefreshToken: UUID?
 
@@ -26,16 +29,21 @@ struct CommsView: View {
         }
     }
 
+    private var playableCardsCount: Int {
+        vm.cards.filter { $0.audioData != nil || $0.hasAudio }.count
+    }
+
+    private var cardsNeedingAudioCount: Int {
+        max(0, vm.cards.count - playableCardsCount)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    OnePlaceAISearchBar(
-                        text: $searchText,
-                        placeholder: "Search or ask OnePlace",
-                        isProcessing: vm.isLoading,
-                        onSubmit: handleSearchSubmit
-                    )
+                    talkPulseCard
+
+                    inlineCardAddRow
 
                     if vm.isLoading && vm.cards.isEmpty {
                         ProgressView("Loading…")
@@ -55,37 +63,34 @@ struct CommsView: View {
                 .padding(.top, 8)
                 .padding(.bottom, DesignSystem.tabBarContentInset)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .navigationTitle("Talk")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingEditor = true
-                    } label: {
-                        Image(systemName: "plus")
+            .searchable(text: $searchText, prompt: "Search cards and phrases")
+            .refreshable { await vm.refresh() }
+            .sheet(item: $editingCard) { destination in
+                CommsCardEditorView(card: destination.item) { draft in
+                    if let card = destination.item {
+                        let updated = CommsCardRecord(
+                            id: card.id,
+                            ownerUserId: card.ownerUserId,
+                            title: draft.title,
+                            phrase: draft.phrase,
+                            emoji: draft.emoji,
+                            hasImage: card.hasImage,
+                            hasAudio: draft.audioData != nil || card.hasAudio,
+                            audioData: draft.audioData ?? card.audioData
+                        )
+                        await vm.updateCard(updated)
+                    } else {
+                        await vm.addCard(draft: draft)
                     }
-                }
-            }
-            .sheet(isPresented: $showingEditor) {
-                CommsCardEditorView(card: nil) { draft in
-                    Task { await vm.addCard(draft: draft) }
-                    showingEditor = false
-                }
-            }
-            .sheet(item: $editingCard) { card in
-                CommsCardEditorView(card: card) { draft in
-                    let updated = CommsCardRecord(
-                        id: card.id,
-                        ownerUserId: card.ownerUserId,
-                        title: draft.title,
-                        phrase: draft.phrase,
-                        emoji: draft.emoji,
-                        hasImage: card.hasImage,
-                        hasAudio: draft.audioData != nil || card.hasAudio,
-                        audioData: draft.audioData ?? card.audioData
-                    )
-                    Task { await vm.updateCard(updated) }
-                    editingCard = nil
+                    let error = vm.errorMessage
+                    if error == nil, destination.item == nil {
+                        searchText = ""
+                    }
+                    vm.errorMessage = nil
+                    return error
                 }
             }
             .alert("Delete Card?", isPresented: deletingCardBinding) {
@@ -120,7 +125,7 @@ struct CommsView: View {
 
     private var commsErrorBinding: Binding<Bool> {
         Binding(
-            get: { vm.errorMessage != nil },
+            get: { vm.errorMessage != nil && editingCard == nil },
             set: { isPresented in
                 if !isPresented {
                     vm.errorMessage = nil
@@ -145,10 +150,66 @@ struct CommsView: View {
             title: "Voice Cards",
             message: "Create square talk cards with an emoji and a recorded voice message.",
             systemImage: "waveform",
-            ctaTitle: "Create Card"
+            ctaTitle: nil
+        )
+    }
+
+    private var talkPulseCard: some View {
+        WorkspacePulseCard(
+            title: "Talk Board",
+            subtitle: talkPulseSubtitle,
+            icon: playableCardsCount == vm.cards.count && !vm.cards.isEmpty ? "speaker.wave.2.fill" : "bubble.left.and.bubble.right.fill",
+            tint: playableCardsCount == vm.cards.count && !vm.cards.isEmpty ? DesignSystem.gainColor : DesignSystem.accentColor,
+            primaryValue: "\(vm.cards.count)",
+            primaryLabel: "cards",
+            secondaryValue: "\(playableCardsCount)",
+            secondaryLabel: "playable",
+            actionTitle: "Create"
         ) {
-            showingEditor = true
+            inlineCardText = ""
         }
+    }
+
+    private var inlineCardAddRow: some View {
+        InlineAddItemRow(
+            text: $inlineCardText,
+            placeholder: "New talk card phrase",
+            systemImage: "plus.circle.fill",
+            tint: DesignSystem.accentColor,
+            isSaving: vm.isLoading,
+            validationMessage: inlineCardError,
+            onSubmit: saveInlineCard,
+            onCancel: cancelInlineCardAdd
+        ) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(["💬", "😊", "❤️", "🍽️", "💧", "🙋", "🏠"], id: \.self) { emoji in
+                        Button { inlineCardEmoji = emoji } label: {
+                            Text(emoji)
+                                .font(.title2)
+                                .frame(width: 42, height: 42)
+                                .background(inlineCardEmoji == emoji ? DesignSystem.accentSoft : Color.clear, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Use \(emoji) for this card")
+                        .accessibilityAddTraits(inlineCardEmoji == emoji ? .isSelected : [])
+                    }
+                }
+                .padding(.leading, 40)
+            }
+        }
+    }
+
+    private var talkPulseSubtitle: String {
+        if vm.cards.isEmpty {
+            return "Create a card with a phrase, emoji, and optional voice recording."
+        }
+
+        if cardsNeedingAudioCount > 0 {
+            return "\(cardsNeedingAudioCount) card\(cardsNeedingAudioCount == 1 ? "" : "s") could use a recording."
+        }
+
+        return "Every card is ready to play."
     }
 
     @ViewBuilder
@@ -227,7 +288,7 @@ struct CommsView: View {
 
             Menu {
                 Button {
-                    editingCard = card
+                    editingCard = .edit(card)
                 } label: {
                     Label("Edit", systemImage: "pencil")
                 }
@@ -281,6 +342,34 @@ struct CommsView: View {
             }
         }
     }
+
+    private func cancelInlineCardAdd() {
+        inlineCardText = ""
+        inlineCardError = nil
+    }
+
+    private func saveInlineCard() {
+        let prompt = inlineCardText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+
+        var draft = TalkPromptInterpreter.interpret(prompt)
+        draft.emoji = inlineCardEmoji
+        Task {
+            await vm.addCard(draft: draft)
+            guard vm.errorMessage == nil else {
+                inlineCardError = vm.errorMessage
+                return
+            }
+
+            await MainActor.run {
+                searchText = ""
+                inlineCardText = ""
+                inlineCardError = nil
+                inlineCardEmoji = "💬"
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
+    }
 }
 
 enum TalkPromptInterpreter {
@@ -325,6 +414,8 @@ enum TalkPromptInterpreter {
 
 private struct CommsCardEditorView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var isSaving = false
+    @State private var saveError: String?
 
     @StateObject private var audioRecorder = AudioRecorder()
 
@@ -335,9 +426,9 @@ private struct CommsCardEditorView: View {
     @State private var recordingData: Data?
 
     private let card: CommsCardRecord?
-    private let onSave: (CommsCardDraft) -> Void
+    private let onSave: (CommsCardDraft) async -> String?
 
-    init(card: CommsCardRecord?, onSave: @escaping (CommsCardDraft) -> Void) {
+    init(card: CommsCardRecord?, onSave: @escaping (CommsCardDraft) async -> String?) {
         self.card = card
         self.onSave = onSave
 
@@ -352,6 +443,14 @@ private struct CommsCardEditorView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    CreationGuideCard(
+                        title: card == nil ? "Create Talk Card" : "Update Talk Card",
+                        subtitle: "Cards can be text-only or include a voice recording. Add an emoji so the card is easy to recognize at a glance.",
+                        icon: recordingData == nil ? "bubble.left.and.bubble.right.fill" : "speaker.wave.2.fill",
+                        tint: recordingData == nil ? DesignSystem.accentColor : DesignSystem.gainColor,
+                        status: recordingData == nil ? "Text ready" : "Audio ready"
+                    )
+
                     editorField(title: "Title") {
                         TextField("Card title", text: $title)
                             .textInputAutocapitalization(.words)
@@ -373,8 +472,7 @@ private struct CommsCardEditorView: View {
             .scrollContentBackground(.hidden)
             .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .navigationTitle(card == nil ? "New Card" : "Edit Card")
-            .navigationBarTitleDisplayMode(.large)
-            .interactiveDismissDisabled(audioRecorder.isRecording)
+            .navigationBarTitleDisplayMode(.inline)
             .onChange(of: audioRecorder.lastRecordingData) { _, newValue in
                 guard let newValue else { return }
                 recordingData = newValue
@@ -392,14 +490,33 @@ private struct CommsCardEditorView: View {
             } message: {
                 Text(audioRecorder.errorMessage ?? "Please try again.")
             }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .scrollDismissesKeyboard(.interactively)
+            .interactiveDismissDisabled(isSaving || audioRecorder.isRecording)
+            .disabled(isSaving)
+            .overlay {
+                if isSaving { ProgressView("Saving…").padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) }
+            }
+            .alert("Couldn’t save", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "Please try again. Your entries are still here.")
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if audioRecorder.isRecording {
+                            audioRecorder.stopRecording()
+                        }
+                        dismiss()
+                    }
+                    .disabled(isSaving || audioRecorder.isRecording)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    Button(card == nil ? "Add" : "Save") {
                         let trimmedPhrase = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmedTitle = normalizedTitle(phrase: trimmedPhrase)
                         let trimmedEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
 
                         let draft = CommsCardDraft(
@@ -411,10 +528,17 @@ private struct CommsCardEditorView: View {
                             audioData: recordingData
                         )
 
-                        onSave(draft)
-                        dismiss()
+                        isSaving = true
+                        Task {
+                            saveError = await onSave(draft)
+                            isSaving = false
+                            if saveError == nil {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                dismiss()
+                            }
+                        }
                     }
-                    .disabled(isSaveDisabled)
+                    .disabled(isSaving || isSaveDisabled)
                 }
             }
         }
@@ -437,7 +561,8 @@ private struct CommsCardEditorView: View {
     }
 
     private var isSaveDisabled: Bool {
-        title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || recordingData == nil
+        audioRecorder.isRecording || normalizedTitle(phrase: phrase.trimmingCharacters(in: .whitespacesAndNewlines)).isEmpty ||
+        (phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && recordingData == nil)
     }
 
     private var recordingSection: some View {
@@ -458,7 +583,7 @@ private struct CommsCardEditorView: View {
                             Text(audioRecorder.isRecording ? "Recording in progress" : "Voice message")
                                 .font(.headline)
 
-                            Text(recordingData == nil ? "Record the audio the card should play." : "Recording saved and ready to preview.")
+                            Text(recordingData == nil ? "Optional. Record audio if the card should play a voice message." : "Recording saved and ready to preview.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -581,6 +706,15 @@ private struct CommsCardEditorView: View {
         let base = manualMatch.isEmpty ? suggested : suggested
         let fallback = EmojiLibrary.defaults.filter { !suggested.contains($0) }
         return Array((base + fallback).prefix(12))
+    }
+
+    private func normalizedTitle(phrase: String) -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty {
+            return trimmedTitle
+        }
+
+        return String(phrase.prefix(32)).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     @ViewBuilder

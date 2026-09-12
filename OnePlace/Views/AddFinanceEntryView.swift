@@ -18,7 +18,7 @@ struct AddFinanceEntryView: View {
                         Text(title)
                             .font(.title3.weight(.semibold))
 
-                        Text("A compact editor for transaction details.")
+                        Text("A little detail now makes your money easier to manage.")
                             .font(.subheadline)
                             .foregroundStyle(DesignSystem.secondaryTextColor)
                     }
@@ -29,22 +29,34 @@ struct AddFinanceEntryView: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(DesignSystem.secondaryTextColor)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 44, height: 44)
                             .background(
                                 Circle()
                                     .fill(DesignSystem.secondaryBackground)
                             )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Close transaction form")
+                    .disabled(isSaving)
                 }
 
+                CreationGuideCard(
+                    title: draft.type == .gain ? "Money Coming In" : "Money Going Out",
+                    subtitle: "Enter a description and amount, then choose a category.",
+                    icon: draft.type == .gain ? "arrow.down.circle.fill" : "arrow.up.circle.fill",
+                    tint: draft.type == .gain ? DesignSystem.gainColor : DesignSystem.oweColor,
+                    status: normalizedAmountText
+                )
+
                 VStack(spacing: 12) {
+                    FinancePersonField(personName: $draft.personName, existingNames: [])
+
                     FinanceInputField(title: "Description") {
                         TextField("Dinner with Sarah", text: $draft.entryDescription)
                             .textInputAutocapitalization(.sentences)
                     }
 
-                    HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 12) {
                         FinanceInputField(title: "Amount") {
                             TextField("0.00", text: $amountText)
                                 .keyboardType(.decimalPad)
@@ -64,10 +76,15 @@ struct AddFinanceEntryView: View {
                             .foregroundStyle(DesignSystem.secondaryTextColor)
 
                         Picker("Type", selection: $draft.type) {
-                            Text("Gain").tag(FinanceType.gain)
-                            Text("Owe").tag(FinanceType.owe)
+                            Text(draft.personName.isEmpty ? "Gain" : "They owe me").tag(FinanceType.gain)
+                            Text(draft.personName.isEmpty ? "Owe" : "I owe them").tag(FinanceType.owe)
                         }
                         .pickerStyle(.segmented)
+                        .onChange(of: draft.type) { _, newType in
+                            let currentType = FinanceDraftDefaults.type(for: draft.category, fallback: newType)
+                            guard currentType != newType else { return }
+                            draft.category = FinanceDraftDefaults.defaultCategory(for: newType)
+                        }
                     }
 
                     FinanceCategoryMenu(category: $draft.category)
@@ -87,13 +104,15 @@ struct AddFinanceEntryView: View {
                 }
             }
             .padding(20)
-            .padding(.bottom, 130)
+            .padding(.bottom, 16)
         }
         .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 12) {
                 Button("Cancel", action: onDismiss)
                     .buttonStyle(.bordered)
+                    .disabled(isSaving)
 
                 Button {
                     guard let normalizedDraft = FinanceDraftDefaults.resolvedDraft(from: draft, amountText: amountText) else {
@@ -130,6 +149,14 @@ struct AddFinanceEntryView: View {
             .background(.ultraThinMaterial)
         }
         .background(DesignSystem.backgroundGradient.ignoresSafeArea())
+    }
+
+    private var normalizedAmountText: String {
+        guard let draft = FinanceDraftDefaults.resolvedDraft(from: draft, amountText: amountText) else {
+            return "Needs amount"
+        }
+
+        return StatCard.currencyString(for: draft.amount)
     }
 }
 
@@ -226,7 +253,8 @@ extension FinanceEntryDraft {
             category: record.category,
             entryDescription: record.entryDescription,
             date: record.date,
-            urgency: record.urgency
+            urgency: record.urgency,
+            personName: record.personName
         )
     }
 }
@@ -264,7 +292,8 @@ enum FinanceDraftDefaults {
             category: category,
             entryDescription: description.isEmpty ? category : description,
             date: draft.date,
-            urgency: draft.urgency
+            urgency: draft.urgency,
+            personName: FinanceEntryList.normalizedPersonName(draft.personName)
         )
     }
 
@@ -911,5 +940,45 @@ private enum FinanceVoiceError: LocalizedError {
         case .recognizerUnavailable:
             return "Speech recognition is not available right now."
         }
+    }
+}
+
+struct FinancePersonField: View {
+    @Binding var personName: String
+    let existingNames: [String]
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person.crop.circle")
+                .foregroundStyle(DesignSystem.accentColor)
+            TextField("Person (optional), e.g. Mom", text: $personName)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .accessibilityLabel("Person who owes you or whom you owe")
+            if !personName.isEmpty {
+                Button { personName = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 32, height: 36)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear person")
+            }
+            if !existingNames.isEmpty {
+                Menu {
+                    ForEach(existingNames, id: \.self) { name in
+                        Button(name) { personName = name }
+                    }
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .frame(width: 32, height: 36)
+                }
+                .accessibilityLabel("Choose an existing person")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(DesignSystem.secondaryBackground, in: RoundedRectangle(cornerRadius: 12))
     }
 }

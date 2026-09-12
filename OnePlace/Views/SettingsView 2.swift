@@ -20,14 +20,10 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    OnePlaceAISearchBar(
-                        text: $searchText,
-                        placeholder: "Search or ask OnePlace",
-                        isProcessing: isRefreshing,
-                        onSubmit: handleSearchSubmit
-                    )
-                    .listRowInsets(EdgeInsets(top: 10, leading: 8, bottom: 4, trailing: 8))
-                    .listRowBackground(Color.clear)
+                    settingsPulseCard
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
 
                 profileSection
@@ -41,6 +37,7 @@ struct SettingsView: View {
             .listStyle(.plain)
             .listSectionSeparator(.hidden)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: DesignSystem.tabBarContentInset)
@@ -77,6 +74,38 @@ struct SettingsView: View {
     }
 
     // MARK: - Account Section
+
+    private var settingsPulseCard: some View {
+        WorkspacePulseCard(
+            title: "System Status",
+            subtitle: settingsPulseSubtitle,
+            icon: authorizationStatus == .authorized ? "checkmark.shield.fill" : "bell.badge.fill",
+            tint: authorizationStatus == .authorized ? DesignSystem.gainColor : DesignSystem.warmAccent,
+            primaryValue: statusLabel,
+            primaryLabel: "notifications",
+            secondaryValue: "\(pendingRequests.count)",
+            secondaryLabel: "reminders",
+            actionTitle: isRefreshing ? nil : "Refresh"
+        ) {
+            Task { await refreshStatus() }
+        }
+    }
+
+    private var settingsPulseSubtitle: String {
+        if authorizationStatus == .denied {
+            return "Notifications are blocked in iOS Settings."
+        }
+
+        if isLiveActivityRunning {
+            return "Live Activity is running and reminders are synced."
+        }
+
+        if isLiveActivityEnabled {
+            return "Live Activity is enabled and ready for your task surface."
+        }
+
+        return "Review account, notifications, privacy, and task surfaces here."
+    }
 
     private var profileSection: some View {
         Section {
@@ -256,6 +285,17 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(isLiveActivityRunning ? DesignSystem.gainColor : .secondary)
             }
+            .listRowBackground(Color.clear)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Why does it disappear?", systemImage: "info.circle")
+                    .font(.subheadline.weight(.semibold))
+                Text("iOS ends Live Activities after 8 hours and may keep them on the Lock Screen for up to 4 more hours. Open OnePlace to restore yours when this setting is on.")
+                Text("For ongoing access, add the OnePlace Tasks widget. Touch and hold your Lock Screen, choose Customize → Lock Screen → Add Widgets, then select OnePlace. Home Screen widgets are available too.")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 6)
             .listRowBackground(Color.clear)
 
             if isUpdatingLiveActivity {

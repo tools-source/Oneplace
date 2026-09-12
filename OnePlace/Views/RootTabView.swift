@@ -195,9 +195,9 @@ extension AIAssistantManager: AVSpeechSynthesizerDelegate {
 // MARK: - Root Tab
 
 private enum RootTab: String, CaseIterable, Identifiable {
+    case organizer
     case finance
     case flow
-    case organizer
     case split
     case talk
     case settings
@@ -254,7 +254,7 @@ private enum RootTab: String, CaseIterable, Identifiable {
 struct RootTabView: View {
     let ownerUserId: String
 
-    @AppStorage("root.selectedTab") private var selectedTabValue = RootTab.finance.rawValue
+    @AppStorage("root.selectedTab") private var selectedTabValue = RootTab.organizer.rawValue
     @StateObject private var aiAssistant = AIAssistantManager()
 
     init(ownerUserId: String) {
@@ -273,12 +273,7 @@ struct RootTabView: View {
                         .background(Color.clear)
                 }
 
-            if !aiAssistant.isChatOpen {
-                FloatingAIButton()
-                    .environmentObject(aiAssistant)
-                    .ignoresSafeArea(.keyboard)
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
-            }
+
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: aiAssistant.isChatOpen)
         .environmentObject(aiAssistant)
@@ -304,6 +299,9 @@ struct RootTabView: View {
             }
         }
         .onAppear {
+            if RootTab(rawValue: selectedTabValue) == nil {
+                selectedTabValue = RootTab.organizer.rawValue
+            }
             if let tab = RootTab(rawValue: selectedTabValue) {
                 aiAssistant.currentArea = tab.aiArea
             }
@@ -338,14 +336,15 @@ struct RootTabView: View {
                 tabButton(for: tab)
             }
         }
-        .padding(6)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
         .background(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(.regularMaterial)
                 .shadow(color: DesignSystem.shadowColor.opacity(0.22), radius: 18, x: 0, y: 8)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(DesignSystem.glassStroke, lineWidth: 1)
         )
     }
@@ -358,18 +357,18 @@ struct RootTabView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             select(tab)
         } label: {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Image(systemName: isSelected ? tab.selectedSystemImage : tab.systemImage)
-                    .font(.system(size: 18, weight: isSelected ? .semibold : .medium))
+                    .font(.system(size: 17, weight: isSelected ? .bold : .medium))
                     .symbolRenderingMode(.hierarchical)
-                    .frame(height: 20)
+                    .frame(height: 19)
                     .scaleEffect(isSelected ? 1.08 : 1.0)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
 
                 Text(tab.title)
-                    .font(.system(size: 9.5, weight: isSelected ? .semibold : .medium))
+                    .font(.caption2.weight(isSelected ? .bold : .medium))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.80)
+                    .minimumScaleFactor(0.85)
             }
             .foregroundStyle(
                 isSelected
@@ -377,15 +376,15 @@ struct RootTabView: View {
                     : DesignSystem.secondaryTextColor
             )
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 9)
-            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(.vertical, 8)
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .background(
                 Group {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .fill(DesignSystem.accentSoft)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
                                     .strokeBorder(DesignSystem.accentColor.opacity(0.22), lineWidth: 1)
                             )
                     }
@@ -398,7 +397,7 @@ struct RootTabView: View {
     }
 
     private var selectedTab: RootTab {
-        RootTab(rawValue: selectedTabValue) ?? .finance
+        RootTab(rawValue: selectedTabValue) ?? .organizer
     }
 
     private func select(_ tab: RootTab) {
@@ -419,178 +418,6 @@ struct RootTabView: View {
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
-    }
-}
-
-// MARK: - Floating AI Button
-
-struct FloatingAIButton: View {
-    @EnvironmentObject private var assistant: AIAssistantManager
-    @AppStorage("ai.floatingButton.xRatio") private var savedXRatio: Double = 0.88
-    @AppStorage("ai.floatingButton.yRatio") private var savedYRatio: Double = 0.78
-
-    @State private var dragOffset: CGSize = .zero
-    @State private var isDragging: Bool = false
-    @State private var pulseOn: Bool = false
-    @State private var ringOn: Bool = false
-
-    private let buttonSize: CGFloat = 48
-
-    var body: some View {
-        GeometryReader { proxy in
-            let bounds = proxy.size
-            let safeBounds = CGSize(
-                width: max(bounds.width - buttonSize, 1),
-                height: max(bounds.height - buttonSize - 140, 1)
-            )
-
-            let basePoint = CGPoint(
-                x: CGFloat(savedXRatio) * safeBounds.width + buttonSize / 2,
-                y: CGFloat(savedYRatio) * safeBounds.height + buttonSize / 2
-            )
-
-            buttonContent
-                .frame(width: buttonSize, height: buttonSize)
-                .position(
-                    x: basePoint.x + dragOffset.width,
-                    y: basePoint.y + dragOffset.height
-                )
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            if !isDragging {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
-                            isDragging = true
-                            dragOffset = value.translation
-                        }
-                        .onEnded { value in
-                            let endPoint = CGPoint(
-                                x: basePoint.x + value.translation.width,
-                                y: basePoint.y + value.translation.height
-                            )
-
-                            let clampedX = min(max(endPoint.x, buttonSize / 2), bounds.width - buttonSize / 2)
-                            let clampedY = min(max(endPoint.y, 90 + buttonSize / 2), bounds.height - 140 - buttonSize / 2)
-
-                            let snapX = clampedX < bounds.width / 2
-                                ? buttonSize / 2 + 12
-                                : bounds.width - buttonSize / 2 - 12
-
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.72)) {
-                                let newXRatio = (snapX - buttonSize / 2) / safeBounds.width
-                                let newYRatio = (clampedY - buttonSize / 2) / safeBounds.height
-                                savedXRatio = Double(min(max(newXRatio, 0), 1))
-                                savedYRatio = Double(min(max(newYRatio, 0), 1))
-                                dragOffset = .zero
-                                isDragging = false
-                            }
-
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        }
-                )
-                .onTapGesture {
-                    if !isDragging {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        if assistant.isChatOpen {
-                            assistant.isChatOpen = false
-                        } else {
-                            if assistant.messages.isEmpty {
-                                assistant.openChatFresh(area: assistant.currentArea, voice: false)
-                                assistant.assistantSay(welcomeMessage(for: assistant.currentArea))
-                            } else {
-                                assistant.isChatOpen = true
-                            }
-                        }
-                    }
-                }
-        }
-        .ignoresSafeArea()
-        .allowsHitTesting(true)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
-                pulseOn = true
-            }
-            withAnimation(.easeOut(duration: 2.2).repeatForever(autoreverses: false)) {
-                ringOn = true
-            }
-        }
-    }
-
-    private var buttonContent: some View {
-        ZStack {
-            // Outer expanding rings (when speaking)
-            if assistant.isSpeaking {
-                Circle()
-                    .stroke(DesignSystem.accentColor.opacity(ringOn ? 0 : 0.5), lineWidth: 2)
-                    .scaleEffect(ringOn ? 1.6 : 1.0)
-                    .frame(width: buttonSize, height: buttonSize)
-                Circle()
-                    .stroke(DesignSystem.secondaryAccent.opacity(ringOn ? 0 : 0.35), lineWidth: 2)
-                    .scaleEffect(ringOn ? 1.9 : 1.0)
-                    .frame(width: buttonSize, height: buttonSize)
-            }
-
-            // Soft glow (subtle)
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            DesignSystem.accentColor.opacity(0.28),
-                            DesignSystem.accentColor.opacity(0)
-                        ],
-                        center: .center,
-                        startRadius: 3,
-                        endRadius: pulseOn ? 32 : 26
-                    )
-                )
-                .blur(radius: 6)
-                .frame(width: buttonSize * 1.25, height: buttonSize * 1.25)
-
-            // Main gradient
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            DesignSystem.accentColor,
-                            DesignSystem.secondaryAccent
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    Circle()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.55), Color.white.opacity(0.05)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(color: DesignSystem.accentColor.opacity(0.35), radius: 10, x: 0, y: 4)
-                .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
-
-            // Sparkle icon
-            Image(systemName: assistant.isSpeaking ? "waveform" : "sparkles")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.15), radius: 1, x: 0, y: 1)
-                .scaleEffect(pulseOn ? 1.05 : 0.95)
-        }
-    }
-
-    private func welcomeMessage(for area: AIArea) -> String {
-        switch area {
-        case .finance:   return "Hi! I'm OnePlace. What would you like to add to Finance?"
-        case .flow:      return "Hi! Want me to add a bill or income to Flow?"
-        case .organizer: return "Hi! What task would you like to create?"
-        case .split:     return "Hi! Want me to add a person or split an expense?"
-        case .talk:      return "Hi! Want me to create a Talk card for you?"
-        case .settings:  return "Hi! How can I help?"
-        }
     }
 }
 
@@ -736,6 +563,7 @@ struct AIChatSheet: View {
                 .padding(.vertical, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: assistant.messages.count) { _, _ in
                 guard let last = assistant.messages.last else { return }
                 withAnimation(.spring(response: 0.42, dampingFraction: 0.85)) {

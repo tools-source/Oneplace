@@ -83,7 +83,9 @@ final class FinanceViewModel: ObservableObject {
             resortEntries()
             return true
         } catch {
-            entries[index] = original
+            if let currentIndex = entries.firstIndex(where: { $0.id == original.id }) {
+                entries[currentIndex] = original
+            }
             errorMessage = error.localizedDescription
             return false
         }
@@ -199,12 +201,6 @@ final class FinanceViewModel: ObservableObject {
     }
 
     private func resortEntries() {
-        entries.sort { lhs, rhs in
-            if lhs.date != rhs.date {
-                return lhs.date > rhs.date
-            }
-
-            return lhs.id > rhs.id
-        }
+        entries.sort(by: FinanceEntryList.newestFirst)
     }
 }

@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import UIKit
 
 @MainActor
 final class OnePlaceLiveActivityController {
@@ -13,7 +14,9 @@ final class OnePlaceLiveActivityController {
     private init() {}
 
     var isRunning: Bool {
-        !Activity<OnePlaceActivityAttributes>.activities.isEmpty
+        Activity<OnePlaceActivityAttributes>.activities.contains {
+            $0.activityState == .active || $0.activityState == .stale
+        }
     }
 
     var activitiesEnabled: Bool {
@@ -46,6 +49,7 @@ final class OnePlaceLiveActivityController {
 
     @discardableResult
     func startOrUpdateAndWait(with tasks: [TaskItemRecord]) async -> Bool {
+        guard !Task.isCancelled else { return false }
         setUserEnabled(true)
 
         guard activitiesEnabled else {
@@ -73,6 +77,8 @@ final class OnePlaceLiveActivityController {
     }
 
     func stopAll() async {
+        updateTask?.cancel()
+        updateTask = nil
         for activity in Activity<OnePlaceActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
@@ -85,19 +91,43 @@ final class OnePlaceLiveActivityController {
         await stopAll()
     }
 
+    /// Restores a timed-out activity immediately, even while the network sync is pending.
+    func restoreFromCacheIfEnabled() async {
+        guard isUserEnabled, UIApplication.shared.applicationState == .active else { return }
+        _ = await performStartOrUpdate(with: makeState(from: OnePlaceTaskCache.load()))
+    }
+
     private func performStartOrUpdate(with state: OnePlaceActivityAttributes.ContentState) async -> Bool {
-        if let existing = Activity<OnePlaceActivityAttributes>.activities.first {
+        guard !Task.isCancelled, isUserEnabled, activitiesEnabled else { return false }
+
+        let activities = Activity<OnePlaceActivityAttributes>.activities
+        if let existing = activities.first(where: { $0.activityState == .active || $0.activityState == .stale }) {
             await existing.update(ActivityContent(state: state, staleDate: nil))
+            guard !Task.isCancelled, isUserEnabled else { return false }
             recordStatus("Updated Live Activity with \(state.totalOpenCount) open tasks.")
             return true
-        } else {
-            return requestNewActivity(with: state)
         }
+
+        // iOS permits local starts in the foreground. Ended activities must never
+        // be treated as updatable: they may still be visible on the Lock Screen.
+        guard UIApplication.shared.applicationState == .active else {
+            recordStatus("Ready to restart when you open OnePlace.")
+            return false
+        }
+        // Request before the first suspension point so concurrent refreshes see
+        // the new activity instead of creating duplicates.
+        let started = requestNewActivity(with: state)
+        if started {
+            for activity in activities where activity.activityState == .ended {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+        }
+        return started
     }
 
     private func requestNewActivity(with state: OnePlaceActivityAttributes.ContentState) -> Bool {
         do {
-            _ = try Activity.request(
+            _ = try Activity<OnePlaceActivityAttributes>.request(
                 attributes: OnePlaceActivityAttributes(),
                 content: ActivityContent(state: state, staleDate: nil),
                 pushType: nil

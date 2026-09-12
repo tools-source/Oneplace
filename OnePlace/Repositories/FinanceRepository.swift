@@ -40,7 +40,9 @@ final class FinanceRepository {
             entryDescription: draft.entryDescription,
             date: draft.date,
             urgency: draft.urgency,
-            isCompleted: false
+            isCompleted: false,
+            personName: FinanceEntryList.normalizedPersonName(draft.personName),
+            createdAt: .now
         )
 
         try await documentRef.setData(encode(record: record), merge: false)
@@ -104,22 +106,29 @@ final class FinanceRepository {
             entryDescription: entryDescription,
             date: date,
             urgency: urgency,
-            isCompleted: isCompleted
+            isCompleted: isCompleted,
+            personName: data["personName"] as? String ?? "",
+            createdAt: (data["createdAt"] as? Timestamp)?.dateValue()
         )
     }
 
     // MARK: - Encoding
 
     private func encode(record: FinanceEntryRecord) -> [String: Any] {
-        [
+        var data: [String: Any] = [
             "amount": record.amount,
             "type": record.type.rawValue,               // enum -> String
             "category": record.category,
             "entryDescription": record.entryDescription,
             "urgency": record.urgency.rawValue,         // enum -> String
             "date": Timestamp(date: record.date),
-            "isCompleted": record.isCompleted
+            "isCompleted": record.isCompleted,
+            "personName": FinanceEntryList.normalizedPersonName(record.personName)
         ]
+        if let createdAt = record.createdAt {
+            data["createdAt"] = Timestamp(date: createdAt)
+        }
+        return data
     }
 
     // MARK: - Private DTO (prevents naming conflicts)
@@ -132,6 +141,8 @@ final class FinanceRepository {
         let date: Date
         let urgency: String
         let isCompleted: Bool
+        let personName: String
+        let createdAt: Date?
 
         func toRecord(id: String, ownerUserId: String) -> FinanceEntryRecord? {
             guard let financeType = FinanceType(rawValue: type),
@@ -149,7 +160,9 @@ final class FinanceRepository {
                 entryDescription: entryDescription,
                 date: date,
                 urgency: financeUrgency,
-                isCompleted: isCompleted
+                isCompleted: isCompleted,
+                personName: personName,
+                createdAt: createdAt
             )
         }
     }

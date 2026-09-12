@@ -3,52 +3,27 @@ import SwiftUI
 struct OnePlaceLogo: View {
     var size: CGFloat = 72
 
-    private var cornerRadius: CGFloat { size * 0.2237 } // iOS squircle ratio
-
     var body: some View {
         ZStack {
-            // Base brand tile
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(DesignSystem.logoGradient)
-
-            // Top sheen for depth
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(
-                    RadialGradient(
-                        colors: [Color.white.opacity(0.30), Color.white.opacity(0)],
-                        center: UnitPoint(x: 0.5, y: 0.06),
-                        startRadius: 0,
-                        endRadius: size * 0.9
-                    )
-                )
-
-            // Orbit ring
-            Ellipse()
-                .stroke(Color.white.opacity(0.24), lineWidth: max(1, size * 0.016))
-                .frame(width: size * 0.66, height: size * 0.34)
-                .rotationEffect(.degrees(-22))
-
-            // Satellite dot with glow
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                .fill(LinearGradient(colors: [Color(red: 0.071, green: 0.243, blue: 0.278), Color(red: 0.031, green: 0.49, blue: 0.514)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            RoundedRectangle(cornerRadius: size * 0.1875)
+                .stroke(Color(red: 0.949, green: 0.98, blue: 0.969), lineWidth: size * 0.0742)
+                .frame(width: size * 0.5586, height: size * 0.5586)
+            Path { path in
+                path.move(to: CGPoint(x: size * 0.4375, y: size * 0.415))
+                path.addLine(to: CGPoint(x: size * 0.5098, y: size * 0.3604))
+                path.addLine(to: CGPoint(x: size * 0.5098, y: size * 0.6338))
+            }
+            .stroke(Color(red: 0.949, green: 0.98, blue: 0.969), style: StrokeStyle(lineWidth: size * 0.0742, lineCap: .round, lineJoin: .round))
             Circle()
-                .fill(Color.white)
-                .frame(width: size * 0.06, height: size * 0.06)
-                .shadow(color: Color.white.opacity(0.85), radius: size * 0.045)
-                .offset(x: size * 0.18, y: -size * 0.20)
-
-            // Numeral
-            Text("1")
-                .font(.system(size: size * 0.56, weight: .heavy, design: .rounded))
-                .foregroundStyle(.white)
-                .shadow(color: Color(red: 0.02, green: 0.13, blue: 0.22).opacity(0.28),
-                        radius: size * 0.03, x: 0, y: size * 0.02)
-
-            // Hairline edge highlight
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.18), lineWidth: max(0.5, size * 0.008))
+                .fill(Color(red: 0.071, green: 0.243, blue: 0.278))
+                .frame(width: size * 0.1836, height: size * 0.1836)
+                .overlay(Circle().fill(Color(red: 0.788, green: 0.945, blue: 0.49)).padding(size * 0.03125))
+                .offset(x: size * 0.2441, y: -size * 0.248)
         }
         .frame(width: size, height: size)
-        .shadow(color: Color(red: 0.07, green: 0.42, blue: 0.74).opacity(0.38),
-                radius: size * 0.18, x: 0, y: size * 0.09)
+        .accessibilityLabel("OnePlace")
     }
 }
 
@@ -65,7 +40,7 @@ struct OnePlaceWordmark: View {
                     .font(.system(size: 24, weight: .black, design: .rounded))
                     .foregroundStyle(.primary)
 
-                Text("Everything in one home")
+                Text("A little more life. A little less admin.")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
             }

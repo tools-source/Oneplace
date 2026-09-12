@@ -23,7 +23,7 @@ enum DesignSystem {
         uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
                 ? UIColor(red: 0.20, green: 0.82, blue: 0.90, alpha: 1)
-                : UIColor(red: 0.05, green: 0.58, blue: 0.69, alpha: 1)
+                : UIColor(red: 0.02, green: 0.43, blue: 0.48, alpha: 1)
         }
     )
     static let accentSoft = accentColor.opacity(0.14)
@@ -181,7 +181,8 @@ enum DesignSystem {
     static let rowHeight: CGFloat = 54
     static let cardShadowRadius: CGFloat = 14
     static let badgeSize: CGFloat = 32
-    static let tabBarContentInset: CGFloat = 132
+    // The root already reserves space for navigation.
+    static let tabBarContentInset: CGFloat = 16
 
     // MARK: - Corner Radius
 

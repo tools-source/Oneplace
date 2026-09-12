@@ -15,8 +15,11 @@ struct OrganizerView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.editMode) private var editMode
 
-    @State private var showingAdd = false
-    @State private var editingTask: TaskItemRecord?
+    @State private var editingTask: ItemEditorDestination<TaskItemRecord>?
+    @State private var inlineTaskText = ""
+    @State private var inlineTaskError: String?
+    @State private var inlineTaskDueDate: Date? = nil
+    @State private var inlineTaskPriority: TaskPriority = .normal
     @State private var searchText = ""
     @State private var lastRefreshToken: UUID?
     @State private var showingClearDoneConfirm = false
@@ -94,14 +97,10 @@ struct OrganizerView: View {
         NavigationStack {
             List {
                 Section {
-                    OnePlaceAISearchBar(
-                        text: $searchText,
-                        placeholder: "Search or add task",
-                        isProcessing: vm.isLoading,
-                        onSubmit: handleSearchSubmit
-                    )
-                    .listRowInsets(EdgeInsets(top: 10, leading: 8, bottom: 4, trailing: 8))
-                    .listRowBackground(Color.clear)
+                    organizerPulseCard
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 6, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
 
                 summarySection
@@ -111,11 +110,14 @@ struct OrganizerView: View {
             .listSectionSeparator(.hidden)
             .listSectionSpacing(0)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .background(DesignSystem.backgroundGradient.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: DesignSystem.tabBarContentInset)
             }
             .navigationTitle("Tasks")
+            .searchable(text: $searchText, prompt: "Search tasks and notes")
+            .refreshable { await vm.refresh() }
             .animation(.easeInOut(duration: 0.2), value: selectedSegment)
             .onChange(of: selectedSegment) { _, newValue in
                 UserDefaults.standard.set(newValue.rawValue, forKey: "tasks.selectedSegment")
@@ -127,40 +129,37 @@ struct OrganizerView: View {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     EditButton()
                         .disabled(!canReorderTasks || selectedTasks.isEmpty)
-
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
                 }
             }
-            .sheet(isPresented: $showingAdd) {
-                TaskEditorView(task: nil) { draft in
-                    Task {
+            .sheet(item: $editingTask) { destination in
+                TaskEditorView(task: destination.item) { draft in
+                    if let task = destination.item {
+                        let updated = TaskItemRecord(
+                            id: task.id,
+                            ownerUserId: task.ownerUserId,
+                            title: draft.title,
+                            notes: draft.notes,
+                            priority: draft.priority,
+                            manualOrder: task.priority == draft.priority ? task.manualOrder : nil,
+                            dueDate: draft.dueDate,
+                            completed: draft.completed,
+                            reminderEnabled: draft.reminderEnabled,
+                            reminderDate: draft.reminderDate,
+                            reminderRepeat: draft.reminderRepeat,
+                            remindersID: task.remindersID
+                        )
+                        await vm.updateTask(updated)
+                    } else {
                         await vm.addTask(draft: draft)
-                        showingAdd = false
                     }
-                }
-            }
-            .sheet(item: $editingTask) { task in
-                TaskEditorView(task: task) { draft in
-                    let updated = TaskItemRecord(
-                        id: task.id,
-                        ownerUserId: task.ownerUserId,
-                        title: draft.title,
-                        notes: draft.notes,
-                        priority: draft.priority,
-                        manualOrder: task.priority == draft.priority ? task.manualOrder : nil,
-                        dueDate: draft.dueDate,
-                        completed: draft.completed,
-                        reminderEnabled: draft.reminderEnabled,
-                        reminderDate: draft.reminderDate,
-                        reminderRepeat: draft.reminderRepeat,
-                        remindersID: task.remindersID
-                    )
-                    Task { await vm.updateTask(updated) }
-                    editingTask = nil
+                    let error = vm.errorMessage
+                    if error == nil, destination.item == nil {
+                        searchText = ""
+                        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now)) ?? .now
+                        selectedSegment = (draft.dueDate.map { $0 >= tomorrow } ?? false) ? .upcoming : .today
+                    }
+                    vm.errorMessage = nil
+                    return error
                 }
             }
             .alert("Organizer Error", isPresented: organizerErrorBinding) {
@@ -195,13 +194,51 @@ struct OrganizerView: View {
 
     private var organizerErrorBinding: Binding<Bool> {
         Binding(
-            get: { vm.errorMessage != nil },
+            get: { vm.errorMessage != nil && editingTask == nil },
             set: { isPresented in
                 if !isPresented {
                     vm.errorMessage = nil
                 }
             }
         )
+    }
+
+    private var highPriorityTodayCount: Int {
+        todayTasks.filter { $0.priority == .high }.count
+    }
+
+    private var organizerPulseCard: some View {
+        WorkspacePulseCard(
+            title: "Task Focus",
+            subtitle: organizerPulseSubtitle,
+            icon: highPriorityTodayCount > 0 ? "exclamationmark.circle.fill" : "checkmark.circle.fill",
+            tint: highPriorityTodayCount > 0 ? DesignSystem.oweColor : DesignSystem.accentColor,
+            primaryValue: "\(todayTasks.count)",
+            primaryLabel: "today",
+            secondaryValue: "\(highPriorityTodayCount)",
+            secondaryLabel: "high priority",
+            actionTitle: selectedSegment == .upcoming ? "Today" : "Upcoming"
+        ) {
+            withAnimation {
+                selectedSegment = selectedSegment == .upcoming ? .today : .upcoming
+            }
+        }
+    }
+
+    private var organizerPulseSubtitle: String {
+        if todayTasks.isEmpty && upcomingTasks.isEmpty {
+            return "Your task list is quiet. Add the next thing when it appears."
+        }
+
+        if highPriorityTodayCount > 0 {
+            return "\(highPriorityTodayCount) high-priority task\(highPriorityTodayCount == 1 ? "" : "s") need attention today."
+        }
+
+        if let next = upcomingTasks.first, let dueDate = next.dueDate {
+            return "Next scheduled task: \(next.title), due \(dueDate.formatted(date: .abbreviated, time: .omitted))."
+        }
+
+        return "\(todayTasks.count) open task\(todayTasks.count == 1 ? "" : "s") are in today's lane."
     }
 
     private var summarySection: some View {
@@ -269,41 +306,81 @@ struct OrganizerView: View {
                         .padding(.vertical, 24)
                         .listRowBackground(Color.clear)
                 }
-            } else if selectedTasks.isEmpty {
+            } else {
+                Section {
+                    inlineTaskAddRow
+                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+
+                if selectedTasks.isEmpty {
                 Section {
                     EmptyState(
                         title: emptyTitle,
                         message: emptyMessage,
                         systemImage: emptySystemImage,
-                        ctaTitle: "Add Task"
-                    ) {
-                        showingAdd = true
-                    }
+                        ctaTitle: nil
+                    )
                     .padding(.vertical, 10)
                     .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 12, trailing: 8))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
-            } else {
-                ForEach(taskPriorityGroups) { group in
-                    Section {
-                        ForEach(group.tasks) { task in
-                            taskRow(for: task)
-                                .onTapGesture {
-                                    editingTask = task
-                                }
-                                .moveDisabled(!canReorderTasks)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
+                } else {
+                    ForEach(taskPriorityGroups) { group in
+                        Section {
+                            ForEach(group.tasks) { task in
+                                taskRow(for: task)
+                                    .onTapGesture {
+                                        editingTask = .edit(task)
+                                    }
+                                    .moveDisabled(!canReorderTasks)
+                                    .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                            }
+                            .onMove { source, destination in
+                                moveTasks(from: source, to: destination, in: group)
+                            }
+                        } header: {
+                            priorityHeader(for: group)
                         }
-                        .onMove { source, destination in
-                            moveTasks(from: source, to: destination, in: group)
-                        }
-                    } header: {
-                        priorityHeader(for: group)
                     }
                 }
+            }
+        }
+    }
+
+    private var inlineTaskAddRow: some View {
+        InlineAddItemRow(
+            text: $inlineTaskText,
+            placeholder: "New task",
+            systemImage: "plus.circle.fill",
+            tint: DesignSystem.accentColor,
+            isSaving: vm.isLoading,
+            validationMessage: inlineTaskError,
+            onSubmit: saveInlineTask,
+            onCancel: cancelInlineTaskAdd
+        ) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    InlineAddHelperButton(title: "Today", systemImage: "calendar", tint: DesignSystem.accentColor, isSelected: inlineTaskDueDate.map(Calendar.current.isDateInToday) == true) {
+                        inlineTaskDueDate = .now
+                    }
+                    InlineAddHelperButton(title: "Tomorrow", systemImage: "calendar.badge.clock", tint: DesignSystem.warmAccent, isSelected: inlineTaskDueDate.map(Calendar.current.isDateInTomorrow) == true) {
+                        inlineTaskDueDate = Calendar.current.date(byAdding: .day, value: 1, to: .now)
+                    }
+                    InlineAddHelperButton(title: "No due date", systemImage: "calendar.badge.minus", tint: DesignSystem.secondaryTextColor, isSelected: inlineTaskDueDate == nil) {
+                        inlineTaskDueDate = nil
+                    }
+                    InlineAddHelperMenu(title: "Priority", systemImage: priorityHeaderIcon(for: inlineTaskPriority), tint: priorityTint(for: inlineTaskPriority), isSelected: inlineTaskPriority != .normal) {
+                        ForEach([TaskPriority.high, .normal, .low], id: \.self) { priority in
+                            Button(priority.displayName) { inlineTaskPriority = priority }
+                        }
+                    }
+                }
+                .padding(.leading, 40)
             }
         }
     }
@@ -383,9 +460,19 @@ struct OrganizerView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(task.completed ? "Done" : task.priority.displayName)
-                        .font(.headline)
+                    Image(systemName: task.completed ? "checkmark.circle.fill" : priorityHeaderIcon(for: task.priority))
+                        .font(.system(size: 21, weight: .semibold))
                         .foregroundStyle(taskTint(for: task))
+                        .frame(width: 34, height: 34)
+                        .background(
+                            Circle()
+                                .fill(taskTint(for: task).opacity(0.14))
+                        )
+                        .overlay(
+                            Circle()
+                                .strokeBorder(taskTint(for: task).opacity(0.22), lineWidth: 1)
+                        )
+                        .accessibilityLabel(task.completed ? "Done" : "\(task.priority.displayName) priority")
 
                     if let dueDate = task.dueDate, !task.completed {
                         Text(shortRelativeLabel(for: dueDate))
@@ -411,7 +498,7 @@ struct OrganizerView: View {
         }
         .swipeActions(edge: .trailing) {
             Button {
-                editingTask = task
+                editingTask = .edit(task)
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
@@ -472,6 +559,45 @@ struct OrganizerView: View {
         updated.priority = priority
         updated.manualOrder = nil
         Task { await vm.updateTask(updated) }
+    }
+
+    private func cancelInlineTaskAdd() {
+        inlineTaskText = ""
+        inlineTaskError = nil
+    }
+
+    private func saveInlineTask() {
+        let prompt = inlineTaskText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+
+        var draft = OrganizerPromptInterpreter.interpret(prompt)
+        if let inlineTaskDueDate {
+            draft.dueDate = inlineTaskDueDate
+        } else if !OrganizerPromptInterpreter.promptHasDate(prompt) {
+            draft.dueDate = nil
+            draft.reminderEnabled = false
+            draft.reminderDate = nil
+        }
+        draft.priority = inlineTaskPriority
+
+        Task {
+            await vm.addTask(draft: draft)
+            guard vm.errorMessage == nil else {
+                inlineTaskError = vm.errorMessage
+                return
+            }
+
+            await MainActor.run {
+                searchText = ""
+                inlineTaskText = ""
+                inlineTaskError = nil
+                inlineTaskDueDate = nil
+                inlineTaskPriority = .normal
+                let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: .now)) ?? .now
+                selectedSegment = (draft.dueDate.map { $0 >= tomorrow } ?? false) ? .upcoming : .today
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
     }
 
     private var emptyTitle: String {
@@ -588,7 +714,7 @@ struct OrganizerView: View {
     private func priorityTint(for priority: TaskPriority) -> Color {
         switch priority {
         case .high:
-            return DesignSystem.warmAccent
+            return DesignSystem.oweColor
         case .normal:
             return DesignSystem.accentColor
         case .low:
@@ -768,6 +894,8 @@ enum OrganizerPromptInterpreter {
 
 private struct TaskEditorView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var isSaving = false
+    @State private var saveError: String?
 
     private enum Field {
         case title
@@ -785,9 +913,9 @@ private struct TaskEditorView: View {
     @FocusState private var focusedField: Field?
 
     private let task: TaskItemRecord?
-    private let onSave: (TaskItemDraft) -> Void
+    private let onSave: (TaskItemDraft) async -> String?
 
-    init(task: TaskItemRecord?, onSave: @escaping (TaskItemDraft) -> Void) {
+    init(task: TaskItemRecord?, onSave: @escaping (TaskItemDraft) async -> String?) {
         self.task = task
         self.onSave = onSave
 
@@ -804,6 +932,18 @@ private struct TaskEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    CreationGuideCard(
+                        title: task == nil ? "Capture The Next Thing" : "Refine Task",
+                        subtitle: "Give it a clear title, choose priority, and add dates or reminders only when they help you act.",
+                        icon: priority == .high ? "exclamationmark.circle.fill" : "checkmark.circle.fill",
+                        tint: editorPriorityTint(for: priority),
+                        status: hasDueDate ? dueDate.formatted(date: .abbreviated, time: .omitted) : "No due date"
+                    )
+                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear)
+                }
+
                 Section("Details") {
                     TextField("Task title", text: $title)
                         .focused($focusedField, equals: .title)
@@ -824,6 +964,13 @@ private struct TaskEditorView: View {
                     Toggle("Add due date", isOn: $hasDueDate)
                     if hasDueDate {
                         DatePicker("Due date", selection: $dueDate, displayedComponents: .date)
+                        HStack {
+                            Button("Today") { dueDate = .now }
+                            Button("Tomorrow") {
+                                dueDate = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
+                            }
+                        }
+                        .buttonStyle(.bordered)
                     }
                 }
 
@@ -855,15 +1002,31 @@ private struct TaskEditorView: View {
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(task == nil ? "New Task" : "Edit Task")
             .navigationBarTitleDisplayMode(.inline)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .scrollDismissesKeyboard(.interactively)
+            .interactiveDismissDisabled(isSaving)
+            .disabled(isSaving)
+            .overlay {
+                if isSaving { ProgressView("Saving…").padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) }
+            }
+            .alert("Couldn’t save", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "Please try again. Your entries are still here.")
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { dismiss() }.disabled(isSaving)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(task == nil ? "Add" : "Save") {
+                        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+
                         let draft = TaskItemDraft(
-                            title: title,
-                            notes: notes.isEmpty ? nil : notes,
+                            title: trimmedTitle,
+                            notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
                             priority: priority,
                             dueDate: hasDueDate ? dueDate : nil,
                             completed: task?.completed ?? false,
@@ -871,17 +1034,47 @@ private struct TaskEditorView: View {
                             reminderDate: reminderEnabled ? reminderDate : nil,
                             reminderRepeat: reminderEnabled ? reminderRepeat : .oneTime
                         )
-                        onSave(draft)
-                        dismiss()
+                        isSaving = true
+                        Task {
+                            saveError = await onSave(draft)
+                            isSaving = false
+                            if saveError == nil {
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                dismiss()
+                            }
+                        }
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+            }
+            .onChange(of: hasDueDate) { _, enabled in
+                guard enabled, reminderEnabled, reminderDate < Date() else { return }
+                reminderDate = dueDate
+            }
+            .onChange(of: dueDate) { _, newValue in
+                guard reminderEnabled, reminderDate < Date() else { return }
+                reminderDate = newValue
+            }
+            .onChange(of: reminderEnabled) { _, enabled in
+                guard enabled, reminderDate < Date() else { return }
+                reminderDate = hasDueDate ? dueDate : Date()
             }
             .onAppear {
                 if task == nil {
                     focusedField = .title
                 }
             }
+        }
+    }
+
+    private func editorPriorityTint(for priority: TaskPriority) -> Color {
+        switch priority {
+        case .high:
+            return DesignSystem.oweColor
+        case .normal:
+            return DesignSystem.accentColor
+        case .low:
+            return DesignSystem.secondaryTextColor
         }
     }
 }

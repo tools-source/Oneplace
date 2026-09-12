@@ -101,7 +101,6 @@ struct OnePlaceApp: App {
                 guard !didRestoreSession else { return }
                 didRestoreSession = true
                 await authManager.restoreSessionFromProvider()
-                await AppPermissionBootstrap.requestInitialPermissionsIfNeeded()
                 await refreshTaskSurfacesIfSignedIn()
                 OnePlaceTaskSyncCoordinator.scheduleBackgroundRefresh()
             }
@@ -119,6 +118,7 @@ struct OnePlaceApp: App {
     private func refreshTaskSurfacesIfSignedIn() async {
         guard case .signedIn = authManager.authState else { return }
 
+        await OnePlaceLiveActivityController.shared.restoreFromCacheIfEnabled()
         do {
             try await OnePlaceTaskSyncCoordinator.syncCurrentUserTasks()
         } catch {

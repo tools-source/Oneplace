@@ -7,4 +7,5 @@ struct FinanceEntryDraft: Equatable {
     var entryDescription: String
     var date: Date
     var urgency: FinanceUrgency
+    var personName: String = ""
 }
